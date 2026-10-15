@@ -1,10 +1,14 @@
 node_modules/
 dist/
+.env
+.env.*
+!.env.example
 .DS_Store
 *.local
-.env
+*.tsbuildinfo
 .vite/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+tests/.output/

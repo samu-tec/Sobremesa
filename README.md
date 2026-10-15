@@ -1,127 +1,87 @@
-# 🎮 Multiplayer Gaming Platform — games.samuelciocan.com
+# Sobremesa
 
-Plataforma multijugador en tiempo real escalable, ultraligera y segura ante trampas (Server-Authoritative), diseñada con arquitectura de monorepo moderno en **pnpm**, **TypeScript**, **Node.js + Socket.IO** y **React + Vite + Tailwind CSS**.
+Juegos de mesa para compartir con amigos desde el navegador. Incluye Ciudad Fortuna, Cambio de Color, Cuatro en Línea, Reversi, Tres en Raya y Dados al 100. Puedes crear una sala, compartir su código o jugar contra un bot, sin registrarte. La interfaz, reglas y partidas están disponibles en español e inglés.
 
----
+**Dirección pública prevista:** [games.samuelciocan.com](https://games.samuelciocan.com). El proyecto se llama **Sobremesa**; `games.samuelciocan.com` es su dirección web.
 
-## 🏛️ Estructura del Monorepo
+## Probar la aplicación
 
-```
-.
-├── apps/
-│   ├── client/                  # Frontend: React 18, Vite, Tailwind CSS, Lucide
-│   │   ├── src/
-│   │   │   ├── components/      # Tableros interactivos (ColorClash, TicTacToe) y anuncios
-│   │   │   ├── hooks/           # useGuestProfile (UUID persistente en localStorage)
-│   │   │   ├── services/        # Web Audio API (procedural SFX), Socket.IO client
-│   │   │   └── views/           # Vista 1: Lobby, Vista 2: Sala de Espera, Vista 3: Juego
-│   │   ├── index.html           # Meta viewport mobile (touch-action, 100dvh)
-│   │   ├── vite.config.ts       # Proxy WS / Socket.IO y servidor de desarrollo
-│   │   └── package.json
-│   └── server/                  # Backend: Node.js, Express, Socket.IO
-│       ├── src/
-│       │   ├── RoomManager.ts   # Salas con códigos de 5 caracteres, bots, reconexión
-│       │   ├── socketHandlers.ts# Eventos Socket.IO fuertemente tipados
-│       │   ├── server.ts        # Express HTTP + Socket.IO Server + Static serving
-│       │   └── config.ts        # Variables de entorno y configuración
-│       └── package.json
-├── packages/
-│   └── game-logic/              # Lógica de juego pura compartida (Zero runtime deps)
-│       ├── src/
-│       │   ├── engine/          # Interfaz IGameEngine (Patrón Plugin / Estrategia)
-│       │   ├── events/          # Tipado estricto de eventos Socket.IO
-│       │   ├── games/
-│       │   │   ├── tictactoe/   # 3 en Raya: Motor + Bot Minimax
-│       │   │   └── colorclash/  # Color Clash (108 cartas, turnos circulares, bot)
-│       │   └── types/           # Tipos de salas, jugadores y lifecycle hooks
-│       └── test/                # Tests unitarios de motores y sanitización
-├── docs/
-│   └── DECISIONS.md             # ADR: Arquitectura, Seguridad, Marcas y Monetización
-├── Dockerfile                   # Construcción multi-stage ultra-ligera
-├── docker-compose.yml           # Orquestación con servicio opcional Cloudflare Tunnel
-├── pnpm-workspace.yaml          # Configuración de workspaces pnpm
-├── package.json                 # Scripts raíz de desarrollo y compilación
-└── tsconfig.json                # Configuración base estricta de TypeScript
-```
+Necesitas Node.js 22.13 o superior y pnpm 12.10.1.
 
----
+Desde la carpeta del proyecto:
 
-## 🚀 Inicio Rápido en Desarrollo
-
-### 1. Requisitos Previos
-- Node.js >= 20
-- pnpm >= 9 (o `corepack enable pnpm`)
-
-### 2. Instalación y Ejecución
-```bash
-# 1. Instalar dependencias en todo el monorepo
-pnpm install
-
-# 2. Ejecutar tests unitarios de los motores de juego
-pnpm test
-
-# 3. Iniciar entorno de desarrollo interactivo (cliente y servidor concurrentes)
+```sh
+pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-El servidor estará escuchando en `http://localhost:3000` y el cliente en `http://localhost:5173`.
+Abre **http://127.0.0.1:5173** y espera a que aparezca «Listo para jugar». El comando inicia la web, el servidor y la compilación de las reglas. Para detenerlos, pulsa `Ctrl+C` en esa terminal.
 
----
+En local no necesitas Docker, Cloudflare ni crear un archivo `.env`: la configuración predeterminada sirve para probarlo. Si todavía no tienes pnpm y tu instalación de Node incluye Corepack:
 
-## 🕹️ Juegos Disponibles (Fase 1)
-
-### 1. 3 en Raya (Tic-Tac-Toe)
-- **Modos:** 1v1 Online o Local vs Bot (IA con algoritmo Minimax imbatible).
-- **Mecánicas:** Tablero de 3x3, cálculo de turnos y líneas ganadoras con resaltado visual animado.
-
-### 2. Color Clash (Mecánica tipo UNO® libre de infracción de marca)
-- **Baraja:** 108 cartas distribuidas en 4 colores (`Rojo`, `Azul`, `Verde`, `Amarillo`), números (`0-9`), Cartas de Acción (`+2`, `Salto`, `Cambio de Sentido`) y Comodines (`Comodín`, `Comodín +4`).
-- **Jugadores:** De 2 a 4 jugadores (combinando humanos y bots inteligentes).
-- **IA de Bots:** Análisis heurístico que prioriza contrarrestar rivales con pocas cartas y selecciona el color óptimo al jugar comodines.
-- **Server-Authoritative:** Sanitización estricta por jugador (`getSanitizedState`). Los rivales solo reciben `{ cardCount: number }`. El mazo y las cartas ajenas nunca se envían al cliente.
-
----
-
-## 📱 Optimizaciones Mobile-First
-
-- **CSS `100dvh`:** Evita saltos y solapamientos con la barra dinámica de navegación de iOS Safari y Chrome Android.
-- **Touch Targets >= 48px:** Botones, casillas y cartas diseñados para interacción táctil cómoda y sin fallos.
-- **`touch-action: manipulation`:** Elimina el retardo clásico de 300ms de doble toque en navegadores móviles.
-- **Efectos de Sonido Procedurales:** Generados en tiempo real mediante la **Web Audio API** del navegador (cero dependencias de archivos MP3/WAV externos, latencia cero y sin riesgo de 404s).
-
----
-
-## 🐳 Despliegue en Producción & Cloudflare Tunnels
-
-### Modo Standalone
-```bash
-pnpm build
-pnpm start
-# Abre http://localhost:3000 (el backend sirve el frontend optimizado)
+```sh
+corepack enable
+corepack prepare pnpm@12.10.1 --activate
 ```
 
-### Modo Docker
-```bash
-# Compilar y arrancar contenedor de producción
-docker compose up -d game-server
+Para comprobar una partida entre dos personas en el mismo equipo, abre la web en una ventana normal y otra privada, crea una sala y entra con su código desde la segunda ventana. También puedes usar dos navegadores distintos.
+
+La [guía de pruebas](docs/TESTING.md) explica qué revisar en cada juego, cómo comprobar la reconexión y cómo probar tamaños de móvil.
+
+## Estructura
+
+```text
+apps/
+  client/              Interfaz, idiomas, componentes y conexión con las salas
+  server/              Servidor HTTP, sesiones y partidas multijugador
+packages/
+  game-logic/          Reglas, tipos y bots de los seis juegos
+    src/games/         Un directorio por juego
+    test/              Pruebas de los motores
+tests/                Pruebas de integración y navegador
+deploy/               Ejemplo de configuración de cloudflared
+docs/                 Decisiones, desarrollo, pruebas y despliegue
 ```
 
-### Exposición con Cloudflare Tunnels (`cloudflared`)
-El archivo `docker-compose.yml` incluye un perfil listo para `cloudflared`:
-```bash
-# Exportar tu token de túnel obtenido en Cloudflare Zero Trust
-export CLOUDFLARE_TUNNEL_TOKEN="tu-token-aqui"
+Los tres paquetes comparten tipos mediante pnpm workspaces. Las reglas se ejecutan en el servidor y la interfaz recibe el estado que corresponde a cada jugador.
 
-# Arrancar la plataforma junto con el túnel
-docker compose --profile tunnel up -d
-```
-Esto expondrá de forma segura `http://localhost:3000` en `games.samuelciocan.com` con SSL/TLS gestionado, protección DDoS y sin abrir puertos en el router.
+Los archivos de configuración de la raíz tienen estas funciones:
 
----
+| Archivo                                             | Para qué sirve                                                               |
+| --------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `package.json`                                      | Dependencias, comandos y configuración de Prettier                           |
+| `pnpm-workspace.yaml`                               | Agrupa los paquetes del proyecto y permite compilar esbuild                  |
+| `pnpm-lock.yaml`                                    | Fija las versiones instaladas para que todos usen las mismas                 |
+| `tsconfig.json`                                     | Configuración común de TypeScript; cada paquete tiene sus ajustes            |
+| `playwright.config.ts`                              | Navegador y servidor temporal para las pruebas automáticas                   |
+| `.gitignore`                                        | Excluye dependencias, compilaciones, secretos y resultados de pruebas de Git |
+| `.gitattributes`                                    | Mantiene el tratamiento de archivos de texto consistente entre sistemas      |
+| `.env.example`                                      | Ejemplo de opciones del servidor, sin credenciales                           |
+| `Dockerfile`, `docker-compose.yml`, `.dockerignore` | Construcción y ejecución con Docker                                          |
 
-## 📖 Documentación de Decisiones de Arquitectura
-Consulta [`docs/DECISIONS.md`](file:///Users/samuel/Documents/Games/docs/DECISIONS.md) para detalles completos sobre:
-- Modelo de seguridad Zero-Trust y sanitización de estado.
-- Interfaz extensible `IGameEngine`.
-- Mitigación legal respecto a marcas registradas.
-- Estrategia de monetización (Guest UUID, JWT, Lifecycle hooks para anuncios).
+`node_modules/` contiene las dependencias instaladas y `dist/` los resultados de compilación. Son directorios generados. Los resultados de las pruebas quedan en `tests/.output/` y tampoco se guardan en Git.
+
+## Comandos
+
+| Comando                 | Uso                                                      |
+| ----------------------- | -------------------------------------------------------- |
+| `pnpm dev`              | Desarrollar y probar en el puerto 5173                   |
+| `pnpm build`            | Compilar los tres paquetes                               |
+| `pnpm start`            | Servir la aplicación compilada en el puerto 3000         |
+| `pnpm test:i18n`        | Verificar traducciones y parámetros                      |
+| `pnpm test`             | Probar las reglas y los bots                             |
+| `pnpm test:integration` | Probar sesiones y permisos con un servidor temporal      |
+| `pnpm test:e2e`         | Probar la interfaz con un navegador                      |
+| `pnpm check`            | Comprobar formato, compilar y ejecutar todas las pruebas |
+| `pnpm format`           | Dar formato al código con Prettier                       |
+
+Las pruebas de integración y navegador necesitan que hayas ejecutado `pnpm build`. Las de navegador usan Google Chrome instalado; hay una alternativa con Chromium en la [guía de pruebas](docs/TESTING.md).
+
+## Desarrollo y alojamiento
+
+- [Decisiones del proyecto](docs/DECISIONS.md): arquitectura, estilo y reglas que conviene mantener.
+- [Guía de desarrollo](docs/CONTRIBUTING.md): dónde añadir un juego y cómo integrarlo con la interfaz.
+- [Pruebas](docs/TESTING.md): comprobaciones manuales y automáticas.
+- [Despliegue](docs/DEPLOYMENT.md): Node, Docker y Cloudflare Tunnel para `games.samuelciocan.com`.
+
+Las salas están en memoria: reiniciar el servidor termina las partidas. La reconexión permite recuperar el sitio durante tres minutos por defecto mientras el servidor siga funcionando.

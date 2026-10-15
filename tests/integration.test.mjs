@@ -1,0 +1,299 @@
+import test, { before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
+import { io } from 'socket.io-client';
+const url = 'http://127.0.0.1:3190';
+let server;
+const clients = [];
+const secret = () => randomBytes(32).toString('hex');
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+before(async () => {
+  server = spawn(process.execPath, ['apps/server/dist/server.js'], {
+    env: {
+      ...process.env,
+      PORT: '3190',
+      HOST: '127.0.0.1',
+      NODE_ENV: 'production',
+      BOT_THINKING_TIME_MS: '10',
+      DISCONNECT_GRACE_PERIOD_MS: '1000',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let logs = '';
+  server.stdout.on('data', (d) => (logs += d));
+  server.stderr.on('data', (d) => (logs += d));
+  for (let i = 0; i < 100; i++) {
+    try {
+      if ((await fetch(url + '/health')).ok) return;
+    } catch {}
+    await wait(50);
+  }
+  throw new Error('Servidor no disponible: ' + logs);
+});
+after(async () => {
+  for (const s of clients) s.disconnect();
+  server?.kill('SIGTERM');
+});
+const ack = (socket, event, ...data) =>
+  new Promise((resolve, reject) => {
+    socket
+      .timeout(3000)
+      .emit(event, ...data, (err, result) => (err ? reject(err) : resolve(result)));
+  });
+async function connect(token = secret(), extra = {}) {
+  const socket = io(url, {
+    auth: { sessionToken: token },
+    transports: ['websocket'],
+    reconnection: false,
+    ...extra,
+  });
+  clients.push(socket);
+  const { playerId } = await new Promise((resolve, reject) => {
+    socket.once('session:ready', resolve);
+    socket.once('connect_error', reject);
+  });
+  return { socket, playerId, token };
+}
+async function create(client, gameType = 'tictactoe') {
+  const result = await ack(client.socket, 'room:create', { playerName: 'Ana', gameType });
+  assert.equal(result.success, true);
+  return result.room;
+}
+
+test('HTTP: cabeceras, catálogo de seis juegos y rutas desconocidas', async () => {
+  const res = await fetch(url);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('x-powered-by'), null);
+  assert.equal(res.headers.get('x-frame-options'), 'DENY');
+  assert.match(res.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+  assert.ok(!(await res.text()).includes('fonts.googleapis'));
+  const stats = await fetch(url + '/api/stats');
+  assert.equal((await stats.json()).supportedGames.length, 6);
+  assert.equal(stats.headers.get('cache-control'), 'no-store');
+  assert.equal((await fetch(url + '/api/unknown')).status, 404);
+  assert.equal((await fetch(url + '/missing.js')).status, 404);
+});
+test('Rechaza orígenes ajenos y secretos de sesión no válidos', async () => {
+  await assert.rejects(connect('short'));
+  await assert.rejects(connect(secret(), { extraHeaders: { Origin: 'https://evil.example' } }));
+  const a = await connect();
+  assert.match(a.playerId, /^guest_[a-f0-9]{32}$/);
+  a.socket.disconnect();
+});
+test('Eventos malformados no tumban el servidor ni crean salas', async () => {
+  const a = await connect();
+  for (const payload of [
+    null,
+    {},
+    [],
+    { gameType: 'unknown', playerName: 'Ana' },
+    { gameType: 'tictactoe', playerName: 5 },
+  ])
+    assert.equal((await ack(a.socket, 'room:create', payload)).success, false);
+  a.socket.emit('room:create', null);
+  assert.equal((await fetch(url + '/health')).status, 200);
+  a.socket.disconnect();
+});
+test('El identificador público no permite robar una sesión ni permisos de anfitrión', async () => {
+  const a = await connect(),
+    b = await connect(),
+    room = await create(a);
+  assert.equal(
+    (await ack(b.socket, 'game:reconnect', { roomCode: room.code, playerId: a.playerId })).success,
+    false,
+  );
+  const joined = await ack(b.socket, 'room:join', {
+    roomCode: room.code,
+    playerName: 'Bruno',
+    playerId: a.playerId,
+  });
+  assert.equal(joined.success, true);
+  assert.ok(joined.room.players.some((p) => p.id === b.playerId));
+  for (const event of ['room:add_bot', 'room:start_game', 'room:restart_game'])
+    assert.equal((await ack(b.socket, event)).success, false);
+  assert.equal((await ack(b.socket, 'room:update_rules', { startingCash: 2500 })).success, false);
+  assert.equal(
+    (await ack(a.socket, 'room:create', { playerName: 'Ana', gameType: 'pig' })).success,
+    false,
+  );
+  assert.equal((await ack(a.socket, 'room:start_game')).success, true);
+  assert.equal((await ack(a.socket, 'room:start_game')).success, false);
+  assert.equal((await ack(a.socket, 'room:restart_game')).success, false);
+  assert.equal(
+    (await ack(b.socket, 'game:action', { type: 'MAKE_MOVE', index: 0, playerId: a.playerId }))
+      .success,
+    false,
+  );
+  assert.equal(
+    (await ack(a.socket, 'game:action', { type: 'MAKE_MOVE', index: 1.5 })).success,
+    false,
+  );
+  assert.equal((await ack(a.socket, 'game:action', { type: 'MAKE_MOVE', index: 0 })).success, true);
+  await ack(a.socket, 'room:leave');
+  await ack(b.socket, 'room:leave');
+  a.socket.disconnect();
+  b.socket.disconnect();
+});
+test('Reconexión con secreto, estado restaurado y cambio de conexión autenticado', async () => {
+  const a = await connect(),
+    room = await create(a);
+  await ack(a.socket, 'room:add_bot');
+  await ack(a.socket, 'room:start_game');
+  await ack(a.socket, 'game:action', { type: 'MAKE_MOVE', index: 0 });
+  a.socket.disconnect();
+  await wait(100);
+  const reconnect = await connect(a.token),
+    result = await ack(reconnect.socket, 'game:reconnect', { roomCode: room.code });
+  assert.equal(result.success, true);
+  assert.equal(result.state.board[0], 'X');
+  assert.equal(reconnect.playerId, a.playerId);
+  const duplicate = await connect(a.token);
+  const replaced = new Promise((resolve) => reconnect.socket.once('session:replaced', resolve));
+  const detached = new Promise((resolve) => reconnect.socket.once('disconnect', resolve));
+  const handover = await ack(duplicate.socket, 'game:reconnect', { roomCode: room.code });
+  assert.equal(handover.success, true);
+  await Promise.all([replaced, detached]);
+  assert.equal(reconnect.socket.connected, false);
+  assert.equal(handover.state.board[0], 'X');
+  await ack(duplicate.socket, 'room:leave');
+  duplicate.socket.disconnect();
+  reconnect.socket.disconnect();
+});
+test('Reglas solo admiten opciones enumeradas y valores finitos', async () => {
+  const a = await connect(),
+    room = await create(a, 'monopoly');
+  for (const rules of [
+    null,
+    [],
+    { startingCash: -1 },
+    { startingCash: '1500' },
+    { salaryGO: 999999 },
+    { jailFine: 0 },
+    { maxRounds: 1 },
+    { auctionEnabled: 1 },
+    { __proto__: { admin: true } },
+  ]) {
+    if (rules && Object.keys(rules).length === 0) continue;
+    assert.equal((await ack(a.socket, 'room:update_rules', rules)).success, false);
+  }
+  assert.equal(
+    (
+      await ack(a.socket, 'room:update_rules', {
+        startingCash: 2000,
+        auctionEnabled: true,
+        maxRounds: 20,
+      })
+    ).success,
+    true,
+  );
+  await ack(a.socket, 'room:leave');
+  a.socket.disconnect();
+});
+test('Ausencias simultáneas preservan la reserva del segundo jugador', async () => {
+  const a = await connect(),
+    b = await connect(),
+    room = await create(a);
+  await ack(b.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' });
+  a.socket.disconnect();
+  await wait(500);
+  b.socket.disconnect();
+  await wait(650);
+  const resumed = await connect(b.token),
+    result = await ack(resumed.socket, 'game:reconnect', { roomCode: room.code });
+  assert.equal(result.success, true);
+  assert.equal(result.room.hostId, b.playerId);
+  await ack(resumed.socket, 'room:leave');
+  resumed.socket.disconnect();
+});
+test('Límite de acciones responde con un error controlado', async () => {
+  const a = await connect();
+  const results = await Promise.all(
+    Array.from({ length: 45 }, () => ack(a.socket, 'game:action', { type: 'NOOP' })),
+  );
+  assert.ok(results.some((r) => /Demasiadas/.test(r.error)));
+  a.socket.disconnect();
+  assert.equal((await fetch(url + '/health')).status, 200);
+});
+
+test('Salas simultáneas del mismo juego y de otro juego mantienen sus estados separados', async () => {
+  const people = await Promise.all(Array.from({ length: 6 }, () => connect()));
+  const rooms = [];
+  for (let i = 0; i < 3; i++) {
+    const room = await create(people[i * 2], i === 2 ? 'colorclash' : 'tictactoe');
+    rooms.push(room);
+    assert.equal(
+      (
+        await ack(people[i * 2 + 1].socket, 'room:join', {
+          roomCode: room.code,
+          playerName: 'Invitado',
+        })
+      ).success,
+      true,
+    );
+    assert.equal((await ack(people[i * 2].socket, 'room:start_game')).success, true);
+  }
+  assert.equal(new Set(rooms.map((r) => r.code)).size, 3);
+  await ack(people[0].socket, 'game:action', { type: 'MAKE_MOVE', index: 0 });
+  const other = await ack(people[2].socket, 'game:reconnect', { roomCode: rooms[1].code });
+  assert.deepEqual(other.state.board, Array(9).fill(null));
+  assert.equal(
+    (await ack(people[2].socket, 'game:action', { type: 'MAKE_MOVE', index: 0 })).success,
+    true,
+  );
+  const cards = await ack(people[4].socket, 'game:reconnect', { roomCode: rooms[2].code });
+  assert.equal(cards.state.myHand.length, 7);
+  assert.equal('drawPile' in cards.state, false);
+  for (const person of people) {
+    await ack(person.socket, 'room:leave');
+    person.socket.disconnect();
+  }
+});
+test(
+  'El servidor resuelve turnos agotados en los seis juegos sin depender del navegador',
+  { timeout: 45000 },
+  async () => {
+    const sessions = [];
+    for (const game of ['monopoly', 'colorclash', 'connect4', 'reversi', 'tictactoe', 'pig']) {
+      const host = await connect(),
+        guest = await connect(),
+        room = await create(host, game);
+      await ack(guest.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' });
+      assert.equal(
+        (await ack(host.socket, 'room:update_rules', { turnSeconds: 30 })).success,
+        true,
+      );
+      let latest = null,
+        updates = 0;
+      host.socket.on('game:state_update', (state) => {
+        latest = state;
+        updates++;
+      });
+      await ack(host.socket, 'room:start_game');
+      assert.equal(
+        (await ack(host.socket, 'room:update_rules', { turnSeconds: 180 })).success,
+        false,
+      );
+      sessions.push({ host, guest, room, game, read: () => ({ latest, updates }) });
+    }
+    await wait(31200);
+    for (const session of sessions) {
+      const { latest, updates } = session.read();
+      assert.ok(updates > 0, `No terminó el turno de ${session.game}`);
+      const actor =
+        latest.auction?.currentBidderId || latest.currentTurn || latest.currentTurnPlayerId;
+      assert.equal(actor, session.guest.playerId, `Turno bloqueado en ${session.game}`);
+      const recovered = await ack(session.host.socket, 'game:reconnect', {
+        roomCode: session.room.code,
+      });
+      assert.equal(recovered.room.turnSeconds, 30);
+      assert.ok(recovered.room.turnDeadline > Date.now());
+      if (session.game === 'tictactoe') assert.equal(latest.board.filter(Boolean).length, 1);
+      if (session.game === 'colorclash') assert.equal('drawPile' in latest, false);
+      await ack(session.host.socket, 'room:leave');
+      await ack(session.guest.socket, 'room:leave');
+      session.host.socket.disconnect();
+      session.guest.socket.disconnect();
+    }
+  },
+);

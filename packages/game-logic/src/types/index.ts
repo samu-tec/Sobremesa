@@ -1,4 +1,4 @@
-export type GameType = 'tictactoe' | 'colorclash' | 'monopoly';
+export type GameType = 'tictactoe' | 'colorclash' | 'monopoly' | 'connect4' | 'reversi' | 'pig';
 
 export type RoomStatus = 'waiting' | 'in_game' | 'finished';
 
@@ -19,6 +19,10 @@ export interface RoomInfo {
   maxPlayers: number;
   minPlayers: number;
   customRules?: any;
+  turnSeconds: number;
+  turnDeadline: number | null;
+  serverNow: number;
+  reconnectGraceMs: number;
 }
 
 /**
@@ -26,5 +30,10 @@ export interface RoomInfo {
  */
 export interface GameLifecycleHooks {
   onGameStart?: (data: { roomCode: string; gameType: GameType; playerIds: string[] }) => void;
-  onGameEnd?: (data: { roomCode: string; gameType: GameType; winnerId: string | null; durationMs: number }) => void;
+  onGameEnd?: (data: {
+    roomCode: string;
+    gameType: GameType;
+    winnerId: string | null;
+    durationMs: number;
+  }) => void;
 }

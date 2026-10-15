@@ -1,10 +1,6 @@
+import { message as msg, term, type GameText } from '../../messages.js';
 import { IGameEngine } from '../../engine/IGameEngine.js';
-import {
-  BOARD_TILES,
-  CHANCE_CARDS,
-  COMMUNITY_CHEST_CARDS,
-  PROPERTY_GROUPS,
-} from './boardData.js';
+import { BOARD_TILES, CHANCE_CARDS, COMMUNITY_CHEST_CARDS, PROPERTY_GROUPS } from './boardData.js';
 import {
   BoardTile,
   CardEffect,
@@ -16,6 +12,7 @@ import {
   MonopolyState,
   PropertyGroup,
   PropertyOwnership,
+  MonopolyTradeOffer,
 } from './types.js';
 import { getBotMonopolyAction } from './bot.js';
 
@@ -28,23 +25,30 @@ function shuffle<T>(arr: T[]): T[] {
   return result;
 }
 
-export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction, MonopolyPublicState> {
-  constructor(private customRules: MonopolyCustomRules = DEFAULT_MONOPOLY_RULES) {}
+export class MonopolyEngine implements IGameEngine<
+  MonopolyState,
+  MonopolyAction,
+  MonopolyPublicState
+> {
+  private customRules: MonopolyCustomRules;
+  constructor(rules: Partial<MonopolyCustomRules> = {}) {
+    this.customRules = { ...DEFAULT_MONOPOLY_RULES, ...rules };
+  }
 
   public setRules(rules: Partial<MonopolyCustomRules>) {
     this.customRules = { ...this.customRules, ...rules };
   }
 
-  initGame(players: { id: string; isBot: boolean }[]): MonopolyState {
+  initGame(players: { id: string; isBot: boolean; name?: string }[]): MonopolyState {
     if (players.length < 2 || players.length > 6) {
-      throw new Error('Capital Clash (Monopoly) requiere entre 2 y 6 jugadores');
+      throw new Error('Ciudad Fortuna requiere entre 2 y 6 jugadores');
     }
 
     const startingCash = this.customRules.startingCash || 1500;
 
-    const monopolyPlayers: MonopolyPlayer[] = players.map(p => ({
+    const monopolyPlayers: MonopolyPlayer[] = players.map((p) => ({
       id: p.id,
-      name: p.id,
+      name: p.name || 'Jugador',
       isBot: p.isBot,
       position: 0,
       cash: startingCash,
@@ -67,6 +71,9 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
     }
 
     return {
+      round: 1,
+      isDraw: false,
+      heldJailCards: [],
       players: monopolyPlayers,
       properties,
       currentTurnPlayerId: monopolyPlayers[0].id,
@@ -79,69 +86,88 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
       pendingTileAction: null,
       freeParkingPool: 0,
       winner: null,
-      logs: ['¡Partida de Capital Clash iniciada! Todos comienzan en la SALIDA con ' + startingCash + '€.'],
+      logs: [
+        msg(
+          '¡Partida de Ciudad Fortuna iniciada! Todos comienzan en la SALIDA con {0}€.',
+          startingCash,
+        ),
+      ],
       customRules: { ...this.customRules },
       activeTrade: null,
+      auction: null,
       chanceDeck: shuffle(CHANCE_CARDS),
       communityDeck: shuffle(COMMUNITY_CHEST_CARDS),
     };
   }
 
   validateAction(state: MonopolyState, playerId: string, action: MonopolyAction): boolean {
-    if (state.winner !== null) return false;
+    if (!action || typeof action !== 'object') return false;
+    if (state.winner !== null || state.isDraw) return false;
+    if (state.auction) {
+      const bidder = state.players.find((p) => p.id === playerId && !p.isBankrupt);
+      if (!bidder || state.auction.currentBidderId !== playerId) return false;
+      return (
+        action.type === 'PASS_AUCTION' ||
+        (action.type === 'BID' &&
+          Number.isSafeInteger(action.amount) &&
+          action.amount >= state.auction.currentBid + 10 &&
+          action.amount <= bidder.cash)
+      );
+    }
 
-    // Responding to or cancelling trades can happen off-turn
+    // Trades can be offered and answered outside the normal turn. Every field is
+    // validated on the server, including the claimed sender and remaining cash.
     if (action.type === 'RESPOND_TRADE') {
-      return Boolean(
-        state.activeTrade &&
-        state.activeTrade.id === action.tradeId &&
-        state.activeTrade.toPlayerId === playerId
+      if (typeof action.accept !== 'boolean') return false;
+      if (
+        !state.activeTrade ||
+        state.activeTrade.id !== action.tradeId ||
+        state.activeTrade.toPlayerId !== playerId
+      )
+        return false;
+      return (
+        !action.accept ||
+        this.isValidTrade(state, state.activeTrade, state.activeTrade.fromPlayerId)
       );
     }
 
     if (action.type === 'CANCEL_TRADE') {
       return Boolean(
         state.activeTrade &&
-        (state.activeTrade.fromPlayerId === playerId || state.activeTrade.toPlayerId === playerId)
+        (state.activeTrade.fromPlayerId === playerId || state.activeTrade.toPlayerId === playerId),
       );
     }
 
     if (action.type === 'PROPOSE_TRADE') {
-      if (state.activeTrade) return false; // only 1 trade at a time
-      const player = state.players.find(p => p.id === playerId);
-      const target = state.players.find(p => p.id === action.trade.toPlayerId);
-      if (!player || !target || player.isBankrupt || target.isBankrupt) return false;
-      if (player.cash < action.trade.offeredCash) return false;
-
-      // Ensure properties offered belong to player and have no houses
-      for (const idx of action.trade.offeredPropertyIndices) {
-        const prop = state.properties[idx];
-        if (!prop || prop.ownerId !== playerId || prop.houses > 0) return false;
-      }
-      // Ensure requested properties belong to target and have no houses
-      for (const idx of action.trade.requestedPropertyIndices) {
-        const prop = state.properties[idx];
-        if (!prop || prop.ownerId !== target.id || prop.houses > 0) return false;
-      }
-      return true;
+      return !state.activeTrade && this.isValidTrade(state, action.trade, playerId);
     }
 
     // All other actions require it being the player's turn
     if (state.currentTurnPlayerId !== playerId) return false;
 
-    const player = state.players.find(p => p.id === playerId);
+    const player = state.players.find((p) => p.id === playerId);
     if (!player || player.isBankrupt) return false;
 
     if (action.type === 'ROLL_DICE') {
-      return state.turnPhase === 'roll' && !state.hasRolled;
+      return player.cash >= 0 && state.turnPhase === 'roll' && !state.hasRolled;
     }
 
     if (action.type === 'PAY_JAIL_FINE') {
-      return player.inJail && state.turnPhase === 'roll' && !state.hasRolled && player.cash >= state.customRules.jailFine;
+      return (
+        player.inJail &&
+        state.turnPhase === 'roll' &&
+        !state.hasRolled &&
+        player.cash >= state.customRules.jailFine
+      );
     }
 
     if (action.type === 'USE_JAIL_CARD') {
-      return player.inJail && state.turnPhase === 'roll' && !state.hasRolled && player.getOutOfJailFreeCards > 0;
+      return (
+        player.inJail &&
+        state.turnPhase === 'roll' &&
+        !state.hasRolled &&
+        player.getOutOfJailFreeCards > 0
+      );
     }
 
     if (action.type === 'BUY_PROPERTY') {
@@ -152,7 +178,9 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
     }
 
     if (action.type === 'PASS_PROPERTY') {
-      return state.turnPhase === 'tile_action' && state.pendingTileAction?.actionType === 'buy_property';
+      return (
+        state.turnPhase === 'tile_action' && state.pendingTileAction?.actionType === 'buy_property'
+      );
     }
 
     if (action.type === 'END_TURN') {
@@ -170,12 +198,14 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
 
       // Must own all in group and none mortgaged
       const groupTiles = PROPERTY_GROUPS[tile.group];
-      const ownsAll = groupTiles.every(idx => state.properties[idx]?.ownerId === playerId && !state.properties[idx]?.isMortgaged);
+      const ownsAll = groupTiles.every(
+        (idx) => state.properties[idx]?.ownerId === playerId && !state.properties[idx]?.isMortgaged,
+      );
       if (!ownsAll) return false;
 
       // Even building: cannot build if another property in group has fewer houses
-      const minHousesInGroup = Math.min(...groupTiles.map(idx => state.properties[idx].houses));
-      return prop.houses === minHousesInGroup;
+      const minHousesInGroup = Math.min(...groupTiles.map((idx) => state.properties[idx].houses));
+      return !state.customRules.evenBuilding || prop.houses === minHousesInGroup;
     }
 
     if (action.type === 'SELL_HOUSE') {
@@ -187,8 +217,8 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
 
       // Even building rule: cannot sell if another property in group has more houses
       const groupTiles = PROPERTY_GROUPS[tile.group];
-      const maxHousesInGroup = Math.max(...groupTiles.map(idx => state.properties[idx].houses));
-      return prop.houses === maxHousesInGroup;
+      const maxHousesInGroup = Math.max(...groupTiles.map((idx) => state.properties[idx].houses));
+      return !state.customRules.evenBuilding || prop.houses === maxHousesInGroup;
     }
 
     if (action.type === 'MORTGAGE_PROPERTY') {
@@ -197,9 +227,9 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
 
       // Cannot mortgage if any property in the group has houses
       const tile = BOARD_TILES[action.tileIndex];
-      if (tile.group && (tile.group !== 'station' && tile.group !== 'utility')) {
+      if (tile.group && tile.group !== 'station' && tile.group !== 'utility') {
         const groupTiles = PROPERTY_GROUPS[tile.group];
-        const anyHouses = groupTiles.some(idx => state.properties[idx]?.houses > 0);
+        const anyHouses = groupTiles.some((idx) => state.properties[idx]?.houses > 0);
         if (anyHouses) return false;
       }
       return true;
@@ -220,46 +250,120 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
     return false;
   }
 
+  private isValidTrade(
+    state: MonopolyState,
+    trade: Omit<MonopolyTradeOffer, 'id'>,
+    senderId: string,
+  ): boolean {
+    if (!trade || trade.fromPlayerId !== senderId || senderId === trade.toPlayerId) return false;
+    const from = state.players.find((player) => player.id === senderId);
+    const to = state.players.find((player) => player.id === trade.toPlayerId);
+    if (!from || !to || from.isBankrupt || to.isBankrupt) return false;
+    const validCash = (amount: number, available: number) =>
+      Number.isSafeInteger(amount) && amount >= 0 && amount <= available;
+    if (!validCash(trade.offeredCash, from.cash) || !validCash(trade.requestedCash, to.cash))
+      return false;
+
+    const validProperties = (indices: number[], ownerId: string) => {
+      if (!Array.isArray(indices) || new Set(indices).size !== indices.length) return false;
+      return indices.every((index) => {
+        if (!Number.isInteger(index) || index < 0 || index >= BOARD_TILES.length) return false;
+        const tile = BOARD_TILES[index];
+        const property = state.properties[index];
+        if (!property || property.ownerId !== ownerId || property.houses !== 0) return false;
+        // Developed color sets cannot be broken up by trading a single street.
+        if (tile.type === 'property' && tile.group) {
+          return !PROPERTY_GROUPS[tile.group].some(
+            (sibling) => (state.properties[sibling]?.houses ?? 0) > 0,
+          );
+        }
+        return true;
+      });
+    };
+
+    return (
+      validProperties(trade.offeredPropertyIndices, senderId) &&
+      validProperties(trade.requestedPropertyIndices, to.id) &&
+      (trade.offeredCash > 0 ||
+        trade.requestedCash > 0 ||
+        trade.offeredPropertyIndices.length > 0 ||
+        trade.requestedPropertyIndices.length > 0)
+    );
+  }
+
   applyAction(state: MonopolyState, playerId: string, action: MonopolyAction): MonopolyState {
+    if (!this.validateAction(state, playerId, action)) return state;
     const newState: MonopolyState = {
       ...state,
-      players: state.players.map(p => ({ ...p })),
-      properties: { ...state.properties },
+      players: state.players.map((p) => ({ ...p })),
+      properties: Object.fromEntries(
+        Object.entries(state.properties).map(([index, property]) => [index, { ...property }]),
+      ),
       logs: [...state.logs],
       chanceDeck: [...state.chanceDeck],
       communityDeck: [...state.communityDeck],
+      auction: state.auction
+        ? { ...state.auction, passedPlayerIds: [...state.auction.passedPlayerIds] }
+        : null,
+      heldJailCards: state.heldJailCards.map((held) => ({ ...held })),
     };
 
-    const player = newState.players.find(p => p.id === playerId);
+    const player = newState.players.find((p) => p.id === playerId);
     if (!player) return newState;
+
+    if (newState.auction && (action.type === 'BID' || action.type === 'PASS_AUCTION')) {
+      if (action.type === 'BID') {
+        newState.auction.currentBid = action.amount;
+        newState.auction.highestBidderId = playerId;
+        newState.logs.unshift(
+          msg(
+            '{0} puja {1} € por {2}.',
+            player.name,
+            action.amount,
+            term(BOARD_TILES[newState.auction.tileIndex].name),
+          ),
+        );
+      } else {
+        newState.auction.passedPlayerIds.push(playerId);
+      }
+      this.advanceAuction(newState, playerId);
+      return newState;
+    }
 
     // TRADE HANDLING
     if (action.type === 'PROPOSE_TRADE') {
       newState.activeTrade = {
-        id: `trade_${Date.now()}`,
-        ...action.trade,
+        fromPlayerId: playerId,
+        toPlayerId: action.trade.toPlayerId,
+        offeredCash: action.trade.offeredCash,
+        requestedCash: action.trade.requestedCash,
+        offeredPropertyIndices: [...action.trade.offeredPropertyIndices],
+        requestedPropertyIndices: [...action.trade.requestedPropertyIndices],
+        id: `trade_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       };
-      const target = newState.players.find(p => p.id === action.trade.toPlayerId);
-      newState.logs.unshift(`${player.name} propuso un intercambio a ${target?.name || 'otro jugador'}.`);
+      const target = newState.players.find((p) => p.id === action.trade.toPlayerId);
+      newState.logs.unshift(
+        msg('{0} propuso un intercambio a {1}.', player.name, target?.name || term('otro jugador')),
+      );
       return newState;
     }
 
     if (action.type === 'CANCEL_TRADE') {
       newState.activeTrade = null;
-      newState.logs.unshift(`El intercambio fue cancelado.`);
+      newState.logs.unshift(msg('El intercambio fue cancelado.'));
       return newState;
     }
 
     if (action.type === 'RESPOND_TRADE') {
       if (!newState.activeTrade || !action.accept) {
         newState.activeTrade = null;
-        newState.logs.unshift(`${player.name} rechazó el intercambio.`);
+        newState.logs.unshift(msg('{0} rechazó el intercambio.', player.name));
         return newState;
       }
 
       // Execute Trade
-      const fromP = newState.players.find(p => p.id === newState.activeTrade!.fromPlayerId)!;
-      const toP = newState.players.find(p => p.id === newState.activeTrade!.toPlayerId)!;
+      const fromP = newState.players.find((p) => p.id === newState.activeTrade!.fromPlayerId)!;
+      const toP = newState.players.find((p) => p.id === newState.activeTrade!.toPlayerId)!;
 
       fromP.cash -= newState.activeTrade.offeredCash;
       toP.cash += newState.activeTrade.offeredCash;
@@ -274,7 +378,7 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
         newState.properties[idx] = { ...newState.properties[idx], ownerId: fromP.id };
       }
 
-      newState.logs.unshift(`¡Trato cerrado entre ${fromP.name} y ${toP.name}!`);
+      newState.logs.unshift(msg('¡Trato cerrado entre {0} y {1}!', fromP.name, toP.name));
       newState.activeTrade = null;
       return newState;
     }
@@ -287,15 +391,26 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
       }
       player.inJail = false;
       player.jailTurns = 0;
-      newState.logs.unshift(`${player.name} pagó ${newState.customRules.jailFine}€ para salir de la Cárcel.`);
+      newState.logs.unshift(
+        msg('{0} pagó {1}€ para salir de la Cárcel.', player.name, newState.customRules.jailFine),
+      );
       return newState;
     }
 
     if (action.type === 'USE_JAIL_CARD') {
+      const heldIndex = newState.heldJailCards.findIndex((held) => held.ownerId === playerId);
+      if (heldIndex >= 0) {
+        const [held] = newState.heldJailCards.splice(heldIndex, 1);
+        (held.card.deck === 'chance' ? newState.chanceDeck : newState.communityDeck).push(
+          held.card,
+        );
+      }
       player.getOutOfJailFreeCards--;
       player.inJail = false;
       player.jailTurns = 0;
-      newState.logs.unshift(`${player.name} utilizó una Carta de Libertad para salir de la Cárcel.`);
+      newState.logs.unshift(
+        msg('{0} utilizó una Carta de Libertad para salir de la Cárcel.', player.name),
+      );
       return newState;
     }
 
@@ -311,14 +426,25 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
       newState.isDouble = isDouble;
       newState.hasRolled = true;
 
-      newState.logs.unshift(`🎲 ${player.name} tiró los dados: [${d1}] y [${d2}] (Total: ${sum})${isDouble ? ' ¡DOBLES!' : ''}`);
+      newState.logs.unshift(
+        msg(
+          '🎲 {0} tiró los dados: [{1}] y [{2}] (Total: {3}){4}',
+          player.name,
+          d1,
+          d2,
+          sum,
+          term(isDouble ? ' ¡DOBLES!' : ''),
+        ),
+      );
 
       // Handle Jail rolling
       if (player.inJail) {
         if (isDouble) {
           player.inJail = false;
           player.jailTurns = 0;
-          newState.logs.unshift(`${player.name} sacó dobles y quedó en libertad.`);
+          newState.logs.unshift(msg('{0} sacó dobles y quedó en libertad.', player.name));
+          // Doubles release the player but do not grant another throw.
+          newState.isDouble = false;
           this.movePlayer(newState, player, sum);
           return newState;
         } else {
@@ -330,10 +456,23 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
             }
             player.inJail = false;
             player.jailTurns = 0;
-            newState.logs.unshift(`${player.name} cumplió su condena máxima en prisión, pagó ${newState.customRules.jailFine}€ y avanza.`);
+            newState.logs.unshift(
+              msg(
+                '{0} cumplió su condena máxima en prisión, pagó {1}€ y avanza.',
+                player.name,
+                newState.customRules.jailFine,
+              ),
+            );
             this.movePlayer(newState, player, sum);
           } else {
-            newState.logs.unshift(`${player.name} no sacó dobles y permanece en la Cárcel (Turno ${player.jailTurns}/${newState.customRules.maxJailTurns}).`);
+            newState.logs.unshift(
+              msg(
+                '{0} no sacó dobles y permanece en la Cárcel (Turno {1}/{2}).',
+                player.name,
+                player.jailTurns,
+                newState.customRules.maxJailTurns,
+              ),
+            );
             newState.turnPhase = 'end_turn';
           }
           return newState;
@@ -368,7 +507,9 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
         isMortgaged: false,
       };
 
-      newState.logs.unshift(`🏠 ${player.name} compró "${tile.name}" por ${price}€.`);
+      newState.logs.unshift(
+        msg('🏠 {0} compró "{1}" por {2}€.', player.name, term(tile.name), price),
+      );
       newState.pendingTileAction = null;
       newState.turnPhase = newState.isDouble ? 'roll' : 'end_turn';
       if (newState.isDouble) newState.hasRolled = false;
@@ -379,8 +520,19 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
     if (action.type === 'PASS_PROPERTY') {
       if (!newState.pendingTileAction) return newState;
       const tile = BOARD_TILES[newState.pendingTileAction.tileIndex];
-      newState.logs.unshift(`${player.name} decidió no comprar "${tile.name}".`);
+      newState.logs.unshift(msg('{0} decidió no comprar "{1}".', player.name, term(tile.name)));
       newState.pendingTileAction = null;
+      if (newState.customRules.auctionEnabled) {
+        newState.auction = {
+          tileIndex: tile.index,
+          currentBid: 0,
+          highestBidderId: null,
+          currentBidderId: playerId,
+          passedPlayerIds: [],
+        };
+        this.advanceAuction(newState, playerId);
+        return newState;
+      }
       newState.turnPhase = newState.isDouble ? 'roll' : 'end_turn';
       if (newState.isDouble) newState.hasRolled = false;
       return newState;
@@ -393,7 +545,9 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
       newState.properties[action.tileIndex].houses++;
       const count = newState.properties[action.tileIndex].houses;
       const label = count === 5 ? 'un Hotel' : `${count} casa(s)`;
-      newState.logs.unshift(`🏗️ ${player.name} construyó ${label} en "${tile.name}".`);
+      newState.logs.unshift(
+        msg('🏗️ {0} construyó {1} en "{2}".', player.name, term(label), term(tile.name)),
+      );
       return newState;
     }
 
@@ -403,7 +557,14 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
       const refund = Math.floor(tile.houseCost! / 2);
       player.cash += refund;
       newState.properties[action.tileIndex].houses--;
-      newState.logs.unshift(`🏚️ ${player.name} vendió una edificación en "${tile.name}" por ${refund}€.`);
+      newState.logs.unshift(
+        msg(
+          '🏚️ {0} vendió una edificación en "{1}" por {2}€.',
+          player.name,
+          term(tile.name),
+          refund,
+        ),
+      );
       return newState;
     }
 
@@ -412,7 +573,14 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
       const tile = BOARD_TILES[action.tileIndex];
       player.cash += tile.mortgageValue!;
       newState.properties[action.tileIndex].isMortgaged = true;
-      newState.logs.unshift(`📜 ${player.name} hipotecó "${tile.name}" por ${tile.mortgageValue}€.`);
+      newState.logs.unshift(
+        msg(
+          '📜 {0} hipotecó "{1}" por {2}€.',
+          player.name,
+          term(tile.name),
+          tile.mortgageValue ?? 0,
+        ),
+      );
       return newState;
     }
 
@@ -422,12 +590,20 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
       const cost = Math.round((tile.mortgageValue || 0) * 1.1);
       player.cash -= cost;
       newState.properties[action.tileIndex].isMortgaged = false;
-      newState.logs.unshift(`🔓 ${player.name} levantó la hipoteca de "${tile.name}" por ${cost}€.`);
+      newState.logs.unshift(
+        msg('🔓 {0} levantó la hipoteca de "{1}" por {2}€.', player.name, term(tile.name), cost),
+      );
       return newState;
     }
 
     // DECLARE BANKRUPTCY
     if (action.type === 'DECLARE_BANKRUPTCY') {
+      this.returnJailCards(newState, playerId);
+      if (
+        newState.activeTrade?.fromPlayerId === playerId ||
+        newState.activeTrade?.toPlayerId === playerId
+      )
+        newState.activeTrade = null;
       player.isBankrupt = true;
       player.cash = 0;
       // Release all properties
@@ -440,7 +616,9 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
           };
         }
       }
-      newState.logs.unshift(`💀 ${player.name} se ha declarado en Bancarrota y queda eliminado de la partida.`);
+      newState.logs.unshift(
+        msg('💀 {0} se ha declarado en Bancarrota y queda eliminado de la partida.', player.name),
+      );
       this.advanceTurn(newState);
       this.checkVictory(newState);
       return newState;
@@ -456,6 +634,90 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
     return newState;
   }
 
+  /** Remove a player who has left a running match without blocking turn progression. */
+  forfeitPlayer(state: MonopolyState, playerId: string): MonopolyState {
+    const next: MonopolyState = {
+      ...state,
+      players: state.players.map((p) => ({ ...p })),
+      properties: Object.fromEntries(
+        Object.entries(state.properties).map(([index, property]) => [index, { ...property }]),
+      ),
+      logs: [...state.logs],
+      heldJailCards: state.heldJailCards.map((held) => ({ ...held })),
+      chanceDeck: [...state.chanceDeck],
+      communityDeck: [...state.communityDeck],
+    };
+    const player = next.players.find((p) => p.id === playerId);
+    if (!player || player.isBankrupt || next.winner) return next;
+    player.isBankrupt = true;
+    player.cash = 0;
+    this.returnJailCards(next, playerId);
+    if (next.auction) {
+      next.auction = null;
+      next.turnPhase = next.isDouble ? 'roll' : 'end_turn';
+      if (next.isDouble) next.hasRolled = false;
+      next.logs.unshift(msg('La subasta se canceló por abandono. La propiedad sigue en el banco.'));
+    }
+    for (const property of Object.values(next.properties)) {
+      if (property.ownerId === playerId) {
+        property.ownerId = null;
+        property.houses = 0;
+        property.isMortgaged = false;
+      }
+    }
+    if (next.activeTrade?.fromPlayerId === playerId || next.activeTrade?.toPlayerId === playerId) {
+      next.activeTrade = null;
+    }
+    next.logs.unshift(
+      msg('{0} abandonó la partida. Sus propiedades vuelven al banco.', player.name),
+    );
+    if (next.currentTurnPlayerId === playerId) this.advanceTurn(next);
+    this.checkVictory(next);
+    return next;
+  }
+
+  private advanceAuction(state: MonopolyState, previousId: string): void {
+    const auction = state.auction!;
+    const start = state.players.findIndex((p) => p.id === previousId);
+    for (let offset = 1; offset <= state.players.length; offset++) {
+      const player = state.players[(start + offset) % state.players.length];
+      if (
+        !player.isBankrupt &&
+        player.id !== auction.highestBidderId &&
+        !auction.passedPlayerIds.includes(player.id) &&
+        player.cash >= auction.currentBid + 10
+      ) {
+        auction.currentBidderId = player.id;
+        return;
+      }
+    }
+    if (auction.highestBidderId) {
+      const winner = state.players.find((p) => p.id === auction.highestBidderId)!;
+      winner.cash -= auction.currentBid;
+      state.properties[auction.tileIndex] = { ownerId: winner.id, houses: 0, isMortgaged: false };
+      state.logs.unshift(
+        msg(
+          '{0} gana la subasta de {1} por {2} €.',
+          winner.name,
+          term(BOARD_TILES[auction.tileIndex].name),
+          auction.currentBid,
+        ),
+      );
+    } else state.logs.unshift(msg('Subasta desierta. La propiedad sigue en el banco.'));
+    state.auction = null;
+    state.turnPhase = state.isDouble ? 'roll' : 'end_turn';
+    if (state.isDouble) state.hasRolled = false;
+  }
+
+  private returnJailCards(state: MonopolyState, playerId: string): void {
+    for (const held of state.heldJailCards.filter((held) => held.ownerId === playerId)) {
+      (held.card.deck === 'chance' ? state.chanceDeck : state.communityDeck).push(held.card);
+    }
+    state.heldJailCards = state.heldJailCards.filter((held) => held.ownerId !== playerId);
+    const player = state.players.find((p) => p.id === playerId);
+    if (player) player.getOutOfJailFreeCards = 0;
+  }
+
   private movePlayer(state: MonopolyState, player: MonopolyPlayer, steps: number): void {
     const oldPos = player.position;
     const newPos = (oldPos + steps) % 40;
@@ -464,16 +726,19 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
     // Passing GO check
     if (newPos < oldPos || newPos === 0) {
       const isDirectOnGo = newPos === 0;
-      const salary = isDirectOnGo && state.customRules.doubleGoSalary
-        ? state.customRules.salaryGO * 2
-        : state.customRules.salaryGO;
+      const salary =
+        isDirectOnGo && state.customRules.doubleGoSalary
+          ? state.customRules.salaryGO * 2
+          : state.customRules.salaryGO;
 
       player.cash += salary;
-      state.logs.unshift(`🚩 ${player.name} pasó por la SALIDA y cobró su salario de ${salary}€.`);
+      state.logs.unshift(
+        msg('🚩 {0} pasó por la SALIDA y cobró su salario de {1}€.', player.name, salary),
+      );
     }
 
     const tile = BOARD_TILES[newPos];
-    state.logs.unshift(`${player.name} cayó en "${tile.name}".`);
+    state.logs.unshift(msg('{0} cayó en "{1}".', player.name, term(tile.name)));
 
     // Resolve landed tile
     if (tile.type === 'property' || tile.type === 'station' || tile.type === 'utility') {
@@ -490,14 +755,19 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
       } else if (prop.ownerId !== player.id) {
         // Owned by rival: calculate and pay rent
         if (prop.isMortgaged) {
-          state.logs.unshift(`"${tile.name}" está hipotecada. No se cobra alquiler.`);
+          state.logs.unshift(msg('"{0}" está hipotecada. No se cobra alquiler.', term(tile.name)));
         } else {
-          const owner = state.players.find(p => p.id === prop.ownerId)!;
-          const rentAmount = this.calculateRent(state, tile, prop, state.lastDiceSum);
+          const owner = state.players.find((p) => p.id === prop.ownerId)!;
+          const rentAmount =
+            !state.customRules.rentInJail && owner.inJail
+              ? 0
+              : this.calculateRent(state, tile, prop, state.lastDiceSum);
 
           player.cash -= rentAmount;
           owner.cash += rentAmount;
-          state.logs.unshift(`💸 ${player.name} pagó ${rentAmount}€ de alquiler a ${owner.name}.`);
+          state.logs.unshift(
+            msg('💸 {0} pagó {1}€ de alquiler a {2}.', player.name, rentAmount, owner.name),
+          );
         }
       }
     } else if (tile.type === 'tax') {
@@ -506,13 +776,15 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
       if (state.customRules.freeParkingPool) {
         state.freeParkingPool += tax;
       }
-      state.logs.unshift(`⚖️ ${player.name} pagó ${tax}€ de impuestos.`);
+      state.logs.unshift(msg('⚖️ {0} pagó {1}€ de impuestos.', player.name, tax));
     } else if (tile.type === 'free_parking') {
       if (state.customRules.freeParkingPool && state.freeParkingPool > 0) {
         const pool = state.freeParkingPool;
         player.cash += pool;
         state.freeParkingPool = 0;
-        state.logs.unshift(`🎁 ¡Bote de Parking Gratuito! ${player.name} se lleva los ${pool}€ acumulados.`);
+        state.logs.unshift(
+          msg('🎁 ¡Bote de Parking Gratuito! {0} se lleva los {1}€ acumulados.', player.name, pool),
+        );
       }
     } else if (tile.type === 'go_to_jail') {
       this.sendToJail(state, player, 'Casilla Ve a la Cárcel');
@@ -529,22 +801,31 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
     if (state.isDouble && !player.inJail) {
       state.turnPhase = 'roll';
       state.hasRolled = false;
-      state.logs.unshift(`Al sacar dobles, ${player.name} tira otra vez.`);
+      state.logs.unshift(msg('Al sacar dobles, {0} tira otra vez.', player.name));
     } else {
       state.turnPhase = 'end_turn';
     }
   }
 
-  private calculateRent(state: MonopolyState, tile: BoardTile, prop: PropertyOwnership, diceSum: number): number {
+  private calculateRent(
+    state: MonopolyState,
+    tile: BoardTile,
+    prop: PropertyOwnership,
+    diceSum: number,
+  ): number {
     if (tile.type === 'station') {
       const stations = PROPERTY_GROUPS.station;
-      const count = stations.filter(idx => state.properties[idx]?.ownerId === prop.ownerId).length;
+      const count = stations.filter(
+        (idx) => state.properties[idx]?.ownerId === prop.ownerId,
+      ).length;
       return tile.rent![Math.min(count - 1, 3)] || 25;
     }
 
     if (tile.type === 'utility') {
       const utilities = PROPERTY_GROUPS.utility;
-      const count = utilities.filter(idx => state.properties[idx]?.ownerId === prop.ownerId).length;
+      const count = utilities.filter(
+        (idx) => state.properties[idx]?.ownerId === prop.ownerId,
+      ).length;
       return count === 2 ? diceSum * 10 : diceSum * 4;
     }
 
@@ -555,7 +836,7 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
 
     // Unimproved: double rent if owner holds full monopoly
     const groupTiles = PROPERTY_GROUPS[tile.group!];
-    const hasMonopoly = groupTiles.every(idx => state.properties[idx]?.ownerId === prop.ownerId);
+    const hasMonopoly = groupTiles.every((idx) => state.properties[idx]?.ownerId === prop.ownerId);
     return hasMonopoly ? tile.rent![0] * 2 : tile.rent![0];
   }
 
@@ -565,15 +846,29 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
     player.jailTurns = 0;
     state.doublesRolledThisTurn = 0;
     state.turnPhase = 'end_turn';
-    state.logs.unshift(`👮 ¡A la Cárcel! ${player.name} fue encarcelado por: ${reason}.`);
+    state.logs.unshift(
+      msg('👮 ¡A la Cárcel! {0} fue encarcelado por: {1}.', player.name, term(reason)),
+    );
   }
 
-  private drawCard(state: MonopolyState, player: MonopolyPlayer, deckType: 'chance' | 'community_chest'): void {
+  private drawCard(
+    state: MonopolyState,
+    player: MonopolyPlayer,
+    deckType: 'chance' | 'community_chest',
+  ): void {
     const deck = deckType === 'chance' ? state.chanceDeck : state.communityDeck;
     const card = deck.shift()!;
-    deck.push(card); // cycle card back to bottom
+    if (card.type === 'jail_free') state.heldJailCards.push({ ownerId: player.id, card });
+    else deck.push(card);
 
-    state.logs.unshift(`🎴 [${deckType === 'chance' ? 'Suerte' : 'Caja de Comunidad'}] ${player.name}: "${card.text}"`);
+    state.logs.unshift(
+      msg(
+        '🎴 [{0}] {1}: "{2}"',
+        term(deckType === 'chance' ? 'Suerte' : 'Caja de Comunidad'),
+        player.name,
+        term(card.text),
+      ),
+    );
 
     if (card.type === 'move' && card.targetTile !== undefined) {
       const target = card.targetTile;
@@ -591,7 +886,7 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
         state.freeParkingPool += Math.abs(card.value);
       }
     } else if (card.type === 'pay_players' && card.value !== undefined) {
-      const activePlayers = state.players.filter(p => !p.isBankrupt && p.id !== player.id);
+      const activePlayers = state.players.filter((p) => !p.isBankrupt && p.id !== player.id);
       for (const other of activePlayers) {
         player.cash -= card.value;
         other.cash += card.value;
@@ -605,7 +900,7 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
         }
       }
       player.cash -= total;
-      state.logs.unshift(`${player.name} pagó ${total}€ en reparaciones de fincas.`);
+      state.logs.unshift(msg('{0} pagó {1}€ en reparaciones de fincas.', player.name, total));
     }
 
     if (state.isDouble && !player.inJail) {
@@ -623,10 +918,10 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
     state.pendingTileAction = null;
     state.turnPhase = 'roll';
 
-    const activePlayers = state.players.filter(p => !p.isBankrupt);
+    const activePlayers = state.players.filter((p) => !p.isBankrupt);
     if (activePlayers.length <= 1) return;
 
-    const currentIndex = state.players.findIndex(p => p.id === state.currentTurnPlayerId);
+    const currentIndex = state.players.findIndex((p) => p.id === state.currentTurnPlayerId);
     let nextIndex = (currentIndex + 1) % state.players.length;
 
     while (state.players[nextIndex].isBankrupt) {
@@ -634,21 +929,60 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
     }
 
     state.currentTurnPlayerId = state.players[nextIndex].id;
-    state.logs.unshift(`Es el turno de ${state.players[nextIndex].name}.`);
+    if (nextIndex <= currentIndex) state.round++;
+    state.logs.unshift(msg('Es el turno de {0}.', state.players[nextIndex].name));
   }
 
   private checkVictory(state: MonopolyState): void {
-    const activePlayers = state.players.filter(p => !p.isBankrupt);
+    const activePlayers = state.players.filter((p) => !p.isBankrupt);
     if (activePlayers.length === 1) {
       state.winner = activePlayers[0].id;
-      state.logs.unshift(`🏆 ¡VICTORIA! ${activePlayers[0].name} es el nuevo Magnate Inmobiliario de Capital Clash.`);
+      state.logs.unshift(
+        msg(
+          '🏆 ¡VICTORIA! {0} es el nuevo Magnate Inmobiliario de Ciudad Fortuna.',
+          activePlayers[0].name,
+        ),
+      );
+    } else if (state.round > (state.customRules.maxRounds ?? 40)) {
+      const wealth = (id: string) =>
+        state.players.find((p) => p.id === id)!.cash +
+        Object.entries(state.properties).reduce((total, [key, property]) => {
+          if (property.ownerId !== id) return total;
+          const tile = BOARD_TILES[Number(key)];
+          return (
+            total +
+            (tile.price ?? 0) +
+            property.houses * (tile.houseCost ?? 0) -
+            (property.isMortgaged ? (tile.mortgageValue ?? 0) : 0)
+          );
+        }, 0);
+      const best = Math.max(...activePlayers.map((p) => wealth(p.id)));
+      const leaders = activePlayers.filter((p) => wealth(p.id) === best);
+      state.winner = leaders.length === 1 ? leaders[0].id : null;
+      state.isDraw = leaders.length !== 1;
+      state.round = state.customRules.maxRounds ?? 40;
+      state.logs.unshift(
+        msg(
+          'Fin de las {0} rondas. {1} por patrimonio ({2} €).',
+          state.round,
+          state.isDraw ? term('Empate') : msg('Gana {0}', leaders[0].name),
+          best,
+        ),
+      );
     }
   }
 
   getSanitizedState(state: MonopolyState, _playerId: string): MonopolyPublicState {
     return {
-      players: state.players.map(p => ({ ...p })),
-      properties: { ...state.properties },
+      round: state.round,
+      isDraw: state.isDraw,
+      auction: state.auction
+        ? { ...state.auction, passedPlayerIds: [...state.auction.passedPlayerIds] }
+        : null,
+      players: state.players.map((p) => ({ ...p })),
+      properties: Object.fromEntries(
+        Object.entries(state.properties).map(([index, property]) => [index, { ...property }]),
+      ),
       currentTurnPlayerId: state.currentTurnPlayerId,
       turnPhase: state.turnPhase,
       lastDice: [...state.lastDice],
@@ -660,7 +994,13 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
       winner: state.winner,
       logs: state.logs.slice(0, 15),
       customRules: { ...state.customRules },
-      activeTrade: state.activeTrade ? { ...state.activeTrade } : null,
+      activeTrade: state.activeTrade
+        ? {
+            ...state.activeTrade,
+            offeredPropertyIndices: [...state.activeTrade.offeredPropertyIndices],
+            requestedPropertyIndices: [...state.activeTrade.requestedPropertyIndices],
+          }
+        : null,
       chanceDeckRemaining: state.chanceDeck.length,
       communityDeckRemaining: state.communityDeck.length,
     };
@@ -671,6 +1011,10 @@ export class MonopolyEngine implements IGameEngine<MonopolyState, MonopolyAction
   }
 
   getBotAction(state: MonopolyState, botId: string): MonopolyAction | null {
-    return getBotMonopolyAction(state, botId);
+    const action = getBotMonopolyAction(state, botId);
+    if (action && this.validateAction(state, botId, action)) return action;
+    if (state.activeTrade?.toPlayerId === botId)
+      return { type: 'RESPOND_TRADE', tradeId: state.activeTrade.id, accept: false };
+    return null;
   }
 }

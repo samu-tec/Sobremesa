@@ -1,589 +1,546 @@
-import { Server } from 'socket.io';
+import { randomInt, randomUUID } from 'node:crypto';
+import type { Server } from 'socket.io';
 import {
-  ClientToServerEvents,
   ColorClashEngine,
-  DEFAULT_MONOPOLY_RULES,
-  GameLifecycleHooks,
-  GameType,
-  IGameEngine,
   MonopolyEngine,
-  Player,
-  RoomInfo,
-  RoomStatus,
-  ServerToClientEvents,
-  SocketData,
   TicTacToeEngine,
+  Connect4Engine,
+  ReversiEngine,
+  PigEngine,
+  DEFAULT_MONOPOLY_RULES,
+  getGame,
+  type GameType,
+  type IGameEngine,
+  type Player,
+  type RoomInfo,
+  type RoomStatus,
+  type GameLifecycleHooks,
+  type ClientToServerEvents,
+  type ServerToClientEvents,
+  type SocketData,
 } from '@games/game-logic';
 import { CONFIG } from './config.js';
-
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents, any, SocketData>;
-
 interface RoomPlayer extends Player {
   socketId: string | null;
   disconnectTimeout?: NodeJS.Timeout;
 }
-
 interface ActiveRoom {
   code: string;
   gameType: GameType;
   hostId: string;
   status: RoomStatus;
   players: RoomPlayer[];
-  maxPlayers: number;
   minPlayers: number;
+  maxPlayers: number;
   engine: IGameEngine<any, any, any>;
   gameState: any;
   botLoopTimeout?: NodeJS.Timeout;
-  createdAt: number;
+  turnSeconds: number;
+  turnDeadline: number | null;
+  turnActor?: string;
+  turnTimeout?: NodeJS.Timeout;
   lastActivity: number;
   gameStartTime?: number;
   customRules?: any;
 }
-
-const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Excludes 0, O, 1, I to avoid visual confusion
-const BOT_NAMES = ['CyberBot', 'PixelAI', 'RoboGamer', 'AlphaZero', 'NeonBot', 'QuantumByte'];
-
+const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const engineFactories = {
+  tictactoe: () => new TicTacToeEngine(),
+  colorclash: () => new ColorClashEngine(),
+  monopoly: () => new MonopolyEngine(),
+  connect4: () => new Connect4Engine(),
+  reversi: () => new ReversiEngine(),
+  pig: () => new PigEngine(),
+};
 export class RoomManager {
-  private rooms: Map<string, ActiveRoom> = new Map();
-  private socketToRoom: Map<string, string> = new Map(); // socketId -> roomCode
+  private rooms = new Map<string, ActiveRoom>();
+  private socketToRoom = new Map<string, string>();
   private cleanupInterval: NodeJS.Timeout;
-
-  constructor(private io: TypedServer, private lifecycleHooks?: GameLifecycleHooks) {
+  constructor(
+    private io: TypedServer,
+    private lifecycleHooks?: GameLifecycleHooks,
+  ) {
     this.cleanupInterval = setInterval(() => {
-      this.cleanupInactiveRooms();
+      for (const room of this.rooms.values())
+        if (Date.now() - room.lastActivity > CONFIG.ROOM_MAX_IDLE_TIME_MS)
+          this.destroyRoom(room.code, 'Sala cerrada tras 30 minutos sin actividad.');
     }, CONFIG.CLEANUP_INTERVAL_MS);
+    this.cleanupInterval.unref();
   }
-
-  public getRoomsCount(): number {
+  getRoomsCount() {
     return this.rooms.size;
   }
-
-  public generateRoomCode(): string {
-    let code: string;
-    let attempts = 0;
-    do {
-      code = '';
-      for (let i = 0; i < 5; i++) {
-        const randIndex = Math.floor(Math.random() * ROOM_CODE_ALPHABET.length);
-        code += ROOM_CODE_ALPHABET[randIndex];
-      }
-      attempts++;
-    } while (this.rooms.has(code) && attempts < 1000);
-    return code;
-  }
-
-  private createEngine(gameType: GameType, customRules?: any): { engine: IGameEngine<any, any, any>; minPlayers: number; maxPlayers: number } {
-    if (gameType === 'tictactoe') {
-      return { engine: new TicTacToeEngine(), minPlayers: 2, maxPlayers: 2 };
-    } else if (gameType === 'colorclash') {
-      return { engine: new ColorClashEngine(), minPlayers: 2, maxPlayers: 4 };
-    } else if (gameType === 'monopoly') {
-      return { engine: new MonopolyEngine(customRules || DEFAULT_MONOPOLY_RULES), minPlayers: 2, maxPlayers: 6 };
+  generateRoomCode(): string {
+    for (let attempts = 0; attempts < 1000; attempts++) {
+      const code = Array.from({ length: 6 }, () => ALPHABET[randomInt(ALPHABET.length)]).join('');
+      if (!this.rooms.has(code)) return code;
     }
-    throw new Error(`Unsupported game type: ${gameType}`);
+    throw new Error('No se pudo crear un código. Inténtalo otra vez.');
   }
-
-  public createRoom(
-    playerName: string,
-    playerId: string,
-    socketId: string,
-    gameType: GameType
-  ): { success: boolean; room?: RoomInfo; error?: string } {
-    const code = this.generateRoomCode();
-    const initialRules = gameType === 'monopoly' ? { ...DEFAULT_MONOPOLY_RULES } : undefined;
-    const { engine, minPlayers, maxPlayers } = this.createEngine(gameType, initialRules);
-
-    const hostPlayer: RoomPlayer = {
-      id: playerId,
-      name: playerName.trim() || 'Jugador 1',
-      isBot: false,
-      connected: true,
-      isHost: true,
-      socketId,
-    };
-
+  createRoom(name: string, id: string, socketId: string, gameType: GameType) {
+    if (this.getRoomBySocket(socketId))
+      return { success: false, error: 'Sal de la sala actual antes de crear otra.' };
+    if (this.rooms.size >= CONFIG.MAX_ROOMS)
+      return { success: false, error: 'El servidor está lleno. Inténtalo en unos minutos.' };
+    // A session can occupy only one room, including disconnected reservations.
+    if ([...this.rooms.values()].some((r) => r.players.some((p) => p.id === id)))
+      return {
+        success: false,
+        error: 'Ya tienes una sala. Vuelve a conectarte a ella o espera a que caduque tu reserva.',
+      };
+    const definition = getGame(gameType);
     const room: ActiveRoom = {
-      code,
+      code: this.generateRoomCode(),
       gameType,
-      hostId: playerId,
+      hostId: id,
       status: 'waiting',
-      players: [hostPlayer],
-      minPlayers,
-      maxPlayers,
-      engine,
+      players: [{ id, name, isBot: false, connected: true, isHost: true, socketId }],
+      minPlayers: definition.minPlayers,
+      maxPlayers: definition.maxPlayers,
+      engine: engineFactories[gameType](),
       gameState: null,
-      createdAt: Date.now(),
+      turnSeconds: 90,
+      turnDeadline: null,
       lastActivity: Date.now(),
-      customRules: initialRules,
+      customRules:
+        gameType === 'monopoly'
+          ? { ...DEFAULT_MONOPOLY_RULES }
+          : gameType === 'colorclash'
+            ? { startingCards: 7 }
+            : undefined,
     };
-
-    this.rooms.set(code, room);
-    this.socketToRoom.set(socketId, code);
-
+    this.rooms.set(room.code, room);
+    this.socketToRoom.set(socketId, room.code);
     return { success: true, room: this.getRoomInfo(room) };
   }
-
-  public joinRoom(
-    roomCode: string,
-    playerName: string,
-    playerId: string,
-    socketId: string
-  ): { success: boolean; room?: RoomInfo; error?: string } {
-    const code = roomCode.toUpperCase().trim();
+  joinRoom(code: string, name: string, id: string, socketId: string) {
     const room = this.rooms.get(code);
-
-    if (!room) {
-      return { success: false, error: 'Sala no encontrada. Comprueba el código.' };
-    }
-
-    // Check if player is reconnecting
-    const existingPlayer = room.players.find(p => p.id === playerId);
-    if (existingPlayer) {
-      if (existingPlayer.disconnectTimeout) {
-        clearTimeout(existingPlayer.disconnectTimeout);
-        existingPlayer.disconnectTimeout = undefined;
-      }
-      existingPlayer.connected = true;
-      existingPlayer.socketId = socketId;
-      existingPlayer.name = playerName.trim() || existingPlayer.name;
-      this.socketToRoom.set(socketId, code);
-      room.lastActivity = Date.now();
-
-      this.broadcastRoomUpdate(room);
-      return { success: true, room: this.getRoomInfo(room) };
-    }
-
-    if (room.status !== 'waiting') {
-      return { success: false, error: 'La partida ya ha comenzado.' };
-    }
-
-    if (room.players.length >= room.maxPlayers) {
-      return { success: false, error: 'La sala está completa.' };
-    }
-
-    const newPlayer: RoomPlayer = {
-      id: playerId,
-      name: playerName.trim() || `Jugador ${room.players.length + 1}`,
-      isBot: false,
-      connected: true,
-      isHost: false,
-      socketId,
-    };
-
-    room.players.push(newPlayer);
+    if (!room)
+      return {
+        success: false,
+        error: 'No encontramos esa sala. Comprueba los seis caracteres del código.',
+      };
+    const current = this.getRoomBySocket(socketId);
+    if (current && current !== room)
+      return { success: false, error: 'Sal de tu sala actual antes de unirte a otra.' };
+    if (room.players.some((p) => p.id === id)) return this.reconnectPlayer(code, id, socketId);
+    if ([...this.rooms.values()].some((r) => r.players.some((p) => p.id === id)))
+      return { success: false, error: 'Ya tienes otra sala reservada. Vuelve a ella primero.' };
+    if (room.status !== 'waiting')
+      return {
+        success: false,
+        error: 'La partida ya ha empezado. Pide a tus amigos que te inviten a la siguiente.',
+      };
+    if (room.players.length >= room.maxPlayers)
+      return { success: false, error: 'Esta sala está completa.' };
+    room.players.push({ id, name, isBot: false, connected: true, isHost: false, socketId });
     this.socketToRoom.set(socketId, code);
     room.lastActivity = Date.now();
-
     this.broadcastRoomUpdate(room);
     return { success: true, room: this.getRoomInfo(room) };
   }
-
-  public addBot(roomCode: string, requesterId: string): { success: boolean; error?: string } {
-    const room = this.rooms.get(roomCode);
-    if (!room) return { success: false, error: 'Sala no encontrada.' };
-    if (room.hostId !== requesterId) return { success: false, error: 'Solo el anfitrión puede añadir bots.' };
-    if (room.status !== 'waiting') return { success: false, error: 'No se pueden añadir bots durante la partida.' };
-    if (room.players.length >= room.maxPlayers) return { success: false, error: 'La sala está llena.' };
-
-    const botNumber = room.players.filter(p => p.isBot).length + 1;
-    const botName = BOT_NAMES[(botNumber - 1) % BOT_NAMES.length];
-    const botId = `bot_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-
+  private hostRoom(code: string, id: string, status: RoomStatus): ActiveRoom {
+    const room = this.rooms.get(code);
+    if (!room || room.hostId !== id) throw new Error('Solo el anfitrión puede hacerlo.');
+    if (room.status !== status) throw new Error('Esta acción no está disponible en este momento.');
+    return room;
+  }
+  addBot(code: string, id: string) {
+    const room = this.hostRoom(code, id, 'waiting');
+    if (room.players.length >= room.maxPlayers)
+      return { success: false, error: 'La sala está completa.' };
+    let n = 1;
+    while (room.players.some((p) => p.name === `Bot ${n}`)) n++;
     room.players.push({
-      id: botId,
-      name: `${botName} (Bot)`,
+      id: `bot_${randomUUID()}`,
+      name: `Bot ${n}`,
       isBot: true,
       connected: true,
       isHost: false,
       socketId: null,
     });
-
     room.lastActivity = Date.now();
     this.broadcastRoomUpdate(room);
     return { success: true };
   }
-
-  public removeBot(roomCode: string, requesterId: string, botId: string): { success: boolean; error?: string } {
-    const room = this.rooms.get(roomCode);
-    if (!room) return { success: false, error: 'Sala no encontrada.' };
-    if (room.hostId !== requesterId) return { success: false, error: 'Solo el anfitrión puede eliminar bots.' };
-    if (room.status !== 'waiting') return { success: false, error: 'No se pueden quitar bots durante la partida.' };
-
-    const botIndex = room.players.findIndex(p => p.id === botId && p.isBot);
-    if (botIndex === -1) return { success: false, error: 'Bot no encontrado.' };
-
-    room.players.splice(botIndex, 1);
+  removeBot(code: string, id: string, botId: string) {
+    const room = this.hostRoom(code, id, 'waiting');
+    const index = room.players.findIndex((p) => p.id === botId && p.isBot);
+    if (index < 0) return { success: false, error: 'No se encontró ese bot.' };
+    room.players.splice(index, 1);
     room.lastActivity = Date.now();
     this.broadcastRoomUpdate(room);
     return { success: true };
   }
-
-  public updateRoomRules(
-    roomCode: string,
-    requesterId: string,
-    rules: any
-  ): { success: boolean; error?: string } {
-    const room = this.rooms.get(roomCode);
-    if (!room) return { success: false, error: 'Sala no encontrada.' };
-    if (room.hostId !== requesterId) return { success: false, error: 'Solo el anfitrión puede modificar las reglas.' };
-    if (room.status !== 'waiting') return { success: false, error: 'No se pueden modificar reglas con la partida en curso.' };
-
-    room.customRules = { ...room.customRules, ...rules };
-    if (room.engine instanceof MonopolyEngine) {
-      room.engine.setRules(room.customRules);
+  updateRoomRules(code: string, id: string, rules: unknown) {
+    const room = this.hostRoom(code, id, 'waiting');
+    if (!rules || typeof rules !== 'object' || Array.isArray(rules))
+      return { success: false, error: 'Reglas no válidas.' };
+    const next = { ...room.customRules };
+    let seconds = room.turnSeconds;
+    for (const [key, value] of Object.entries(rules)) {
+      if (key === 'turnSeconds' && [30, 60, 90, 120, 180].includes(value as number))
+        seconds = value as number;
+      else if (
+        room.gameType === 'colorclash' &&
+        key === 'startingCards' &&
+        [5, 7, 9].includes(value as number)
+      )
+        next[key] = value;
+      else if (
+        room.gameType === 'monopoly' &&
+        ((key === 'startingCash' && [1000, 1500, 2000, 2500].includes(value as number)) ||
+          (key === 'salaryGO' && [200, 300, 400].includes(value as number)) ||
+          (key === 'maxRounds' && [20, 40, 60].includes(value as number)) ||
+          (key === 'jailFine' && [50, 100, 150].includes(value as number)) ||
+          (key === 'maxJailTurns' && [1, 2, 3].includes(value as number)) ||
+          ([
+            'doubleGoSalary',
+            'freeParkingPool',
+            'auctionEnabled',
+            'rentInJail',
+            'evenBuilding',
+          ].includes(key) &&
+            typeof value === 'boolean'))
+      )
+        next[key] = value;
+      else return { success: false, error: 'Opción de regla no permitida.' };
     }
+    room.turnSeconds = seconds;
+    room.customRules = next;
+    if (room.gameType === 'monopoly') (room.engine as MonopolyEngine).setRules(next);
+    if (room.gameType === 'colorclash')
+      (room.engine as ColorClashEngine).setStartingCards(next.startingCards);
     room.lastActivity = Date.now();
     this.broadcastRoomUpdate(room);
     return { success: true };
   }
-
-  public startGame(roomCode: string, requesterId: string): { success: boolean; error?: string } {
-    const room = this.rooms.get(roomCode);
-    if (!room) return { success: false, error: 'Sala no encontrada.' };
-    if (room.hostId !== requesterId) return { success: false, error: 'Solo el anfitrión puede iniciar la partida.' };
-    if (room.players.length < room.minPlayers) {
-      return { success: false, error: `Se necesitan al menos ${room.minPlayers} jugadores para empezar.` };
-    }
-
-    try {
-      const enginePlayers = room.players.map(p => ({ id: p.id, isBot: p.isBot }));
-      room.gameState = room.engine.initGame(enginePlayers);
-      room.status = 'in_game';
-      room.lastActivity = Date.now();
-      room.gameStartTime = Date.now();
-
-      // Lifecycle hook for ads / monetization
-      if (this.lifecycleHooks?.onGameStart) {
-        this.lifecycleHooks.onGameStart({
-          roomCode: room.code,
-          gameType: room.gameType,
-          playerIds: room.players.map(p => p.id),
-        });
-      }
-
-      this.broadcastRoomUpdate(room);
-      this.broadcastGameState(room, true);
-
-      // Check if first turn belongs to a bot
-      this.checkAndTriggerBotTurn(room);
-
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err?.message || 'Error al iniciar la partida' };
-    }
+  startGame(code: string, id: string) {
+    const room = this.hostRoom(code, id, 'waiting');
+    if (room.players.length < room.minPlayers || room.players.some((p) => !p.connected))
+      return { success: false, error: 'Faltan jugadores. Invita a alguien o añade un bot.' };
+    room.gameState = room.engine.initGame(
+      room.players.map(({ id, isBot, name }) => ({ id, isBot, name })),
+    );
+    room.status = 'in_game';
+    room.lastActivity = Date.now();
+    room.gameStartTime = Date.now();
+    this.lifecycleHooks?.onGameStart?.({
+      roomCode: code,
+      gameType: room.gameType,
+      playerIds: room.players.map((p) => p.id),
+    });
+    this.armTurnClock(room, true);
+    this.broadcastRoomUpdate(room);
+    this.broadcastGameState(room, true);
+    this.checkAndTriggerBotTurn(room);
+    return { success: true };
   }
-
-  public restartGame(roomCode: string, requesterId: string): { success: boolean; error?: string } {
-    const room = this.rooms.get(roomCode);
-    if (!room) return { success: false, error: 'Sala no encontrada.' };
-    if (room.hostId !== requesterId) return { success: false, error: 'Solo el anfitrión puede reiniciar.' };
-
-    if (room.botLoopTimeout) {
-      clearTimeout(room.botLoopTimeout);
-      room.botLoopTimeout = undefined;
-    }
-
+  restartGame(code: string, id: string) {
+    const room = this.hostRoom(code, id, 'finished');
+    clearTimeout(room.botLoopTimeout);
+    room.botLoopTimeout = undefined;
+    this.clearTurnClock(room);
     room.status = 'waiting';
     room.gameState = null;
     room.lastActivity = Date.now();
-
+    if (room.players.length > 1) room.players.push(room.players.shift()!);
     this.broadcastRoomUpdate(room);
     return { success: true };
   }
-
-  public handleAction(
-    roomCode: string,
-    playerId: string,
-    action: any
-  ): { success: boolean; error?: string } {
-    const room = this.rooms.get(roomCode);
-    if (!room || room.status !== 'in_game') {
+  handleAction(code: string, id: string, action: unknown) {
+    const room = this.rooms.get(code);
+    if (!room || room.status !== 'in_game' || !room.players.some((p) => p.id === id))
       return { success: false, error: 'La partida no está en curso.' };
-    }
-
-    if (!room.engine.validateAction(room.gameState, playerId, action)) {
-      return { success: false, error: 'Acción no permitida o no es tu turno.' };
-    }
-
-    room.gameState = room.engine.applyAction(room.gameState, playerId, action);
-    room.lastActivity = Date.now();
-
-    const winnerId = room.engine.checkWinner(room.gameState);
-    const isDraw = (room.gameState as any).isDraw === true;
-
-    if (winnerId || isDraw) {
-      room.status = 'finished';
-      if (room.botLoopTimeout) {
-        clearTimeout(room.botLoopTimeout);
-        room.botLoopTimeout = undefined;
-      }
-
-      const winnerPlayer = room.players.find(p => p.id === winnerId);
-      const winnerName = isDraw ? 'Empate' : (winnerPlayer?.name || 'Jugador desconocido');
-
-      this.broadcastGameState(room, false);
-      this.io.to(room.code).emit('game:ended', {
-        winnerId,
-        winnerName,
-        isDraw,
-      });
-
-      // Lifecycle hook on finish
-      if (this.lifecycleHooks?.onGameEnd) {
-        this.lifecycleHooks.onGameEnd({
-          roomCode: room.code,
-          gameType: room.gameType,
-          winnerId,
-          durationMs: room.gameStartTime ? Date.now() - room.gameStartTime : 0,
-        });
-      }
-
-      this.broadcastRoomUpdate(room);
-      return { success: true };
-    }
-
-    this.broadcastGameState(room, false);
+    if (
+      !action ||
+      typeof action !== 'object' ||
+      Array.isArray(action) ||
+      typeof (action as { type?: unknown }).type !== 'string'
+    )
+      return { success: false, error: 'Acción no válida.' };
+    if (!room.engine.validateAction(room.gameState, id, action))
+      return { success: false, error: 'Ese movimiento no está permitido o no es tu turno.' };
+    const previousActor = this.actor(room);
+    room.gameState = room.engine.applyAction(room.gameState, id, action);
+    // Several games can skip an opponent and give the same player a new turn.
+    const kind = (action as { type: string }).type;
+    const completed =
+      room.gameType === 'colorclash'
+        ? kind === 'PLAY_CARD' || kind === 'PASS_TURN' || !room.gameState.hasDrawnThisTurn
+        : room.gameType === 'monopoly'
+          ? kind === 'END_TURN' || kind === 'BID' || kind === 'PASS_AUCTION'
+          : room.gameType === 'pig'
+            ? kind === 'HOLD' || room.gameState.lastRoll === 1
+            : true;
+    this.armTurnClock(room, completed || previousActor !== this.actor(room));
+    if (Array.isArray(room.gameState.logs)) room.gameState.logs = room.gameState.logs.slice(0, 80);
+    if (!room.players.find((p) => p.id === id)?.isBot) room.lastActivity = Date.now();
+    this.finishIfNeeded(room);
+    this.broadcastRoomUpdate(room);
+    this.broadcastGameState(room);
     this.checkAndTriggerBotTurn(room);
-
     return { success: true };
   }
-
-  public reconnectPlayer(
-    roomCode: string,
-    playerId: string,
-    socketId: string
-  ): { success: boolean; room?: RoomInfo; state?: any; error?: string } {
-    const code = roomCode.toUpperCase().trim();
-    const room = this.rooms.get(code);
-    if (!room) {
-      return { success: false, error: 'Sala no encontrada.' };
+  private finishIfNeeded(room: ActiveRoom) {
+    const winnerId = room.engine.checkWinner(room.gameState),
+      isDraw = room.gameState.isDraw === true;
+    if (!winnerId && !isDraw) return;
+    room.status = 'finished';
+    this.clearTurnClock(room);
+    clearTimeout(room.botLoopTimeout);
+    room.botLoopTimeout = undefined;
+    this.io.to(room.code).emit('game:ended', {
+      winnerId,
+      winnerName: isDraw
+        ? 'Empate'
+        : room.players.find((p) => p.id === winnerId)?.name || 'Ganador',
+      isDraw,
+    });
+    this.lifecycleHooks?.onGameEnd?.({
+      roomCode: room.code,
+      gameType: room.gameType,
+      winnerId,
+      durationMs: Date.now() - (room.gameStartTime ?? Date.now()),
+    });
+    this.broadcastRoomUpdate(room);
+  }
+  reconnectPlayer(code: string, id: string, socketId: string) {
+    const room = this.rooms.get(code),
+      current = this.getRoomBySocket(socketId);
+    if (!room || (current && current !== room))
+      return {
+        success: false,
+        error: 'La sala ya no está disponible.',
+        errorCode: 'ROOM_UNAVAILABLE' as const,
+      };
+    const player = room.players.find((p) => p.id === id && !p.isBot);
+    if (!player)
+      return {
+        success: false,
+        error: 'Esta sesión no pertenece a esa sala.',
+        errorCode: 'NOT_A_MEMBER' as const,
+      };
+    if (player.socketId && player.socketId !== socketId) {
+      const previous = this.io.sockets.sockets.get(player.socketId);
+      this.socketToRoom.delete(player.socketId);
+      previous?.leave(code);
+      previous?.emit('session:replaced');
+      previous?.disconnect(true);
     }
-
-    const player = room.players.find(p => p.id === playerId);
-    if (!player) {
-      return { success: false, error: 'Jugador no registrado en esta sala.' };
-    }
-
-    if (player.disconnectTimeout) {
-      clearTimeout(player.disconnectTimeout);
-      player.disconnectTimeout = undefined;
-    }
-
-    player.connected = true;
+    clearTimeout(player.disconnectTimeout);
+    player.disconnectTimeout = undefined;
+    if (player.socketId) this.socketToRoom.delete(player.socketId);
     player.socketId = socketId;
+    player.connected = true;
     this.socketToRoom.set(socketId, code);
     room.lastActivity = Date.now();
-
     this.broadcastRoomUpdate(room);
-
-    let sanitizedState = null;
-    if (room.status === 'in_game' && room.gameState) {
-      sanitizedState = room.engine.getSanitizedState(room.gameState, playerId);
-    }
-
+    this.checkAndTriggerBotTurn(room);
     return {
       success: true,
       room: this.getRoomInfo(room),
-      state: sanitizedState,
+      state: room.gameState ? room.engine.getSanitizedState(room.gameState, id) : null,
     };
   }
-
-  public handleDisconnect(socketId: string): void {
-    const roomCode = this.socketToRoom.get(socketId);
-    if (!roomCode) return;
-
+  handleDisconnect(socketId: string) {
+    const room = this.getRoomBySocket(socketId);
     this.socketToRoom.delete(socketId);
-    const room = this.rooms.get(roomCode);
     if (!room) return;
-
-    const player = room.players.find(p => p.socketId === socketId);
+    const player = room.players.find((p) => p.socketId === socketId);
     if (!player) return;
-
     player.connected = false;
     player.socketId = null;
-
-    if (room.status === 'waiting') {
-      // In waiting lobby, remove player directly or start brief timer
-      player.disconnectTimeout = setTimeout(() => {
-        this.removePlayerFromRoom(room, player.id);
-      }, 5000);
-    } else {
-      // In game, allow grace period for reconnection
-      player.disconnectTimeout = setTimeout(() => {
-        this.removePlayerFromRoom(room, player.id);
-      }, CONFIG.DISCONNECT_GRACE_PERIOD_MS);
-    }
-
+    clearTimeout(player.disconnectTimeout);
+    player.disconnectTimeout = setTimeout(
+      () => this.removePlayer(room, player.id),
+      CONFIG.DISCONNECT_GRACE_PERIOD_MS,
+    );
     this.broadcastRoomUpdate(room);
   }
-
-  public leaveRoom(socketId: string): void {
-    const roomCode = this.socketToRoom.get(socketId);
-    if (!roomCode) return;
-
-    const room = this.rooms.get(roomCode);
+  leaveRoom(socketId: string) {
+    const room = this.getRoomBySocket(socketId);
     this.socketToRoom.delete(socketId);
     if (!room) return;
-
-    const player = room.players.find(p => p.socketId === socketId);
-    if (player) {
-      if (player.disconnectTimeout) {
-        clearTimeout(player.disconnectTimeout);
-      }
-      this.removePlayerFromRoom(room, player.id);
-    }
+    const player = room.players.find((p) => p.socketId === socketId);
+    if (player) this.removePlayer(room, player.id);
   }
-
-  private removePlayerFromRoom(room: ActiveRoom, playerId: string): void {
-    const playerIndex = room.players.findIndex(p => p.id === playerId);
-    if (playerIndex === -1) return;
-
-    room.players.splice(playerIndex, 1);
-
-    // If no human players left, destroy room
-    const humanPlayers = room.players.filter(p => !p.isBot && p.connected);
-    if (humanPlayers.length === 0) {
-      this.destroyRoom(room.code, 'Todos los jugadores abandonaron la sala.');
+  private removePlayer(room: ActiveRoom, id: string) {
+    if (!this.rooms.has(room.code)) return;
+    const index = room.players.findIndex((p) => p.id === id);
+    if (index < 0) return;
+    const [player] = room.players.splice(index, 1);
+    clearTimeout(player.disconnectTimeout);
+    if (player.socketId) this.socketToRoom.delete(player.socketId);
+    // Preserve other humans' disconnected reservations until their own grace expires.
+    if (!room.players.some((p) => !p.isBot)) {
+      this.destroyRoom(room.code, 'Todos los jugadores han salido.');
       return;
     }
-
-    // Reassign host if host left
-    if (room.hostId === playerId) {
-      const nextHost = room.players.find(p => !p.isBot);
-      if (nextHost) {
-        room.hostId = nextHost.id;
-        nextHost.isHost = true;
-      }
+    if (room.hostId === id)
+      room.hostId = (room.players.find((p) => !p.isBot && p.connected) ||
+        room.players.find((p) => !p.isBot))!.id;
+    if (room.status === 'in_game') {
+      clearTimeout(room.botLoopTimeout);
+      room.botLoopTimeout = undefined;
+      room.gameState = room.engine.forfeitPlayer(room.gameState, id);
+      this.finishIfNeeded(room);
+      this.armTurnClock(room);
+      this.broadcastGameState(room);
+      this.checkAndTriggerBotTurn(room);
     }
-
-    // If game in progress and remaining humans < minPlayers, end game
-    if (room.status === 'in_game' && room.players.length < room.minPlayers) {
-      room.status = 'finished';
-      this.io.to(room.code).emit('game:ended', {
-        winnerId: null,
-        winnerName: 'Partida cancelada por abandono',
-        isDraw: true,
-      });
-    }
-
+    room.lastActivity = Date.now();
     this.broadcastRoomUpdate(room);
   }
-
-  private destroyRoom(roomCode: string, reason: string): void {
-    const room = this.rooms.get(roomCode);
-    if (!room) return;
-
-    if (room.botLoopTimeout) {
-      clearTimeout(room.botLoopTimeout);
-    }
-
-    for (const player of room.players) {
-      if (player.disconnectTimeout) {
-        clearTimeout(player.disconnectTimeout);
+  private actor(room: ActiveRoom): string {
+    return (
+      room.gameState?.auction?.currentBidderId ||
+      room.gameState?.currentTurn ||
+      room.gameState?.currentTurnPlayerId
+    );
+  }
+  private clearTurnClock(room: ActiveRoom) {
+    clearTimeout(room.turnTimeout);
+    room.turnTimeout = undefined;
+    room.turnDeadline = null;
+    room.turnActor = undefined;
+  }
+  private armTurnClock(room: ActiveRoom, force = false) {
+    if (room.status !== 'in_game') return;
+    const actor = this.actor(room);
+    if (!force && room.turnActor === actor && room.turnTimeout) return;
+    this.clearTurnClock(room);
+    room.turnActor = actor;
+    room.turnDeadline = Date.now() + room.turnSeconds * 1000;
+    const deadline = room.turnDeadline;
+    room.turnTimeout = setTimeout(() => {
+      if (room.status !== 'in_game' || room.turnDeadline !== deadline) return;
+      // Complete a legal, conservative turn, including unresolved purchase decisions.
+      // Clearing first prevents a stale deadline from acting on a later turn.
+      this.clearTurnClock(room);
+      for (let i = 0; i < 100 && room.status === 'in_game' && this.actor(room) === actor; i++) {
+        const s = room.gameState;
+        let action: any;
+        if (room.gameType === 'monopoly') {
+          const p = s.players.find((p: any) => p.id === actor);
+          action = s.auction
+            ? { type: 'PASS_AUCTION' }
+            : p.cash < 0
+              ? room.engine.getBotAction(s, actor)
+              : {
+                  type:
+                    s.turnPhase === 'roll'
+                      ? 'ROLL_DICE'
+                      : s.turnPhase === 'tile_action'
+                        ? 'PASS_PROPERTY'
+                        : 'END_TURN',
+                };
+        } else if (room.gameType === 'colorclash')
+          action = { type: s.hasDrawnThisTurn ? 'PASS_TURN' : 'DRAW_CARD' };
+        else if (room.gameType === 'pig') action = { type: s.turnTotal > 0 ? 'HOLD' : 'ROLL' };
+        else action = room.engine.getBotAction(s, actor);
+        if (!action || !room.engine.validateAction(s, actor, action)) break;
+        room.gameState = room.engine.applyAction(s, actor, action);
+        this.finishIfNeeded(room);
+        if (room.gameType === 'monopoly' && action.type === 'END_TURN') break;
+        if (!['monopoly', 'colorclash', 'pig'].includes(room.gameType)) break;
       }
+      if (Array.isArray(room.gameState.logs))
+        room.gameState.logs = room.gameState.logs.slice(0, 80);
+      this.armTurnClock(room, true);
+      this.broadcastRoomUpdate(room);
+      this.broadcastGameState(room);
+      this.checkAndTriggerBotTurn(room);
+    }, room.turnSeconds * 1000);
+  }
+  private checkAndTriggerBotTurn(room: ActiveRoom) {
+    clearTimeout(room.botLoopTimeout);
+    room.botLoopTimeout = undefined;
+    if (
+      room.status !== 'in_game' ||
+      !room.gameState ||
+      !room.players.some((p) => !p.isBot && p.connected)
+    )
+      return;
+    const state = room.gameState;
+    const targetId = state.auction?.currentBidderId || state.activeTrade?.toPlayerId;
+    const target = room.players.find((p) => p.id === targetId && p.isBot);
+    const current = room.players.find(
+      (p) => p.id === (state.currentTurn || state.currentTurnPlayerId) && p.isBot,
+    );
+    const bot = target || (!state.auction ? current : undefined);
+    if (!bot) return;
+    room.botLoopTimeout = setTimeout(() => {
+      room.botLoopTimeout = undefined;
+      if (!this.rooms.has(room.code) || room.status !== 'in_game') return;
+      try {
+        const action = room.engine.getBotAction(room.gameState, bot.id);
+        if (action) this.handleAction(room.code, bot.id, action);
+      } catch {
+        console.error('No se pudo completar un turno de bot.');
+      }
+    }, CONFIG.BOT_THINKING_TIME_MS);
+  }
+  private destroyRoom(code: string, reason: string) {
+    const room = this.rooms.get(code);
+    if (!room) return;
+    clearTimeout(room.botLoopTimeout);
+    this.clearTurnClock(room);
+    this.io.to(code).emit('room:closed', reason);
+    for (const player of room.players) {
+      clearTimeout(player.disconnectTimeout);
       if (player.socketId) {
         this.socketToRoom.delete(player.socketId);
+        this.io.sockets.sockets.get(player.socketId)?.leave(code);
       }
     }
-
-    this.io.to(roomCode).emit('room:closed', reason);
-    this.rooms.delete(roomCode);
+    this.rooms.delete(code);
   }
-
-  private checkAndTriggerBotTurn(room: ActiveRoom): void {
-    if (room.status !== 'in_game' || !room.gameState) return;
-
-    const currentTurnId =
-      (room.gameState as any).currentTurn ||
-      (room.gameState as any).currentTurnPlayerId;
-
-    if (!currentTurnId) return;
-
-    const currentPlayer = room.players.find(p => p.id === currentTurnId);
-    if (currentPlayer && currentPlayer.isBot) {
-      if (room.botLoopTimeout) {
-        clearTimeout(room.botLoopTimeout);
-      }
-
-      room.botLoopTimeout = setTimeout(() => {
-        this.executeBotTurn(room, currentTurnId);
-      }, CONFIG.BOT_THINKING_TIME_MS);
-    }
-  }
-
-  private executeBotTurn(room: ActiveRoom, botId: string): void {
-    if (room.status !== 'in_game' || !room.gameState) return;
-
-    const botAction = room.engine.getBotAction(room.gameState, botId);
-    if (botAction) {
-      this.handleAction(room.code, botId, botAction);
-    }
-  }
-
-  /**
-   * Dispatches tailored, sanitized states individually to each connected client.
-   * Server-Authoritative Zero-Trust: clients never receive opponents' private cards.
-   */
-  public broadcastGameState(room: ActiveRoom, isStart: boolean = false): void {
+  broadcastGameState(room: ActiveRoom, isStart = false) {
     if (!room.gameState) return;
-
-    for (const player of room.players) {
+    for (const player of room.players)
       if (player.socketId) {
-        const sanitizedState = room.engine.getSanitizedState(room.gameState, player.id);
-        if (isStart) {
-          this.io.to(player.socketId).emit('game:started', {
-            gameType: room.gameType,
-            publicState: sanitizedState,
-          });
-        } else {
-          this.io.to(player.socketId).emit('game:state_update', sanitizedState);
-        }
+        const state = room.engine.getSanitizedState(room.gameState, player.id);
+        if (isStart)
+          this.io
+            .to(player.socketId)
+            .emit('game:started', { gameType: room.gameType, publicState: state });
+        else this.io.to(player.socketId).emit('game:state_update', state);
       }
-    }
   }
-
-  public broadcastRoomUpdate(room: ActiveRoom): void {
-    const roomInfo = this.getRoomInfo(room);
-    this.io.to(room.code).emit('room:updated', roomInfo);
+  broadcastRoomUpdate(room: ActiveRoom) {
+    this.io.to(room.code).emit('room:updated', this.getRoomInfo(room));
   }
-
-  public getRoomInfo(room: ActiveRoom): RoomInfo {
+  getRoomInfo(room: ActiveRoom): RoomInfo {
     return {
       code: room.code,
       gameType: room.gameType,
       hostId: room.hostId,
       status: room.status,
-      maxPlayers: room.maxPlayers,
       minPlayers: room.minPlayers,
-      players: room.players.map(p => ({
-        id: p.id,
-        name: p.name,
-        isBot: p.isBot,
-        connected: p.connected,
-        isHost: p.id === room.hostId,
+      maxPlayers: room.maxPlayers,
+      players: room.players.map(({ id, name, isBot, connected }) => ({
+        id,
+        name,
+        isBot,
+        connected,
+        isHost: id === room.hostId,
       })),
       customRules: room.customRules,
+      turnSeconds: room.turnSeconds,
+      turnDeadline: room.turnDeadline,
+      serverNow: Date.now(),
+      reconnectGraceMs: CONFIG.DISCONNECT_GRACE_PERIOD_MS,
     };
   }
-
-  public getRoomBySocket(socketId: string): ActiveRoom | undefined {
+  getRoomBySocket(socketId: string) {
     const code = this.socketToRoom.get(socketId);
     return code ? this.rooms.get(code) : undefined;
   }
-
-  private cleanupInactiveRooms(): void {
-    const now = Date.now();
-    for (const [code, room] of this.rooms.entries()) {
-      if (now - room.lastActivity > CONFIG.ROOM_MAX_IDLE_TIME_MS) {
-        this.destroyRoom(code, 'Sala cerrada por inactividad prolongada.');
-      }
-    }
-  }
-
-  public dispose(): void {
+  dispose() {
     clearInterval(this.cleanupInterval);
-    for (const code of this.rooms.keys()) {
-      this.destroyRoom(code, 'Servidor reiniciándose.');
-    }
+    for (const code of this.rooms.keys())
+      this.destroyRoom(code, 'El servidor se está reiniciando.');
   }
 }

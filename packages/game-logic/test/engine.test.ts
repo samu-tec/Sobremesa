@@ -16,9 +16,18 @@ const tttState = ttt.initGame([
 ]);
 
 assert(tttState.players.length === 2, '2 players initialized');
-assert(tttState.board.every(c => c === null), 'Empty board at start');
-assert(ttt.validateAction(tttState, 'player1', { type: 'MAKE_MOVE', index: 0 }), 'Player 1 can move');
-assert(!ttt.validateAction(tttState, 'bot1', { type: 'MAKE_MOVE', index: 0 }), 'Bot 1 cannot move out of turn');
+assert(
+  tttState.board.every((c) => c === null),
+  'Empty board at start',
+);
+assert(
+  ttt.validateAction(tttState, 'player1', { type: 'MAKE_MOVE', index: 0 }),
+  'Player 1 can move',
+);
+assert(
+  !ttt.validateAction(tttState, 'bot1', { type: 'MAKE_MOVE', index: 0 }),
+  'Bot 1 cannot move out of turn',
+);
 
 // Player 1 moves to 0
 const tttState1 = ttt.applyAction(tttState, 'player1', { type: 'MAKE_MOVE', index: 0 });
@@ -27,7 +36,10 @@ assert(tttState1.currentTurn === 'bot1', 'Turn switched to bot1');
 
 // Bot 1 makes a move via Minimax
 const botMove = ttt.getBotAction(tttState1, 'bot1');
-assert(botMove !== null && typeof botMove.index === 'number', `Bot calculated valid move: ${botMove?.index}`);
+assert(
+  botMove !== null && typeof botMove.index === 'number',
+  `Bot calculated valid move: ${botMove?.index}`,
+);
 assert(tttState1.board[botMove!.index] === null, 'Bot chosen cell is empty');
 
 // Check sanitization
@@ -55,8 +67,14 @@ const sanitizedForHuman1 = cc.getSanitizedState(ccState, 'human1');
 assert(sanitizedForHuman1.myHand.length === 7, 'Human 1 sees their own 7 cards');
 assert(sanitizedForHuman1.opponents.length === 2, 'Human 1 sees 2 opponents');
 assert(sanitizedForHuman1.opponents[0].cardCount === 7, 'Opponent 1 shows card count 7');
-assert((sanitizedForHuman1.opponents[0] as any).cards === undefined, 'Opponent cards are NOT leaked to client');
-assert((sanitizedForHuman1 as any).drawPile === undefined, 'Draw pile array is NOT leaked to client');
+assert(
+  (sanitizedForHuman1.opponents[0] as any).cards === undefined,
+  'Opponent cards are NOT leaked to client',
+);
+assert(
+  (sanitizedForHuman1 as any).drawPile === undefined,
+  'Draw pile array is NOT leaked to client',
+);
 assert(typeof sanitizedForHuman1.drawPileCount === 'number', 'Only draw pile count is exposed');
 
 // Test Turn & Action logic

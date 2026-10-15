@@ -1,288 +1,395 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { GameType, RoomInfo } from '@games/game-logic';
-import { socket } from './services/socket.js';
-import { useGuestProfile } from './hooks/useGuestProfile.js';
-import { LobbyView } from './views/LobbyView.js';
-import { WaitingRoomView } from './views/WaitingRoomView.js';
-import { TicTacToeBoard } from './components/TicTacToeBoard.js';
-import { ColorClashBoard } from './components/ColorClashBoard.js';
-import { MonopolyBoard } from './components/MonopolyBoard.js';
-
-export const App: React.FC = () => {
-  const { playerId, playerName, updateName } = useGuestProfile();
-
-  const [currentRoom, setCurrentRoom] = useState<RoomInfo | null>(null);
-  const [gameState, setGameState] = useState<any>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  // Setup Socket listeners
+import { t, useLocale } from './i18n';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { X, WifiOff } from 'lucide-react';
+import type {
+  GameType,
+  RoomInfo,
+  Result,
+  RoomResult,
+  MonopolyPublicState,
+  ColorClashPublicState,
+  TicTacToeState,
+  Connect4State,
+  ReversiState,
+  PigState,
+} from '@games/game-logic';
+import { socket, sessionStore } from './services/socket';
+import { useGuestProfile } from './hooks/useGuestProfile';
+import { LobbyView } from './views/LobbyView';
+import { Welcome } from './ui/Welcome';
+import { Privacy } from './ui/Privacy';
+import { WaitingRoomView } from './views/WaitingRoomView';
+import { GameLayout } from './ui/GameLayout';
+const MonopolyBoard = lazy(() =>
+  import('./components/MonopolyBoard').then((m) => ({ default: m.MonopolyBoard })),
+);
+const ColorClashBoard = lazy(() =>
+  import('./components/ColorClashBoard').then((m) => ({ default: m.ColorClashBoard })),
+);
+const TableBoards = lazy(() =>
+  import('./components/TableBoards').then((m) => ({ default: m.TableBoards })),
+);
+type PublicState =
+  | MonopolyPublicState
+  | ColorClashPublicState
+  | TicTacToeState
+  | Connect4State
+  | ReversiState
+  | PigState;
+function request<T>(send: (done: (result: T) => void) => void): Promise<T> {
+  return new Promise((resolve, reject) => {
+    if (!socket.connected) {
+      reject(new Error(t('No hay conexión. Espera a que volvamos a conectar.')));
+      return;
+    }
+    const timeout = setTimeout(
+      () =>
+        reject(
+          new Error(
+            t('El servidor tarda en responder. Comprueba tu conexión e inténtalo otra vez.'),
+          ),
+        ),
+      10000,
+    );
+    send((result) => {
+      clearTimeout(timeout);
+      resolve(result);
+    });
+  });
+}
+export function App() {
+  useLocale();
+  const { confirmed, playerId, playerName, updateName, updatePlayerId } = useGuestProfile();
+  const [room, setRoom] = useState<RoomInfo | null>(null),
+    [state, setState] = useState<PublicState | null>(null),
+    [connected, setConnected] = useState(false),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState<string | null>(null);
+  const [replaced, setReplaced] = useState(false);
+  const replacement = useRef(false);
+  const pending = useRef(false),
+    recovering = useRef(false);
+  const [inviteCode, setInviteCode] = useState(() => {
+    const value = new URLSearchParams(location.search).get('room');
+    return value && /^[A-HJ-NP-Z2-9]{6}$/i.test(value) ? value.toUpperCase() : null;
+  });
+  const clearRoom = useCallback(() => {
+    setRoom(null);
+    setState(null);
+    sessionStore.remove('sobremesa.room');
+    setInviteCode(null);
+    history.replaceState(null, '', location.pathname);
+  }, []);
+  const saveRoom = (value: RoomInfo) => {
+    setRoom(value);
+    sessionStore.set('sobremesa.room', value.code);
+  };
   useEffect(() => {
-    socket.on('connect', () => {
-      console.log('Connected to game server. Socket ID:', socket.id);
-    });
-
-    socket.on('room:updated', (updatedRoom: RoomInfo) => {
-      setCurrentRoom(updatedRoom);
-    });
-
-    socket.on('room:closed', (reason: string) => {
-      alert(`Sala cerrada: ${reason}`);
-      setCurrentRoom(null);
-      setGameState(null);
-    });
-
-    socket.on('game:started', ({ publicState }) => {
-      setGameState(publicState);
-    });
-
-    socket.on('game:state_update', (publicState) => {
-      setGameState(publicState);
-    });
-
-    socket.on('game:ended', (endData) => {
-      console.log('Game ended:', endData);
-    });
-
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let disposed = false;
+    const recover = () => {
+      const code = sessionStore.get('sobremesa.room');
+      if (!code || recovering.current || !socket.connected || replacement.current || disposed)
+        return;
+      recovering.current = true;
+      let again = false;
+      request<RoomResult>((done) => socket.emit('game:reconnect', { roomCode: code }, done))
+        .then((result) => {
+          if (disposed) return;
+          if (result.success && result.room) {
+            saveRoom(result.room);
+            setState((result.state as PublicState) || null);
+            setError(null);
+          } else if (
+            result.errorCode === 'ROOM_UNAVAILABLE' ||
+            result.errorCode === 'NOT_A_MEMBER'
+          ) {
+            clearRoom();
+            setError(result.error || 'Tu sala ya no está disponible. Puedes crear una nueva.');
+          } else {
+            again = true;
+            setError(result.error || 'No se pudo completar la acción.');
+          }
+        })
+        .catch((err) => {
+          if (!disposed) {
+            setError(err.message);
+            again = true;
+          }
+        })
+        .finally(() => {
+          recovering.current = false;
+          if (!disposed && again) retry = setTimeout(recover, 3000);
+        });
+    };
+    const ready = ({ playerId }: { playerId: string }) => {
+      updatePlayerId(playerId);
+      setConnected(true);
+      setReplaced(false);
+      replacement.current = false;
+      recover();
+    };
+    const updated = (next: RoomInfo) => {
+      saveRoom(next);
+      if (next.status === 'waiting') setState(null);
+    };
+    const closed = (reason: string) => {
+      clearRoom();
+      setError(reason);
+    };
+    const started = ({ publicState }: { publicState: unknown }) =>
+      setState(publicState as PublicState);
+    const update = (publicState: unknown) => setState(publicState as PublicState);
+    const disconnected = () => setConnected(false);
+    const connectError = () => {
+      setConnected(false);
+    };
+    const superseded = () => {
+      replacement.current = true;
+      setReplaced(true);
+      setConnected(false);
+    };
+    const offline = () => {
+      setConnected(false);
+      socket.disconnect();
+    };
+    const wake = () => {
+      if (navigator.onLine && !replacement.current && !socket.connected) socket.connect();
+    };
+    window.addEventListener('offline', offline);
+    window.addEventListener('online', wake);
+    window.addEventListener('pageshow', wake);
+    document.addEventListener('visibilitychange', wake);
+    socket.on('session:replaced', superseded);
+    socket.on('session:ready', ready);
+    socket.on('room:updated', updated);
+    socket.on('room:closed', closed);
+    socket.on('game:started', started);
+    socket.on('game:state_update', update);
+    socket.on('disconnect', disconnected);
+    socket.on('connect_error', connectError);
+    socket.on('game:error', setError);
+    socket.connect();
     return () => {
-      socket.off('connect');
-      socket.off('room:updated');
-      socket.off('room:closed');
-      socket.off('game:started');
-      socket.off('game:state_update');
-      socket.off('game:ended');
+      disposed = true;
+      clearTimeout(retry);
+      window.removeEventListener('offline', offline);
+      window.removeEventListener('online', wake);
+      window.removeEventListener('pageshow', wake);
+      document.removeEventListener('visibilitychange', wake);
+      socket.off('session:replaced', superseded);
+      socket.off('session:ready', ready);
+      socket.off('room:updated', updated);
+      socket.off('room:closed', closed);
+      socket.off('game:started', started);
+      socket.off('game:state_update', update);
+      socket.off('disconnect', disconnected);
+      socket.off('connect_error', connectError);
+      socket.off('game:error', setError);
+      socket.disconnect();
     };
   }, []);
-
-  // Check URL query parameters for invite link (?room=CODE)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const roomParam = params.get('room');
-    if (roomParam && !currentRoom) {
-      handleJoinRoom(roomParam.toUpperCase());
+    if (!error) return;
+    const t = setTimeout(() => setError(null), 8000);
+    return () => clearTimeout(t);
+  }, [error]);
+  const run = async (work: () => Promise<void>) => {
+    if (pending.current) return false;
+    pending.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      await work();
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('No se pudo completar la acción.'));
+      return false;
+    } finally {
+      pending.current = false;
+      setBusy(false);
     }
-  }, []);
-
-  const handleCreateRoom = (gameType: GameType) => {
-    setIsConnecting(true);
-    setErrorMessage(null);
-
-    socket.emit(
-      'room:create',
-      {
-        playerName,
-        playerId,
-        gameType,
-      },
-      (res) => {
-        setIsConnecting(false);
-        if (res.success && res.room) {
-          setCurrentRoom(res.room);
-          setGameState(null);
-        } else {
-          setErrorMessage(res.error || 'No se pudo crear la sala');
-        }
-      }
-    );
   };
-
-  const handleJoinRoom = (roomCode: string) => {
-    setIsConnecting(true);
-    setErrorMessage(null);
-
-    socket.emit(
-      'room:join',
-      {
-        roomCode,
-        playerName,
-        playerId,
-      },
-      (res) => {
-        setIsConnecting(false);
-        if (res.success && res.room) {
-          setCurrentRoom(res.room);
-        } else {
-          setErrorMessage(res.error || 'No se pudo unir a la sala');
-        }
-      }
-    );
+  const check = <T extends Result>(result: T): T => {
+    if (!result.success) throw new Error(result.error || 'No se pudo completar la acción.');
+    return result;
   };
-
-  const handleQuickPlayVsBot = (gameType: GameType) => {
-    setIsConnecting(true);
-    setErrorMessage(null);
-
-    socket.emit(
-      'room:create',
-      {
-        playerName,
-        playerId,
-        gameType,
-      },
-      (res) => {
-        if (!res.success || !res.room) {
-          setIsConnecting(false);
-          setErrorMessage(res.error || 'Error al iniciar');
-          return;
-        }
-
-        setCurrentRoom(res.room);
-
-        // Add 1 bot (for TicTacToe) or 2 bots (for Color Clash)
-        socket.emit('room:add_bot', (botRes) => {
-          if (!botRes.success) {
-            setIsConnecting(false);
-            setErrorMessage(botRes.error || 'Error al añadir bot');
-            return;
-          }
-
-          // In Color Clash, we can optionally add a second bot or start right away with 2 players
-          socket.emit('room:start_game', (startRes) => {
-            setIsConnecting(false);
-            if (!startRes.success) {
-              setErrorMessage(startRes.error || 'Error al iniciar partida');
-            }
-          });
-        });
-      }
-    );
-  };
-
-  const handleAddBot = () => {
-    socket.emit('room:add_bot', (res) => {
-      if (!res.success) {
-        setErrorMessage(res.error || 'Error al añadir bot');
-      }
-    });
-  };
-
-  const handleRemoveBot = (botId: string) => {
-    socket.emit('room:remove_bot', { botId }, (res) => {
-      if (!res.success) {
-        setErrorMessage(res.error || 'Error al eliminar bot');
-      }
-    });
-  };
-
-  const handleStartGame = () => {
-    socket.emit('room:start_game', (res) => {
-      if (!res.success) {
-        setErrorMessage(res.error || 'Error al empezar la partida');
-      }
-    });
-  };
-
-  const handleRestartGame = () => {
-    socket.emit('room:restart_game', (res) => {
-      if (!res.success) {
-        setErrorMessage(res.error || 'Error al reiniciar la partida');
-      }
-    });
-  };
-
-  const handleGameAction = (action: any) => {
-    socket.emit('game:action', action, (res) => {
-      if (res && !res.success) {
-        console.warn('Game action rejected by server:', res.error);
-      }
-    });
-  };
-
-  const handleUpdateRules = (rules: any) => {
-    socket.emit('room:update_rules', rules, (res) => {
-      if (res && !res.success) {
-        setErrorMessage(res.error || 'Error al actualizar las reglas');
-      }
-    });
-  };
-
-  const handleLeaveRoom = () => {
-    socket.emit('room:leave', () => {
-      setCurrentRoom(null);
-      setGameState(null);
-      // Clean query parameter if present
-      if (window.history.pushState) {
-        const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
-        window.history.pushState({ path: cleanUrl }, '', cleanUrl);
-      }
-    });
-  };
-
-  // View routing
-  if (!currentRoom) {
-    return (
-      <LobbyView
-        playerName={playerName}
-        onUpdatePlayerName={updateName}
-        onCreateRoom={handleCreateRoom}
-        onJoinRoom={handleJoinRoom}
-        onQuickPlayVsBot={handleQuickPlayVsBot}
-        isConnecting={isConnecting}
-        errorMessage={errorMessage}
-        onClearError={() => setErrorMessage(null)}
-      />
-    );
-  }
-
-  if (currentRoom.status === 'waiting') {
-    return (
-      <WaitingRoomView
-        room={currentRoom}
-        myPlayerId={playerId}
-        onAddBot={handleAddBot}
-        onRemoveBot={handleRemoveBot}
-        onStartGame={handleStartGame}
-        onLeaveRoom={handleLeaveRoom}
-        onUpdateRules={handleUpdateRules}
-      />
-    );
-  }
-
-  if (gameState) {
-    if (currentRoom.gameType === 'tictactoe') {
-      return (
-        <TicTacToeBoard
-          room={currentRoom}
-          state={gameState}
-          myPlayerId={playerId}
-          onAction={handleGameAction}
-          onRestart={handleRestartGame}
-          onLeave={handleLeaveRoom}
-        />
+  const create = (gameType: GameType, quick = false) =>
+    run(async () => {
+      const result = check(
+        await request<RoomResult>((done) =>
+          socket.emit('room:create', { playerName, gameType }, done),
+        ),
       );
-    }
-
-    if (currentRoom.gameType === 'colorclash') {
-      return (
-        <ColorClashBoard
-          room={currentRoom}
-          state={gameState}
-          myPlayerId={playerId}
-          onAction={handleGameAction}
-          onRestart={handleRestartGame}
-          onLeave={handleLeaveRoom}
-        />
+      if (result.room) {
+        saveRoom(result.room);
+        setState(null);
+      }
+      if (quick) {
+        check(await request<Result>((done) => socket.emit('room:add_bot', done)));
+      }
+    });
+  const join = (roomCode: string) =>
+    run(async () => {
+      const result = check(
+        await request<RoomResult>((done) =>
+          socket.emit('room:join', { playerName, roomCode }, done),
+        ),
       );
-    }
-
-    if (currentRoom.gameType === 'monopoly') {
-      return (
-        <MonopolyBoard
-          room={currentRoom}
-          state={gameState}
-          myPlayerId={playerId}
-          onAction={handleGameAction}
-          onRestart={handleRestartGame}
-          onLeave={handleLeaveRoom}
-        />
-      );
-    }
-  }
-
+      if (result.room) {
+        saveRoom(result.room);
+        setState((result.state as PublicState) || null);
+        history.replaceState(null, '', `?room=${result.room.code}`);
+      }
+    });
+  const addBot = () =>
+    run(async () => {
+      check(await request<Result>((done) => socket.emit('room:add_bot', done)));
+    });
+  const removeBot = (botId: string) =>
+    run(async () => {
+      check(await request<Result>((done) => socket.emit('room:remove_bot', { botId }, done)));
+    });
+  const start = () =>
+    run(async () => {
+      check(await request<Result>((done) => socket.emit('room:start_game', done)));
+    });
+  const restart = () =>
+    run(async () => {
+      check(await request<Result>((done) => socket.emit('room:restart_game', done)));
+    });
+  const leave = () =>
+    run(async () => {
+      check(await request<Result>((done) => socket.emit('room:leave', done)));
+      clearRoom();
+    });
+  const action = (value: unknown) =>
+    run(async () => {
+      check(await request<Result>((done) => socket.emit('game:action', value, done)));
+    });
+  const updateRules = (rules: unknown) =>
+    run(async () => {
+      check(await request<Result>((done) => socket.emit('room:update_rules', rules, done)));
+    });
+  const turn = state
+    ? 'currentTurn' in state
+      ? state.currentTurn
+      : state.currentTurnPlayerId
+    : '';
   return (
-    <div className="flex flex-col items-center justify-center min-h-[100dvh] text-slate-400 gap-3">
-      <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-      <span className="text-sm font-medium">Sincronizando estado con el servidor...</span>
+    <>
+      {location.pathname === '/privacy' ? (
+        <Privacy />
+      ) : !room ? (
+        <LobbyView
+          playerName={playerName}
+          onUpdatePlayerName={updateName}
+          connected={connected}
+          onCreateRoom={(g) => create(g)}
+          onJoinRoom={join}
+          onQuickPlayVsBot={(g) => create(g, true)}
+          isConnecting={busy}
+          inviteCode={inviteCode}
+        />
+      ) : room.status === 'waiting' ? (
+        <WaitingRoomView
+          room={room}
+          myPlayerId={playerId}
+          busy={busy || !connected}
+          onAddBot={addBot}
+          onRemoveBot={removeBot}
+          onStartGame={start}
+          onLeaveRoom={leave}
+          onUpdateRules={updateRules}
+          onError={setError}
+        />
+      ) : state ? (
+        <GameLayout
+          room={room}
+          myPlayerId={playerId}
+          currentTurn={'auction' in state && state.auction ? state.auction.currentBidderId : turn}
+          winner={state.winner}
+          isDraw={'isDraw' in state && state.isDraw}
+          busy={busy || !connected}
+          onRestart={restart}
+          onLeave={leave}
+          onError={setError}
+        >
+          <Suspense fallback={<Loading />}>
+            {room.gameType === 'monopoly' ? (
+              <MonopolyBoard
+                room={room}
+                state={state as MonopolyPublicState}
+                myPlayerId={playerId}
+                onAction={action}
+                busy={busy || !connected}
+              />
+            ) : room.gameType === 'colorclash' ? (
+              <ColorClashBoard
+                room={room}
+                state={state as ColorClashPublicState}
+                myPlayerId={playerId}
+                onAction={action}
+                busy={busy || !connected}
+              />
+            ) : (
+              <TableBoards
+                room={room}
+                state={state as TicTacToeState | Connect4State | ReversiState | PigState}
+                myPlayerId={playerId}
+                onAction={action}
+                busy={busy || !connected}
+              />
+            )}
+          </Suspense>
+        </GameLayout>
+      ) : (
+        <Loading />
+      )}
+      {!confirmed && location.pathname !== '/privacy' && (
+        <Welcome initialName={playerName} onConfirm={updateName} />
+      )}
+      {!connected && room && (
+        <div className="offline-banner" role="status">
+          <WifiOff size={17} />{' '}
+          {replaced
+            ? t('Esta sesión se ha abierto en otra conexión.')
+            : t('Reconectando… Tu sitio se reserva durante {0} segundos.', {
+                '0': Math.round(room.reconnectGraceMs / 1000),
+              })}
+          {replaced && (
+            <button
+              className="text-button"
+              onClick={() => {
+                replacement.current = false;
+                socket.connect();
+              }}
+            >
+              {t('Recuperar aquí')}
+            </button>
+          )}
+        </div>
+      )}
+      {error && (
+        <div className="toast" role="alert">
+          <span>{t(error)}</span>
+          <button
+            className="icon-button"
+            aria-label={t('Cerrar aviso')}
+            onClick={() => setError(null)}
+          >
+            <X size={18} />
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+function Loading() {
+  return (
+    <div className="loading-state" role="status">
+      <span className="spinner" />
+      <p>{t('Preparando la mesa…')}</p>
     </div>
   );
-};
+}

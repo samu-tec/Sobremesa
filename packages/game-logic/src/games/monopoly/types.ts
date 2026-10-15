@@ -1,3 +1,4 @@
+import type { GameText } from '../../messages.js';
 export type PropertyGroup =
   | 'brown'
   | 'light_blue'
@@ -35,22 +36,27 @@ export interface BoardTile {
 }
 
 export interface MonopolyCustomRules {
+  maxRounds?: number;
   startingCash: number; // 1500 (standard), 1000, 2000, 2500
   salaryGO: number; // 200 (standard), 300, 400
   doubleGoSalary: boolean; // landing directly on GO pays double
   freeParkingPool: boolean; // fines/taxes placed in Free Parking
   auctionEnabled: boolean; // auction property if lander declines
+  rentInJail: boolean;
+  evenBuilding: boolean;
   jailFine: number; // 50 (standard)
   maxJailTurns: number; // 3 (standard)
-  assetTargetQuickGame?: number; // e.g. 3500 to win early
 }
 
 export const DEFAULT_MONOPOLY_RULES: MonopolyCustomRules = {
+  maxRounds: 40,
   startingCash: 1500,
   salaryGO: 200,
   doubleGoSalary: false,
-  freeParkingPool: true,
-  auctionEnabled: false,
+  freeParkingPool: false,
+  auctionEnabled: true,
+  rentInJail: true,
+  evenBuilding: true,
   jailFine: 50,
   maxJailTurns: 3,
 };
@@ -106,6 +112,10 @@ export interface MonopolyTradeOffer {
 }
 
 export interface MonopolyState {
+  heldJailCards: { ownerId: string; card: CardEffect }[];
+  round: number;
+  isDraw: boolean;
+  auction: MonopolyAuction | null;
   players: MonopolyPlayer[];
   properties: Record<number, PropertyOwnership>;
   currentTurnPlayerId: string;
@@ -118,7 +128,7 @@ export interface MonopolyState {
   pendingTileAction: PendingTileAction | null;
   freeParkingPool: number;
   winner: string | null;
-  logs: string[];
+  logs: GameText[];
   customRules: MonopolyCustomRules;
   activeTrade: MonopolyTradeOffer | null;
   chanceDeck: CardEffect[];
@@ -126,6 +136,8 @@ export interface MonopolyState {
 }
 
 export type MonopolyAction =
+  | { type: 'BID'; amount: number }
+  | { type: 'PASS_AUCTION' }
   | { type: 'ROLL_DICE' }
   | { type: 'BUY_PROPERTY' }
   | { type: 'PASS_PROPERTY' }
@@ -142,6 +154,9 @@ export type MonopolyAction =
   | { type: 'DECLARE_BANKRUPTCY' };
 
 export interface MonopolyPublicState {
+  round: number;
+  isDraw: boolean;
+  auction: MonopolyAuction | null;
   players: MonopolyPlayer[];
   properties: Record<number, PropertyOwnership>;
   currentTurnPlayerId: string;
@@ -153,9 +168,17 @@ export interface MonopolyPublicState {
   pendingTileAction: PendingTileAction | null;
   freeParkingPool: number;
   winner: string | null;
-  logs: string[];
+  logs: GameText[];
   customRules: MonopolyCustomRules;
   activeTrade: MonopolyTradeOffer | null;
   chanceDeckRemaining: number;
   communityDeckRemaining: number;
+}
+
+export interface MonopolyAuction {
+  tileIndex: number;
+  currentBid: number;
+  highestBidderId: string | null;
+  currentBidderId: string;
+  passedPlayerIds: string[];
 }

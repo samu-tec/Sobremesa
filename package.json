@@ -1,18 +1,38 @@
 {
-  "name": "games-platform",
+  "name": "sobremesa",
   "version": "1.0.0",
   "private": true,
-  "description": "Multiplayer Gaming Platform for games.samuelciocan.com",
+  "description": "Sobremesa: juegos de mesa multijugador en games.samuelciocan.com",
+  "homepage": "https://games.samuelciocan.com",
   "scripts": {
-    "dev": "pnpm --parallel --recursive run dev",
+    "dev": "pnpm --filter @games/game-logic build && pnpm --parallel --recursive run dev",
     "dev:server": "pnpm --filter games-server dev",
     "dev:client": "pnpm --filter games-client dev",
     "build": "pnpm --filter @games/game-logic build && pnpm --filter games-server build && pnpm --filter games-client build",
     "test": "pnpm --filter @games/game-logic test",
-    "start": "pnpm --filter games-server start"
+    "start": "pnpm --filter games-server start",
+    "test:integration": "node --test tests/integration.test.mjs tests/server.test.mjs",
+    "test:e2e": "playwright test",
+    "format": "prettier --ignore-path .gitignore --write apps packages tests deploy playwright.config.ts README.md docs package.json docker-compose.yml",
+    "format:check": "prettier --ignore-path .gitignore --check apps packages tests deploy playwright.config.ts README.md docs package.json docker-compose.yml",
+    "check": "pnpm format:check && pnpm build && pnpm test && pnpm test:i18n && pnpm test:integration && pnpm test:e2e",
+    "test:i18n": "node --import tsx --test tests/localization.test.mjs"
   },
   "packageManager": "pnpm@12.10.1",
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.64.1",
+    "prettier": "^3.9.10",
+    "socket.io-client": "^4.8.4",
+    "tsx": "^4.23.15",
     "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "prettier": {
+    "singleQuote": true,
+    "trailingComma": "all",
+    "printWidth": 100
   }
 }

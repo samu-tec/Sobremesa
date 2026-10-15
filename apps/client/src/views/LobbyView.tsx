@@ -1,228 +1,488 @@
-import React, { useState } from 'react';
-import { GameType } from '@games/game-logic';
-import { Sparkles, Users, Bot, Gamepad2, Play, UserCircle, Edit3, Check } from 'lucide-react';
-import { AdBannerPlaceholder } from '../components/AdBannerPlaceholder.js';
-
-interface LobbyViewProps {
+import { useLocale, localizeGame, t } from '../i18n';
+import { randomName } from '../ui/Welcome';
+import { useState } from 'react';
+import { GAME_CATALOG as BASE_CATALOG, matchesGame, type GameType } from '@games/game-logic';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Bot,
+  Search,
+  SlidersHorizontal,
+  Users,
+  Clock3,
+  Heart,
+  BookOpen,
+  X,
+  Sparkles,
+  CirclePlay,
+  Link2,
+  MousePointer2,
+} from 'lucide-react';
+import { Shell } from '../ui/Shell';
+import { GameArtwork } from '../ui/GameArtwork';
+import { Rules } from '../ui/Rules';
+import { Modal } from '../ui/Modal';
+interface Props {
   playerName: string;
-  onUpdatePlayerName: (name: string) => void;
-  onCreateRoom: (gameType: GameType) => void;
-  onJoinRoom: (roomCode: string) => void;
-  onQuickPlayVsBot: (gameType: GameType) => void;
+  onUpdatePlayerName: (value: string) => void;
+  connected: boolean;
+  onCreateRoom: (game: GameType) => void;
+  onJoinRoom: (code: string) => void;
+  onQuickPlayVsBot: (game: GameType) => void;
   isConnecting: boolean;
-  errorMessage: string | null;
-  onClearError: () => void;
+  inviteCode: string | null;
 }
-
-export const LobbyView: React.FC<LobbyViewProps> = ({
+export function LobbyView({
   playerName,
   onUpdatePlayerName,
+  connected,
   onCreateRoom,
   onJoinRoom,
   onQuickPlayVsBot,
   isConnecting,
-  errorMessage,
-  onClearError,
-}) => {
-  const [selectedGame, setSelectedGame] = useState<GameType>('colorclash');
-  const [roomCodeInput, setRoomCodeInput] = useState('');
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [tempName, setTempName] = useState(playerName);
-
-  const handleSaveName = () => {
-    if (tempName.trim()) {
-      onUpdatePlayerName(tempName.trim());
-      setIsEditingName(false);
+  inviteCode,
+}: Props) {
+  const { locale } = useLocale();
+  const GAME_CATALOG = BASE_CATALOG.map(localizeGame);
+  const [query, setQuery] = useState(''),
+    [category, setCategory] = useState('Todos'),
+    [view, setView] = useState<'all' | 'favorites'>('all');
+  const [rules, setRules] = useState<GameType | null>(null),
+    [selected, setSelected] = useState<GameType | null>(null);
+  const [showJoin, setShowJoin] = useState(!!inviteCode),
+    [showHelp, setShowHelp] = useState(false),
+    [showProfile, setShowProfile] = useState(false);
+  const [roomCode, setRoomCode] = useState(inviteCode || ''),
+    [draftName, setDraftName] = useState(playerName);
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try {
+      const saved: unknown = JSON.parse(localStorage.getItem('sobremesa.favorites') || '[]');
+      return Array.isArray(saved) ? saved.filter((v): v is string => typeof v === 'string') : [];
+    } catch {
+      return [];
+    }
+  });
+  const toggleFavorite = (id: GameType) => {
+    const next = favorites.includes(id) ? favorites.filter((v) => v !== id) : [...favorites, id];
+    setFavorites(next);
+    try {
+      localStorage.setItem('sobremesa.favorites', JSON.stringify(next));
+    } catch {
+      /* Optional preference. */
     }
   };
-
-  const handleJoinSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (roomCodeInput.trim().length === 5) {
-      onJoinRoom(roomCodeInput.trim().toUpperCase());
-    }
-  };
-
+  const games = GAME_CATALOG.filter(
+    (g) =>
+      matchesGame(g, query) &&
+      (category === 'Todos' || g.category === category) &&
+      (view !== 'favorites' || favorites.includes(g.id)),
+  );
+  const game = GAME_CATALOG.find((g) => g.id === selected);
+  const playDisabled = isConnecting || !connected;
   return (
-    <div className="flex flex-col items-center justify-between min-h-[100dvh] w-full max-w-lg mx-auto p-4 select-none">
-      {/* Top Header */}
-      <div className="w-full">
-        <header className="flex items-center justify-between py-3 border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <Gamepad2 className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-sm font-black tracking-wide text-white">games.samuelciocan.com</h1>
-              <p className="text-[10px] text-slate-400 font-medium">Multijugador en Tiempo Real</p>
-            </div>
-          </div>
-
-          {/* User Profile Capsule */}
-          <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-full py-1 px-2.5">
-            <UserCircle className="w-4 h-4 text-indigo-400" />
-            {isEditingName ? (
-              <div className="flex items-center gap-1">
-                <input
-                  type="text"
-                  maxLength={15}
-                  value={tempName}
-                  onChange={(e) => setTempName(e.target.value)}
-                  className="w-24 bg-slate-950 text-xs px-1.5 py-0.5 rounded text-white border border-indigo-500 focus:outline-none"
-                  autoFocus
-                />
-                <button onClick={handleSaveName} className="text-emerald-400 hover:text-emerald-300">
-                  <Check className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => setIsEditingName(true)}>
-                <span className="text-xs font-bold text-slate-200 truncate max-w-[90px]">{playerName}</span>
-                <Edit3 className="w-3 h-3 text-slate-400" />
-              </div>
-            )}
-          </div>
-        </header>
-
-        {/* Error Alert */}
-        {errorMessage && (
-          <div className="mt-3 p-3 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-300 text-xs flex items-center justify-between">
-            <span>⚠️ {errorMessage}</span>
-            <button onClick={onClearError} className="font-bold text-rose-400 hover:text-rose-200">
-              ✕
+    <Shell
+      playerName={playerName}
+      connected={connected}
+      view={view}
+      onView={(next) => {
+        setView(next);
+        setCategory('Todos');
+        setQuery('');
+      }}
+      onHelp={() => setShowHelp(true)}
+      onProfile={() => {
+        setDraftName(playerName);
+        setShowProfile(true);
+      }}
+      onJoin={() => setShowJoin(true)}
+    >
+      <div className="page-intro">
+        <div>
+          <p className="eyebrow">
+            <span /> {t('BIENVENIDO A LA MESA')}{' '}
+          </p>
+          <h1>{t('Elige juego. Reúne a los tuyos.')}</h1>
+          <p>{t('Los clásicos que te gustan, a un clic de distancia.')}</p>
+        </div>
+        <span className="intro-stamp">
+          <Sparkles size={17} /> {t('Buenos ratos, gratis')}{' '}
+        </span>
+      </div>
+      <section className="hero">
+        <div className="hero-copy">
+          <span className="hero-label">
+            <span /> {t('EL PLAN QUE NUNCA FALLA')}{' '}
+          </span>
+          <h2>
+            {t('Una partida más.')} <br />
+            <em>{t('Y ya nos vamos.')}</em>
+          </h2>
+          <p>
+            {t('Ese pique sano. Esa última carta. Esa tirada de suerte.')}{' '}
+            <br className="desktop-break" /> {t('Tu próxima sobremesa empieza aquí.')}{' '}
+          </p>
+          <div className="hero-actions">
+            <a className="button light" href="#games">
+              {t('Encuentra tu juego')} <ArrowRight size={17} />
+            </a>
+            <button className="hero-join" onClick={() => setShowJoin(true)}>
+              {t('Tengo un código')} <ArrowUpRight size={17} />
             </button>
+          </div>
+          <div className="hero-note">
+            <span className="stacked-avatars">
+              <i>A</i>
+              <i>M</i>
+              <i>S</i>
+            </span>
+            <span>
+              {t('Con amigos o contra un bot.')} <br />
+              <strong>{t('Siempre hay sitio para una partida.')}</strong>
+            </span>
+          </div>
+        </div>
+        <div className="hero-visual">
+          <div className="hero-orbit" />
+          <div className="hero-floating-label">
+            {t('EL CLÁSICO, A TU MANERA')} <span>↘</span>
+          </div>
+          <GameArtwork game="monopoly" hero />
+          <span className="hero-bubble">
+            <span>✳</span> {t('Que la suerte te acompañe.')}{' '}
+          </span>
+          <span className="hero-spark">✧</span>
+        </div>
+      </section>
+      <section id="games" className="catalog" aria-label={t('Catálogo de juegos')}>
+        <div className="catalog-heading">
+          <div>
+            <span className="eyebrow">{t('A QUÉ JUGAMOS HOY')}</span>
+            <h2>
+              {view === 'favorites' ? t('Tus favoritos') : t('Una mesa para cada plan')}
+              <span className="count-badge">{games.length}</span>
+            </h2>
+          </div>
+          <label className="search-box">
+            <Search size={18} />
+            <input
+              type="search"
+              placeholder={t('Busca tu próximo juego…')}
+              aria-label={t('Buscar juegos')}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {query && (
+              <button aria-label={t('Limpiar búsqueda')} onClick={() => setQuery('')}>
+                <X size={16} />
+              </button>
+            )}
+            <span className="search-hint">⌕</span>
+          </label>
+        </div>
+        <div className="filter-row">
+          <div className="category-tabs" aria-label={t('Categorías')}>
+            {['Todos', 'Estrategia', 'Cartas', 'Clásicos', 'Dados'].map((cat) => (
+              <button
+                key={t(cat)}
+                onClick={() => setCategory(cat)}
+                aria-pressed={category === cat}
+                className={category === cat ? 'active' : ''}
+              >
+                {cat === 'Todos' && <SlidersHorizontal size={14} />} {t(cat)}
+              </button>
+            ))}
+          </div>
+          <span className="catalog-count">
+            {games.length} {t(games.length === 1 ? 'juego' : 'juegos')} {t('· todos gratis')}{' '}
+          </span>
+        </div>
+        {!games.length ? (
+          <div className="empty-results">
+            <Search size={32} />
+            <h3>
+              {view === 'favorites' && !favorites.length
+                ? t('Tu mesa de favoritos está vacía')
+                : t('No encontramos ese juego')}
+            </h3>
+            <p>
+              {view === 'favorites' && !favorites.length
+                ? t('Pulsa el corazón de un juego para tenerlo siempre a mano.')
+                : t('Prueba con otro nombre o cambia los filtros.')}
+            </p>
+            <button
+              className="button secondary"
+              onClick={() => {
+                setQuery('');
+                setCategory('Todos');
+                setView('all');
+              }}
+            >
+              {t('Ver todos los juegos')}{' '}
+            </button>
+          </div>
+        ) : (
+          <div className="games-grid">
+            {games.map((g, index) => (
+              <article
+                className={`game-card game-${g.id}`}
+                key={g.id}
+                style={{ animationDelay: `${index * 45}ms` }}
+              >
+                <div className="game-card-art">
+                  <button
+                    className="art-open"
+                    aria-label={t('Jugar a {0}', { '0': g.name })}
+                    disabled={playDisabled}
+                    onClick={() => setSelected(g.id)}
+                  >
+                    <GameArtwork game={g.id} />
+                  </button>
+                  <span className="game-category">{t(g.category)}</span>
+                  <button
+                    className={`favorite-button ${favorites.includes(g.id) ? 'is-favorite' : ''}`}
+                    aria-pressed={favorites.includes(g.id)}
+                    aria-label={t(
+                      favorites.includes(g.id)
+                        ? 'Quitar {0} de favoritos'
+                        : 'Añadir {0} a favoritos',
+                      { '0': g.name },
+                    )}
+                    onClick={() => toggleFavorite(g.id)}
+                  >
+                    <Heart size={17} fill={favorites.includes(g.id) ? 'currentColor' : 'none'} />
+                  </button>
+                  {g.id === 'monopoly' && (
+                    <span className="featured-tag">
+                      <span /> {t('FAVORITO DE LA MESA')}{' '}
+                    </span>
+                  )}
+                </div>
+                <div className="game-card-body">
+                  <div className="game-title-row">
+                    <h3>
+                      <button onClick={() => setSelected(g.id)}>{g.name}</button>
+                    </h3>
+                    <button
+                      className="rules-button"
+                      onClick={() => setRules(g.id)}
+                      aria-label={t('Reglas de {0}', { '0': g.name })}
+                      title={t('Cómo jugar')}
+                    >
+                      <BookOpen size={16} />
+                    </button>
+                  </div>
+                  <p className="game-description">{g.description}</p>
+                  <div className="game-meta">
+                    <span>
+                      <Users size={14} />
+                      {g.minPlayers === g.maxPlayers
+                        ? g.minPlayers
+                        : `${g.minPlayers}–${g.maxPlayers}`}{' '}
+                      {t('jugadores')}{' '}
+                    </span>
+                    <span>
+                      <Clock3 size={14} />
+                      {g.duration}
+                    </span>
+                  </div>
+                  <div className="game-card-actions">
+                    <button
+                      className="play-friends"
+                      disabled={playDisabled}
+                      onClick={() => onCreateRoom(g.id)}
+                    >
+                      {t('Jugar con amigos')} <ArrowUpRight size={16} />
+                    </button>
+                    <button
+                      className="play-bot"
+                      disabled={playDisabled}
+                      onClick={() => onQuickPlayVsBot(g.id)}
+                      aria-label={t('Jugar a {0} contra un bot', { '0': g.name })}
+                      title={t('Jugar contra un bot')}
+                    >
+                      <Bot size={18} />
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
           </div>
         )}
-
-        {/* Game Selector Section */}
-        <section className="mt-5">
-          <h2 className="text-xs font-bold tracking-wider text-slate-400 uppercase mb-3">
-            Selecciona un Juego
-          </h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            {/* Capital Clash (Monopoly) */}
-            <div
-              onClick={() => setSelectedGame('monopoly')}
-              className={`p-3 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden sm:col-span-1 ${
-                selectedGame === 'monopoly'
-                  ? 'bg-gradient-to-b from-emerald-950/40 to-slate-900 border-emerald-500 shadow-lg shadow-emerald-500/10'
-                  : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl">🎩</span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  2 - 6 Jugadores
-                </span>
-              </div>
-              <h3 className="font-bold text-sm text-white mb-1">Capital Clash</h3>
-              <p className="text-[11px] text-slate-400 line-clamp-2">
-                Negocios inmobiliarios estilo Monopoly: calles, hoteles, alquileres, tratos y cárcel.
-              </p>
-            </div>
-
-            {/* Color Clash */}
-            <div
-              onClick={() => setSelectedGame('colorclash')}
-              className={`p-3 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden ${
-                selectedGame === 'colorclash'
-                  ? 'bg-gradient-to-b from-purple-950/40 to-slate-900 border-purple-500 shadow-lg shadow-purple-500/10'
-                  : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl">🎴</span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                  2 - 4 Jugadores
-                </span>
-              </div>
-              <h3 className="font-bold text-sm text-white mb-1">Color Clash</h3>
-              <p className="text-[11px] text-slate-400 line-clamp-2">
-                Juego de cartas tipo UNO: colores, +2, +4, cambios de sentido y comodines.
-              </p>
-            </div>
-
-            {/* 3 en Raya */}
-            <div
-              onClick={() => setSelectedGame('tictactoe')}
-              className={`p-3 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden ${
-                selectedGame === 'tictactoe'
-                  ? 'bg-gradient-to-b from-blue-950/40 to-slate-900 border-blue-500 shadow-lg shadow-blue-500/10'
-                  : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl">⚔️</span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                  1v1 Clásico
-                </span>
-              </div>
-              <h3 className="font-bold text-sm text-white mb-1">3 en Raya</h3>
-              <p className="text-[11px] text-slate-400 line-clamp-2">
-                Estrategia 1v1 rápida online o contra nuestro Bot Minimax.
-              </p>
-            </div>
+      </section>
+      <section className="how-strip">
+        <div className="how-strip-icon">
+          <MousePointer2 size={24} />
+        </div>
+        <div>
+          <h3>{t('Menos preparativos. Más partidas.')}</h3>
+          <p>{t('Elige un juego, comparte el código y que empiece lo bueno.')}</p>
+        </div>
+        <button onClick={() => setShowHelp(true)}>
+          {t('Así de fácil')} <ArrowRight size={17} />
+        </button>
+      </section>
+      {rules && <Rules gameType={rules} onClose={() => setRules(null)} />}
+      {game && (
+        <Modal title={game.name} onClose={() => setSelected(null)}>
+          <div className="modal-art">
+            <GameArtwork game={game.id} />
           </div>
-        </section>
-
-        {/* Room Actions */}
-        <section className="mt-5 space-y-3">
-          {/* Create Room Button */}
-          <button
-            onClick={() => onCreateRoom(selectedGame)}
-            disabled={isConnecting}
-            className="w-full py-3.5 px-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98] touch-target"
-          >
-            <Sparkles className="w-4 h-4 text-yellow-300" />
-            <span>Crear Sala Online</span>
-          </button>
-
-          {/* Quick Play vs Bot */}
-          <button
-            onClick={() => onQuickPlayVsBot(selectedGame)}
-            disabled={isConnecting}
-            className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 font-semibold rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] touch-target"
-          >
-            <Bot className="w-4 h-4 text-emerald-400" />
-            <span>Partida Rápida vs Bot</span>
-          </button>
-        </section>
-
-        {/* Join With Code Form */}
-        <section className="mt-5 p-4 rounded-2xl bg-slate-900/40 border border-slate-800">
-          <h2 className="text-xs font-bold text-slate-300 mb-2 flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Unirse con Código de Sala</span>
-          </h2>
-          <form onSubmit={handleJoinSubmit} className="flex gap-2">
-            <input
-              type="text"
-              maxLength={5}
-              placeholder="CÓDIGO (EJ: K9X2P)"
-              value={roomCodeInput}
-              onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
-              className="flex-1 bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-2.5 text-center font-mono font-bold tracking-widest text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 uppercase touch-target"
-            />
+          <p>{game.description}</p>
+          <p className="muted">
+            {game.minPlayers}–{game.maxPlayers} {t('jugadores ·')} {game.duration}
+          </p>
+          <div className="choice-buttons">
             <button
-              type="submit"
-              disabled={roomCodeInput.trim().length !== 5 || isConnecting}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs flex items-center gap-1 transition-all touch-target"
+              className="button primary full"
+              disabled={playDisabled}
+              onClick={() => onCreateRoom(game.id)}
             >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              <span>Entrar</span>
+              <Users size={18} /> {t('Crear sala con amigos')} <ArrowRight size={17} />
+            </button>
+            <button
+              className="button secondary full"
+              disabled={playDisabled}
+              onClick={() => onQuickPlayVsBot(game.id)}
+            >
+              <Bot size={18} /> {t('Jugar ahora contra un bot')}{' '}
+            </button>
+            <button
+              className="text-button"
+              onClick={() => {
+                setRules(game.id);
+                setSelected(null);
+              }}
+            >
+              {t('Leer las reglas')}{' '}
+            </button>
+          </div>
+        </Modal>
+      )}
+      {showJoin && (
+        <Modal title={t('Tu sitio está en la mesa')} onClose={() => setShowJoin(false)}>
+          <p className="muted">
+            {t('Introduce el código de seis caracteres que te han compartido.')}
+          </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              onJoinRoom(roomCode);
+            }}
+          >
+            <label className="field-label" htmlFor="room-code">
+              {t('Código de la sala')}{' '}
+            </label>
+            <input
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              id="room-code"
+              className="field code-field"
+              placeholder="ABC234"
+              maxLength={6}
+              minLength={6}
+              pattern="[A-HJ-NP-Za-hj-np-z2-9]{6}"
+              value={roomCode}
+              onChange={(e) => setRoomCode(e.target.value.toUpperCase().replace(/[^A-Z2-9]/g, ''))}
+              required
+            />
+            <p className="form-hint">
+              {t('Entrarás como')} <strong>{playerName}</strong>.
+            </p>
+            <button
+              className="button primary full"
+              disabled={playDisabled || roomCode.length !== 6}
+              type="submit"
+            >
+              {isConnecting ? 'Entrando…' : t('Unirme a la partida')} <ArrowRight size={17} />
             </button>
           </form>
-        </section>
-      </div>
-
-      {/* Footer & Monetization Hook */}
-      <footer className="w-full mt-6 text-center">
-        <AdBannerPlaceholder label="Patrocinador de la plataforma" />
-        <p className="text-[10px] text-slate-600 mt-2 font-mono">
-          games.samuelciocan.com • Monorepo pnpm • TypeScript • Socket.IO
-        </p>
-      </footer>
-    </div>
+        </Modal>
+      )}
+      {showProfile && (
+        <Modal title={t('¿Cómo te llamamos?')} onClose={() => setShowProfile(false)}>
+          <p className="muted">{t('Tus amigos verán este nombre en las partidas.')}</p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              onUpdatePlayerName(draftName);
+              setShowProfile(false);
+            }}
+          >
+            <label className="field-label" htmlFor="player-name">
+              {t('Tu nombre')}{' '}
+            </label>
+            <input
+              className="field"
+              id="player-name"
+              autoComplete="nickname"
+              maxLength={24}
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              required
+            />
+            <p className="form-hint">
+              {t('Hasta 24 caracteres. Puedes cambiarlo antes de cada partida.')}{' '}
+            </p>
+            <button
+              type="button"
+              className="button secondary full"
+              onClick={() => setDraftName(randomName(locale))}
+            >
+              {t('Nombre aleatorio')}
+            </button>
+            <button className="button primary full" disabled={!draftName.trim()}>
+              {t('Guardar nombre')}{' '}
+            </button>
+          </form>
+        </Modal>
+      )}
+      {showHelp && (
+        <Modal title={t('En tres pasos, jugando')} onClose={() => setShowHelp(false)}>
+          <div className="how-steps">
+            <div>
+              <span>01</span>
+              <div>
+                <h3>{t('Encuentra tu juego')}</h3>
+                <p>{t('Busca un clásico, explora las categorías o elige uno de tus favoritos.')}</p>
+              </div>
+            </div>
+            <div>
+              <span>02</span>
+              <div>
+                <h3>{t('Invita a los tuyos')}</h3>
+                <p>
+                  {t(
+                    'Crea una sala y comparte su enlace o su código. También puedes añadir bots o empezar solo contra uno.',
+                  )}{' '}
+                </p>
+              </div>
+            </div>
+            <div>
+              <span>03</span>
+              <div>
+                <h3>{t('Que empiece la partida')}</h3>
+                <p>
+                  {t(
+                    'El anfitrión pulsa Empezar. Puedes consultar las reglas en cualquier momento y proponer una revancha al terminar.',
+                  )}{' '}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="tip">
+            <Link2 size={22} />
+            <p>
+              {t(
+                'Si se corta tu conexión, vuelve desde la misma pestaña en menos de tres minutos para recuperar tu sitio.',
+              )}{' '}
+            </p>
+          </div>
+          <button className="button primary full" onClick={() => setShowHelp(false)}>
+            {t('Vamos a jugar')} <CirclePlay size={18} />
+          </button>
+        </Modal>
+      )}
+    </Shell>
   );
-};
+}

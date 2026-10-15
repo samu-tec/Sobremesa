@@ -6,7 +6,7 @@ export interface IGameEngine<GameState, PlayerAction, PublicState> {
   /**
    * Initializes a brand new game state with the assigned players.
    */
-  initGame(players: { id: string; isBot: boolean }[]): GameState;
+  initGame(players: { id: string; isBot: boolean; name?: string }[]): GameState;
 
   /**
    * Validates if a player's action is legal given the current global game state.
@@ -33,4 +33,7 @@ export interface IGameEngine<GameState, PlayerAction, PublicState> {
    * Computes an action for the given bot player, or null if no action is needed.
    */
   getBotAction(state: GameState, botId: string): PlayerAction | null;
+
+  /** Resolve a permanent departure while preserving a playable match. */
+  forfeitPlayer(state: GameState, playerId: string): GameState;
 }

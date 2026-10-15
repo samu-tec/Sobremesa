@@ -103,18 +103,25 @@ export function getMostFrequentColor(hand: Card[]): PlayableColor {
 /**
  * Bot strategy for Color Clash.
  */
-export function getBotColorClashAction(state: ColorClashState, botId: string): ColorClashAction | null {
+export function getBotColorClashAction(
+  state: ColorClashState,
+  botId: string,
+): ColorClashAction | null {
   if (state.winner !== null || state.currentTurnPlayerId !== botId) {
     return null;
   }
 
-  const botHand = state.players.find(p => p.playerId === botId);
+  const botHand = state.players.find((p) => p.playerId === botId);
   if (!botHand || botHand.cards.length === 0) {
     return null;
   }
 
   const topDiscard = state.discardPile[state.discardPile.length - 1];
-  const playableCards = botHand.cards.filter(c => isCardPlayable(c, state.activeColor, topDiscard));
+  const playableCards = botHand.cards.filter(
+    (c) =>
+      isCardPlayable(c, state.activeColor, topDiscard) &&
+      (!state.hasDrawnThisTurn || state.drawnCardId === c.id),
+  );
 
   // If no playable cards
   if (playableCards.length === 0) {
@@ -125,21 +132,25 @@ export function getBotColorClashAction(state: ColorClashState, botId: string): C
   }
 
   // Check if any opponent is close to winning (e.g. <= 2 cards)
-  const isDangerousOpponent = state.players.some(p => p.playerId !== botId && p.cards.length <= 2);
+  const isDangerousOpponent = state.players.some(
+    (p) => p.playerId !== botId && p.cards.length <= 2,
+  );
 
   // Strategy prioritization:
   // 1. If opponent is dangerous, prioritize +4 or +2 or skip/reverse
   let selectedCard: Card | undefined;
   if (isDangerousOpponent) {
-    selectedCard = playableCards.find(c => c.value === 'wild_draw4') ||
-      playableCards.find(c => c.value === 'draw2') ||
-      playableCards.find(c => c.value === 'skip' || c.value === 'reverse');
+    selectedCard =
+      playableCards.find((c) => c.value === 'wild_draw4') ||
+      playableCards.find((c) => c.value === 'draw2') ||
+      playableCards.find((c) => c.value === 'skip' || c.value === 'reverse');
   }
 
   // 2. Otherwise prefer matching color actions or numbers
   if (!selectedCard) {
-    selectedCard = playableCards.find(c => c.color === state.activeColor) ||
-      playableCards.find(c => c.color !== 'wild') ||
+    selectedCard =
+      playableCards.find((c) => c.color === state.activeColor) ||
+      playableCards.find((c) => c.color !== 'wild') ||
       playableCards[0];
   }
 

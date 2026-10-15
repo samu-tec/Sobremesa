@@ -8,8 +8,12 @@ import {
 } from './types.js';
 import { checkBoardWinner, getBestTicTacToeMove, isBoardFull } from './bot.js';
 
-export class TicTacToeEngine implements IGameEngine<TicTacToeState, TicTacToeAction, TicTacToePublicState> {
-  initGame(players: { id: string; isBot: boolean }[]): TicTacToeState {
+export class TicTacToeEngine implements IGameEngine<
+  TicTacToeState,
+  TicTacToeAction,
+  TicTacToePublicState
+> {
+  initGame(players: { id: string; isBot: boolean; name?: string }[]): TicTacToeState {
     if (players.length !== 2) {
       throw new Error('TicTacToe requires exactly 2 players');
     }
@@ -43,7 +47,7 @@ export class TicTacToeEngine implements IGameEngine<TicTacToeState, TicTacToeAct
     }
 
     const index = action.index;
-    if (typeof index !== 'number' || index < 0 || index > 8) {
+    if (!Number.isInteger(index) || index < 0 || index > 8) {
       return false;
     }
 
@@ -51,7 +55,7 @@ export class TicTacToeEngine implements IGameEngine<TicTacToeState, TicTacToeAct
   }
 
   applyAction(state: TicTacToeState, playerId: string, action: TicTacToeAction): TicTacToeState {
-    const player = state.players.find(p => p.id === playerId);
+    const player = state.players.find((p) => p.id === playerId);
     if (!player) {
       throw new Error(`Player ${playerId} not found in game state`);
     }
@@ -82,7 +86,7 @@ export class TicTacToeEngine implements IGameEngine<TicTacToeState, TicTacToeAct
     }
 
     // Next player's turn
-    const nextPlayer = state.players.find(p => p.id !== playerId);
+    const nextPlayer = state.players.find((p) => p.id !== playerId);
     return {
       ...state,
       board: newBoard,
@@ -94,16 +98,20 @@ export class TicTacToeEngine implements IGameEngine<TicTacToeState, TicTacToeAct
     // Tic-Tac-Toe has full public visibility
     return {
       board: [...state.board],
-      players: state.players.map(p => ({ ...p })),
+      players: state.players.map((p) => ({ ...p })),
       currentTurn: state.currentTurn,
       winner: state.winner,
-      winningLine: state.winningLine ? [...state.winningLine] as [number, number, number] : null,
+      winningLine: state.winningLine ? ([...state.winningLine] as [number, number, number]) : null,
       isDraw: state.isDraw,
     };
   }
 
   checkWinner(state: TicTacToeState): string | null {
     return state.winner;
+  }
+
+  forfeitPlayer(state: TicTacToeState, id: string): TicTacToeState {
+    return { ...state, winner: state.players.find((p) => p.id !== id)!.id };
   }
 
   getBotAction(state: TicTacToeState, botId: string): TicTacToeAction | null {
@@ -115,7 +123,7 @@ export class TicTacToeEngine implements IGameEngine<TicTacToeState, TicTacToeAct
       return null;
     }
 
-    const botPlayer = state.players.find(p => p.id === botId);
+    const botPlayer = state.players.find((p) => p.id === botId);
     if (!botPlayer) {
       return null;
     }

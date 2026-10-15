@@ -1,101 +1,148 @@
-import http from 'http';
+import http from 'node:http';
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import express from 'express';
 import cors from 'cors';
 import { Server } from 'socket.io';
 import {
-  ClientToServerEvents,
-  GameLifecycleHooks,
-  InterServerEvents,
-  ServerToClientEvents,
-  SocketData,
+  GAME_CATALOG,
+  type ClientToServerEvents,
+  type InterServerEvents,
+  type ServerToClientEvents,
+  type SocketData,
 } from '@games/game-logic';
 import { CONFIG } from './config.js';
 import { RoomManager } from './RoomManager.js';
 import { registerSocketHandlers } from './socketHandlers.js';
-
 const app = express();
-app.use(cors({ origin: CONFIG.CORS_ORIGIN, credentials: true }));
-app.use(express.json());
-
+app.disable('x-powered-by');
+const allowedOrigin = (origin: string | undefined) =>
+  !origin || CONFIG.ALLOWED_ORIGINS.includes(origin);
+app.use(cors({ origin: (origin, cb) => cb(null, allowedOrigin(origin)), credentials: false }));
+app.use((_req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+    'Content-Security-Policy':
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws://localhost:3000 ws://127.0.0.1:3000; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
+  });
+  if (process.env.NODE_ENV === 'production')
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+  next();
+});
 const server = http.createServer(app);
-
-const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(server, {
-  cors: {
-    origin: CONFIG.CORS_ORIGIN,
-    methods: ['GET', 'POST'],
-    credentials: true,
-  },
-  pingTimeout: 20000,
-  pingInterval: 10000,
-});
-
-// Lifecycle hooks for analytics, ad hooks, or reward logic
-const lifecycleHooks: GameLifecycleHooks = {
-  onGameStart: ({ roomCode, gameType, playerIds }) => {
-    console.log(`[Lifecycle] Game started in room ${roomCode} (${gameType}) with ${playerIds.length} players`);
-  },
-  onGameEnd: ({ roomCode, gameType, winnerId, durationMs }) => {
-    console.log(`[Lifecycle] Game finished in room ${roomCode} (${gameType}). Winner: ${winnerId || 'Draw'}. Duration: ${(durationMs / 1000).toFixed(1)}s`);
-  },
+server.headersTimeout = 10000;
+server.requestTimeout = 15000;
+const connections = new Map<string, { attempts: number; reset: number; active: number }>();
+const ipFor = (req: http.IncomingMessage) => {
+  const remote = req.socket.remoteAddress || 'unknown';
+  // Only opt in when the origin is isolated behind your own cloudflared instance.
+  const forwarded = req.headers['cf-connecting-ip'];
+  return CONFIG.TRUST_CLOUDFLARE && typeof forwarded === 'string' ? forwarded.slice(0, 64) : remote;
 };
-
-const roomManager = new RoomManager(io, lifecycleHooks);
-
-// Health check endpoint (for Cloudflare Tunnels, Docker, monitoring)
+const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(
+  server,
+  {
+    cors: { origin: (origin, cb) => cb(null, allowedOrigin(origin)), methods: ['GET', 'POST'] },
+    allowRequest: (req, callback) => {
+      if (!allowedOrigin(req.headers.origin) || io.engine.clientsCount >= CONFIG.MAX_CONNECTIONS) {
+        callback('Acceso no permitido', false);
+        return;
+      }
+      const ip = ipFor(req),
+        now = Date.now(),
+        previous = connections.get(ip);
+      const bucket =
+        previous && previous.reset > now
+          ? previous
+          : { attempts: 0, reset: now + 60000, active: previous?.active || 0 };
+      bucket.attempts++;
+      connections.set(ip, bucket);
+      callback(null, bucket.attempts <= 120 && bucket.active < 30);
+    },
+    maxHttpBufferSize: 16 * 1024,
+    pingTimeout: 20000,
+    pingInterval: 15000,
+    perMessageDeflate: false,
+  },
+);
+io.use((socket, next) => {
+  const token: unknown = socket.handshake.auth?.sessionToken;
+  if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) {
+    next(new Error('Sesión no válida. Recarga la página.'));
+    return;
+  }
+  // Public player IDs are derived from private, cryptographically random browser secrets.
+  // A supplied playerId in an event cannot authorize any action.
+  socket.data.playerId = `guest_${createHash('sha256').update(token).digest('hex').slice(0, 32)}`;
+  next();
+});
+const manager = new RoomManager(io);
+io.on('connection', (socket) => {
+  const ip = ipFor(socket.request),
+    bucket = connections.get(ip);
+  if (bucket) bucket.active++;
+  registerSocketHandlers(io, socket, manager);
+  socket.on('disconnect', () => {
+    const entry = connections.get(ip);
+    if (entry) entry.active = Math.max(0, entry.active - 1);
+  });
+});
+const sweep = setInterval(() => {
+  for (const [ip, bucket] of connections)
+    if (!bucket.active && bucket.reset < Date.now()) connections.delete(ip);
+}, 60000);
+sweep.unref();
 app.get('/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    uptimeSeconds: Math.floor(process.uptime()),
-    activeRooms: roomManager.getRoomsCount(),
-    timestamp: new Date().toISOString(),
-  });
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ status: 'ok' });
 });
-
-// Platform stats endpoint
 app.get('/api/stats', (_req, res) => {
-  res.json({
-    activeRooms: roomManager.getRoomsCount(),
-    serverTime: Date.now(),
-    supportedGames: ['tictactoe', 'colorclash', 'monopoly'],
-  });
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ activeRooms: manager.getRoomsCount(), supportedGames: GAME_CATALOG.map((g) => g.id) });
 });
-
-// Serve static frontend assets in production if built
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const clientDistPath = path.resolve(__dirname, '../../client/dist');
-
-if (fs.existsSync(clientDistPath)) {
-  console.log(`Serving static client files from ${clientDistPath}`);
-  app.use(express.static(clientDistPath));
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(clientDistPath, 'index.html'));
+app.use('/api', (_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
+const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
+if (fs.existsSync(clientDist)) {
+  app.use(
+    express.static(clientDist, {
+      dotfiles: 'deny',
+      index: false,
+      setHeaders: (res, file) => {
+        res.setHeader(
+          'Cache-Control',
+          file.includes(`${path.sep}assets${path.sep}`)
+            ? 'public, max-age=31536000, immutable'
+            : 'no-cache',
+        );
+      },
+    }),
+  );
+  app.get('*', (req, res) => {
+    if (path.extname(req.path)) {
+      res.status(404).end();
+      return;
+    }
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(path.join(clientDist, 'index.html'));
   });
 }
-
-// Socket connection
-io.on('connection', (socket) => {
-  registerSocketHandlers(io, socket, roomManager);
-});
-
-server.listen(CONFIG.PORT, () => {
-  console.log(`🎮 Game Server running on http://localhost:${CONFIG.PORT}`);
-  console.log(`⚡ Socket.IO listening on port ${CONFIG.PORT} with Server-Authoritative state`);
-});
-
-// Graceful shutdown
-const shutdown = () => {
-  console.log('Shutting down server gracefully...');
-  roomManager.dispose();
-  server.close(() => {
-    console.log('Server closed.');
-    process.exit(0);
-  });
-};
-
+server.listen(CONFIG.PORT, CONFIG.HOST, () =>
+  console.log(`Games disponible en http://${CONFIG.HOST}:${CONFIG.PORT}`),
+);
+let closing = false;
+function shutdown() {
+  if (closing) return;
+  closing = true;
+  clearInterval(sweep);
+  manager.dispose();
+  io.close();
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 5000).unref();
+}
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);

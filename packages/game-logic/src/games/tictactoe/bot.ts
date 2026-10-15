@@ -11,7 +11,10 @@ const WINNING_COMBINATIONS: [number, number, number][] = [
   [2, 4, 6],
 ];
 
-export function checkBoardWinner(board: TicTacToeBoard): { winnerSymbol: TicTacToeSymbol | null; line: [number, number, number] | null } {
+export function checkBoardWinner(board: TicTacToeBoard): {
+  winnerSymbol: TicTacToeSymbol | null;
+  line: [number, number, number] | null;
+} {
   for (const combo of WINNING_COMBINATIONS) {
     const [a, b, c] = combo;
     if (board[a] && board[a] === board[b] && board[a] === board[c]) {
@@ -22,7 +25,7 @@ export function checkBoardWinner(board: TicTacToeBoard): { winnerSymbol: TicTacT
 }
 
 export function isBoardFull(board: TicTacToeBoard): boolean {
-  return board.every(cell => cell !== null);
+  return board.every((cell) => cell !== null);
 }
 
 /**
@@ -32,7 +35,9 @@ export function getBestTicTacToeMove(board: TicTacToeBoard, botSymbol: TicTacToe
   const opponentSymbol: TicTacToeSymbol = botSymbol === 'X' ? 'O' : 'X';
 
   // If opening move and board is empty, pick center or random corner for natural play
-  const emptyIndices = board.map((val, idx) => (val === null ? idx : null)).filter((idx): idx is number => idx !== null);
+  const emptyIndices = board
+    .map((val, idx) => (val === null ? idx : null))
+    .filter((idx): idx is number => idx !== null);
   if (emptyIndices.length === 9) {
     return 4; // center
   }
@@ -59,7 +64,7 @@ function minimax(
   depth: number,
   isMaximizing: boolean,
   botSymbol: TicTacToeSymbol,
-  opponentSymbol: TicTacToeSymbol
+  opponentSymbol: TicTacToeSymbol,
 ): number {
   const { winnerSymbol } = checkBoardWinner(board);
   if (winnerSymbol === botSymbol) return 10 - depth;

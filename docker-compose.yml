@@ -1,32 +1,45 @@
 services:
   game-server:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: games-platform
+    build: .
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - '127.0.0.1:3000:3000'
     environment:
-      - PORT=3000
-      - NODE_ENV=production
-      - CORS_ORIGIN=*
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://games.samuelciocan.com,http://localhost:3000,http://127.0.0.1:3000}
+      TRUST_CLOUDFLARE: ${TRUST_CLOUDFLARE:-false}
+      DISCONNECT_GRACE_PERIOD_MS: ${DISCONNECT_GRACE_PERIOD_MS:-180000}
+      BOT_THINKING_TIME_MS: ${BOT_THINKING_TIME_MS:-650}
+      MAX_ROOMS: ${MAX_ROOMS:-500}
+      MAX_CONNECTIONS: ${MAX_CONNECTIONS:-2000}
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 128
+    stop_grace_period: 10s
 
-  # Optional Cloudflare Tunnel service (cloudflared) for games.samuelciocan.com
   cloudflared:
     image: cloudflare/cloudflared:latest
-    container_name: games-cloudflared
     restart: unless-stopped
     command: tunnel --no-autoupdate run
     environment:
-      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on:
-      - game-server
+      game-server:
+        condition: service_healthy
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     profiles:
       - tunnel

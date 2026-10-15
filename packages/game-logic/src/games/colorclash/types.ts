@@ -1,3 +1,4 @@
+import type { GameText } from '../../messages.js';
 export type CardColor = 'red' | 'blue' | 'green' | 'yellow' | 'wild';
 export type PlayableColor = 'red' | 'blue' | 'green' | 'yellow';
 
@@ -31,6 +32,7 @@ export interface PlayerHand {
 }
 
 export interface ColorClashState {
+  drawnCardId?: string | null;
   players: PlayerHand[];
   drawPile: Card[];
   discardPile: Card[];
@@ -38,7 +40,7 @@ export interface ColorClashState {
   currentTurnPlayerId: string;
   turnDirection: 1 | -1; // 1 = clockwise, -1 = counter-clockwise
   winner: string | null;
-  lastActionDescription: string | null;
+  lastActionDescription: GameText | null;
   hasDrawnThisTurn: boolean;
 }
 
@@ -62,6 +64,7 @@ export interface OpponentPublicInfo {
 }
 
 export interface ColorClashPublicState {
+  drawnCardId?: string | null;
   myHand: Card[];
   opponents: OpponentPublicInfo[];
   topDiscardCard: Card;
@@ -70,6 +73,6 @@ export interface ColorClashPublicState {
   currentTurnPlayerId: string;
   turnDirection: 1 | -1;
   winner: string | null;
-  lastActionDescription: string | null;
+  lastActionDescription: GameText | null;
   hasDrawnThisTurn: boolean;
 }
