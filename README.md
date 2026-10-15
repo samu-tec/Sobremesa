@@ -39,7 +39,6 @@ packages/
     src/games/         Un directorio por juego
     test/              Pruebas de los motores
 tests/                Pruebas de integración y navegador
-deploy/               Ejemplo de configuración de cloudflared
 docs/                 Decisiones, desarrollo, pruebas y despliegue
 ```
 

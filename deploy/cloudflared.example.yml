@@ -1,8 +1,0 @@
-# Sustituir los marcadores por los datos de TU túnel local.
-# Para un túnel administrado desde el panel no hace falta este archivo.
-tunnel: TU_UUID_DE_TUNEL
-credentials-file: /ruta/privada/TU_UUID_DE_TUNEL.json
-ingress:
-  - hostname: games.samuelciocan.com
-    service: http://127.0.0.1:3000
-  - service: http_status:404
