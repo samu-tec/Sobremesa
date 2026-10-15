@@ -20,7 +20,7 @@ Con Docker arrancado:
 docker compose -p sobremesa up -d --build game-server
 ```
 
-El puerto del juego se publica solo en `127.0.0.1:3000`. El contenedor ejecuta Node sin privilegios, con sistema de archivos de solo lectura y límites de recursos.
+El puerto del juego se publica solo en `127.0.0.1:3000`. El contenedor ejecuta Node sin privilegios, con sistema de archivos de solo lectura y límites de recursos. Antes de arrancar Compose por primera vez en el servidor, comprueba que exista la red externa que ya usa tu contenedor de Cloudflared (`docker network inspect cloudflare`). Si aún no existe, créala con `docker network create cloudflare`. La app se conecta a esa red y también a su red Compose; no inicia ni administra Cloudflared.
 
 Comprueba la configuración sin arrancar contenedores:
 
@@ -30,7 +30,7 @@ docker compose -p sobremesa config --quiet
 
 ## Cloudflare Tunnel
 
-Cloudflared se configura y ejecuta por separado en su propio contenedor; no hay token, servicio ni archivo de configuración de Cloudflared dentro del proyecto. En el panel de Cloudflare, el túnel debe dirigir `games.samuelciocan.com` a `http://127.0.0.1:3000`. Si se usa Docker Engine en Linux, ejecuta el contenedor de Cloudflared con la red del host para que pueda alcanzar ese puerto local. Mantén el token fuera del repositorio.
+Cloudflared se configura y ejecuta por separado en su propio contenedor; no hay token, servicio ni archivo de configuración de Cloudflared dentro del proyecto. Ambos contenedores comparten la red Docker externa `cloudflare`. En el panel del túnel, dirige `games.samuelciocan.com` a `http://game-server:3000`; `game-server` es el nombre del servicio resoluble dentro de esa red. El contenedor de Cloudflared debe seguir conectado a `cloudflare`, incluso después de recrearlo al actualizar su imagen. Mantén el token fuera del repositorio.
 
 `TRUST_CLOUDFLARE=true` permite identificar la IP del visitante para los límites de conexión. Actívalo únicamente si el origen está aislado y las peticiones públicas llegan por Cloudflare Tunnel. No se confía en `X-Forwarded-For`.
 

@@ -4,6 +4,9 @@ services:
     restart: unless-stopped
     ports:
       - '127.0.0.1:3000:3000'
+    networks:
+      - default
+      - cloudflare
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
@@ -29,3 +32,8 @@ services:
     cpus: 1.0
     pids_limit: 128
     stop_grace_period: 10s
+
+networks:
+  cloudflare:
+    name: cloudflare
+    external: true
