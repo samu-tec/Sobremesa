@@ -1,16 +1,14 @@
-import { message as msg, term, type GameText } from '../../messages.js';
+import { message as msg, term } from '../../messages.js';
 import { IGameEngine } from '../../engine/IGameEngine.js';
 import { BOARD_TILES, CHANCE_CARDS, COMMUNITY_CHEST_CARDS, PROPERTY_GROUPS } from './boardData.js';
 import {
   BoardTile,
-  CardEffect,
   DEFAULT_MONOPOLY_RULES,
   MonopolyAction,
   MonopolyCustomRules,
   MonopolyPlayer,
   MonopolyPublicState,
   MonopolyState,
-  PropertyGroup,
   PropertyOwnership,
   MonopolyTradeOffer,
 } from './types.js';
@@ -943,7 +941,7 @@ export class MonopolyEngine implements IGameEngine<
           activePlayers[0].name,
         ),
       );
-    } else if (state.round > (state.customRules.maxRounds ?? 40)) {
+    } else if (state.customRules.maxRounds != null && state.round > state.customRules.maxRounds) {
       const wealth = (id: string) =>
         state.players.find((p) => p.id === id)!.cash +
         Object.entries(state.properties).reduce((total, [key, property]) => {
@@ -960,7 +958,7 @@ export class MonopolyEngine implements IGameEngine<
       const leaders = activePlayers.filter((p) => wealth(p.id) === best);
       state.winner = leaders.length === 1 ? leaders[0].id : null;
       state.isDraw = leaders.length !== 1;
-      state.round = state.customRules.maxRounds ?? 40;
+      state.round = state.customRules.maxRounds;
       state.logs.unshift(
         msg(
           'Fin de las {0} rondas. {1} por patrimonio ({2} €).',

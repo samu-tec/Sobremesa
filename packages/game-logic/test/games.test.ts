@@ -218,6 +218,7 @@ for (const [name, Engine, count, max] of [
 ] as const) {
   test(`${name}: diez partidas completas sin acciones ilegales`, () => {
     const engine: IGameEngine<any, any, any> = new Engine();
+    if (engine instanceof MonopolyEngine) engine.setRules({ maxRounds: 40 });
     for (let match = 0; match < 10; match++) {
       let state = engine.initGame(
         Array.from({ length: count }, (_, i) => ({ id: `p${i}`, isBot: true, name: `Bot ${i}` })),
@@ -286,8 +287,8 @@ test('Las cartas de libertad salen del mazo hasta que se usan o se devuelve la m
   assert.ok(forfeited.chanceDeck.some((c) => c.id === card.id));
   assert.equal(next.heldJailCards.length, 1);
 });
-test('El límite de rondas decide por patrimonio y permite empatar', () => {
-  const engine = new MonopolyEngine(),
+test('El límite opcional de rondas decide por patrimonio y permite empatar', () => {
+  const engine = new MonopolyEngine({ maxRounds: 40 }),
     state = engine.initGame(players);
   state.currentTurnPlayerId = 'b';
   state.turnPhase = 'end_turn';
@@ -303,6 +304,18 @@ test('El límite de rondas decide por patrimonio y permite empatar', () => {
   const won = engine.applyAction(rich, 'b', { type: 'END_TURN' });
   assert.equal(won.winner, 'a');
   assert.equal(won.isDraw, false);
+});
+test('Ciudad Fortuna no termina por rondas cuando el límite está desactivado', () => {
+  const engine = new MonopolyEngine(),
+    state = engine.initGame(players);
+  state.currentTurnPlayerId = 'b';
+  state.turnPhase = 'end_turn';
+  state.round = 40;
+  const next = engine.applyAction(state, 'b', { type: 'END_TURN' });
+  assert.equal(next.round, 41);
+  assert.equal(next.isDraw, false);
+  assert.equal(next.winner, null);
+  assert.equal(next.customRules.maxRounds, null);
 });
 test('Ciudad Fortuna cobra los alquileres de calles, grupos, edificios, estaciones y servicios', () => {
   const engine = new MonopolyEngine();

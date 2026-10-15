@@ -51,7 +51,7 @@ Usa una ventana nueva; duplicar una pestaña puede copiar su sesión. Cada jugad
 
 ### Reconexión y salida
 
-Durante una partida, recarga una ventana. Debe recuperar la sala y el estado. También puedes desactivar y reactivar la red desde las herramientas del navegador durante menos de tres minutos, manteniendo el servidor en marcha.
+Durante una partida, recarga una ventana. Debe recuperar la sala y el estado. También puedes desactivar y reactivar la red desde las herramientas del navegador durante menos de cinco minutos, manteniendo el servidor en marcha.
 
 Prueba a salir de una partida. En un duelo, gana el rival; con más jugadores, el juego continúa según sus reglas. Si sale el anfitrión, otro jugador humano recibe ese papel.
 

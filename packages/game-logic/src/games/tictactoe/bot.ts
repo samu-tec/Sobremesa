@@ -1,4 +1,4 @@
-import { TicTacToeBoard, TicTacToeCell, TicTacToeSymbol } from './types.js';
+import { TicTacToeBoard, TicTacToeSymbol } from './types.js';
 
 const WINNING_COMBINATIONS: [number, number, number][] = [
   [0, 1, 2],

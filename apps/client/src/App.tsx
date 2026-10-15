@@ -13,10 +13,16 @@ import type {
   ReversiState,
   PigState,
 } from '@games/game-logic';
-import { socket, sessionStore } from './services/socket';
+import {
+  findOtherSobremesaTab,
+  socket,
+  sessionStore,
+  startNewGuestSession,
+} from './services/socket';
 import { useGuestProfile } from './hooks/useGuestProfile';
 import { LobbyView } from './views/LobbyView';
-import { Welcome } from './ui/Welcome';
+import { randomName, Welcome } from './ui/Welcome';
+import { Modal } from './ui/Modal';
 import { Privacy } from './ui/Privacy';
 import { WaitingRoomView } from './views/WaitingRoomView';
 import { GameLayout } from './ui/GameLayout';
@@ -36,6 +42,10 @@ type PublicState =
   | Connect4State
   | ReversiState
   | PigState;
+function inviteCodeFrom(search: string) {
+  const value = new URLSearchParams(search).get('room');
+  return value && /^[A-HJ-NP-Z2-9]{6}$/i.test(value) ? value.toUpperCase() : null;
+}
 function request<T>(send: (done: (result: T) => void) => void): Promise<T> {
   return new Promise((resolve, reject) => {
     if (!socket.connected) {
@@ -58,7 +68,7 @@ function request<T>(send: (done: (result: T) => void) => void): Promise<T> {
   });
 }
 export function App() {
-  useLocale();
+  const { locale } = useLocale();
   const { confirmed, playerId, playerName, updateName, updatePlayerId } = useGuestProfile();
   const [room, setRoom] = useState<RoomInfo | null>(null),
     [state, setState] = useState<PublicState | null>(null),
@@ -66,19 +76,23 @@ export function App() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null);
   const [replaced, setReplaced] = useState(false);
-  const replacement = useRef(false);
+  const [tabConflict, setTabConflict] = useState<{ sameSession: boolean } | null>(null);
+  const [tabConflictDeferred, setTabConflictDeferred] = useState(false);
+  const replacement = useRef(true);
   const pending = useRef(false),
     recovering = useRef(false);
-  const [inviteCode, setInviteCode] = useState(() => {
-    const value = new URLSearchParams(location.search).get('room');
-    return value && /^[A-HJ-NP-Z2-9]{6}$/i.test(value) ? value.toUpperCase() : null;
-  });
-  const clearRoom = useCallback(() => {
+  const [inviteCode, setInviteCode] = useState(() => inviteCodeFrom(location.search));
+  const clearRoom = useCallback((preserveInvite = false) => {
+    const pendingInvite = preserveInvite ? inviteCodeFrom(location.search) : null;
     setRoom(null);
     setState(null);
     sessionStore.remove('sobremesa.room');
-    setInviteCode(null);
-    history.replaceState(null, '', location.pathname);
+    setInviteCode(pendingInvite);
+    history.replaceState(
+      null,
+      '',
+      pendingInvite ? `${location.pathname}?room=${pendingInvite}` : location.pathname,
+    );
   }, []);
   const saveRoom = (value: RoomInfo) => {
     setRoom(value);
@@ -104,8 +118,8 @@ export function App() {
             result.errorCode === 'ROOM_UNAVAILABLE' ||
             result.errorCode === 'NOT_A_MEMBER'
           ) {
-            clearRoom();
-            setError(result.error || 'Tu sala ya no está disponible. Puedes crear una nueva.');
+            clearRoom(true);
+            setError(t('La sala ha caducado o se ha cerrado. Crea otra o pide un enlace nuevo.'));
           } else {
             again = true;
             setError(result.error || 'No se pudo completar la acción.');
@@ -126,6 +140,8 @@ export function App() {
       updatePlayerId(playerId);
       setConnected(true);
       setReplaced(false);
+      setTabConflict(null);
+      setTabConflictDeferred(false);
       replacement.current = false;
       recover();
     };
@@ -169,7 +185,29 @@ export function App() {
     socket.on('disconnect', disconnected);
     socket.on('connect_error', connectError);
     socket.on('game:error', setError);
-    socket.connect();
+    if (location.pathname !== '/privacy') {
+      findOtherSobremesaTab()
+        .then((otherTab) => {
+          if (disposed) return;
+          if (otherTab) {
+            setTabConflict(otherTab);
+            return;
+          }
+          const invitation = inviteCodeFrom(location.search);
+          const previousRoom = sessionStore.get('sobremesa.room');
+          if (invitation && previousRoom && invitation !== previousRoom) {
+            // A new invitation takes precedence over a stale room restored by the browser.
+            startNewGuestSession();
+          }
+          replacement.current = false;
+          if (navigator.onLine) socket.connect();
+        })
+        .catch(() => {
+          if (disposed) return;
+          replacement.current = false;
+          if (navigator.onLine) socket.connect();
+        });
+    }
     return () => {
       disposed = true;
       clearTimeout(retry);
@@ -211,7 +249,17 @@ export function App() {
     }
   };
   const check = <T extends Result>(result: T): T => {
-    if (!result.success) throw new Error(result.error || 'No se pudo completar la acción.');
+    if (!result.success) {
+      if (result.errorCode === 'ROOM_UNAVAILABLE')
+        throw new Error(
+          t('La sala ha caducado o se ha cerrado. Crea otra o pide un enlace nuevo.'),
+        );
+      if (result.errorCode === 'ROOM_CREATE_RATE_LIMITED')
+        throw new Error(
+          t('Has alcanzado el límite de creación de salas. Espera un poco y vuelve a intentarlo.'),
+        );
+      throw new Error(result.error || t('No se pudo completar la acción.'));
+    }
     return result;
   };
   const create = (gameType: GameType, quick = false) =>
@@ -267,6 +315,28 @@ export function App() {
     run(async () => {
       check(await request<Result>((done) => socket.emit('game:action', value, done)));
     });
+  const continueInThisTab = () => {
+    setTabConflict(null);
+    setTabConflictDeferred(false);
+    replacement.current = false;
+    if (navigator.onLine) socket.connect();
+  };
+  const enterAsNewGuest = () => {
+    startNewGuestSession();
+    updateName(randomName(locale));
+    setTabConflict(null);
+    setTabConflictDeferred(false);
+    replacement.current = false;
+    if (navigator.onLine) socket.connect();
+  };
+  const keepOtherTab = () => {
+    setTabConflictDeferred(true);
+    try {
+      if (window.opener && !window.opener.closed) window.close();
+    } catch {
+      /* The browser may prevent scripts from closing a tab. */
+    }
+  };
   const updateRules = (rules: unknown) =>
     run(async () => {
       check(await request<Result>((done) => socket.emit('room:update_rules', rules, done)));
@@ -348,6 +418,47 @@ export function App() {
       )}
       {!confirmed && location.pathname !== '/privacy' && (
         <Welcome initialName={playerName} onConfirm={updateName} />
+      )}
+      {tabConflict && (
+        <Modal
+          title={t('Ya tienes Sobremesa abierto en otra pestaña')}
+          dismissable={false}
+          onClose={() => {}}
+        >
+          <p>
+            {tabConflict.sameSession
+              ? t(
+                  'Esta pestaña comparte la misma sesión que otra. Si continúas aquí, la anterior se desconectará y esta intentará recuperar su sala actual. Para entrar a la invitación sin interrumpirla, elige un invitado nuevo.',
+                )
+              : t(
+                  'Hay otra pestaña abierta en Sobremesa. Si usas el mismo apodo, aparecerás con ese nombre en ambas. Puedes crear un invitado nuevo para que los jugadores se distingan.',
+                )}
+          </p>
+          {tabConflictDeferred && (
+            <p role="status">
+              {t(
+                'Esta pestaña no se ha conectado. Puedes cerrarla desde el navegador y volver a la pestaña anterior.',
+              )}
+            </p>
+          )}
+          <div className="choice-buttons">
+            {!tabConflictDeferred && (
+              <button className="button primary full" onClick={continueInThisTab}>
+                {tabConflict.sameSession
+                  ? t('Usar esta sesión aquí')
+                  : t('Entrar como {0}', { '0': playerName })}
+              </button>
+            )}
+            <button className="button secondary full" onClick={enterAsNewGuest}>
+              {t('Entrar como invitado nuevo')}
+            </button>
+            {!tabConflictDeferred && (
+              <button className="text-button" onClick={keepOtherTab}>
+                {t('Ahora no')}
+              </button>
+            )}
+          </div>
+        </Modal>
       )}
       {!connected && room && (
         <div className="offline-banner" role="status">

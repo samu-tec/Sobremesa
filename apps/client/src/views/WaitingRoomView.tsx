@@ -47,8 +47,8 @@ export function WaitingRoomView({
   useEffect(() => {
     setSettings({ ...room.customRules, turnSeconds: room.turnSeconds });
   }, [room.code, room.customRules, room.turnSeconds]);
-  const changeRules = async (patch: Record<string, number | boolean>) => {
-    setSettings((current: Record<string, number | boolean>) => ({ ...current, ...patch }));
+  const changeRules = async (patch: Record<string, number | boolean | null>) => {
+    setSettings((current: Record<string, number | boolean | null>) => ({ ...current, ...patch }));
     if (!(await onUpdateRules(patch)))
       setSettings({ ...room.customRules, turnSeconds: room.turnSeconds });
   };
@@ -320,9 +320,14 @@ export function WaitingRoomView({
                   className="field"
                   id="max-rounds"
                   disabled={!host || busy}
-                  value={settings?.maxRounds ?? 40}
-                  onChange={(e) => changeRules({ maxRounds: Number(e.target.value) })}
+                  value={settings?.maxRounds ?? 'unlimited'}
+                  onChange={(e) =>
+                    changeRules({
+                      maxRounds: e.target.value === 'unlimited' ? null : Number(e.target.value),
+                    })
+                  }
                 >
+                  <option value="unlimited">{t('Sin límite')}</option>
                   {[20, 40, 60].map((n) => (
                     <option key={n} value={n}>
                       {n} {t('rondas')}{' '}

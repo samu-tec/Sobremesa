@@ -1,11 +1,4 @@
-import {
-  Card,
-  CardColor,
-  CardValue,
-  ColorClashAction,
-  ColorClashState,
-  PlayableColor,
-} from './types.js';
+import { Card, CardValue, ColorClashAction, ColorClashState, PlayableColor } from './types.js';
 
 const PLAYABLE_COLORS: PlayableColor[] = ['red', 'blue', 'green', 'yellow'];
 

@@ -24,16 +24,3 @@ export interface RoomInfo {
   serverNow: number;
   reconnectGraceMs: number;
 }
-
-/**
- * Lifecycle hook payloads for analytics, rewarded ads, or future monetization.
- */
-export interface GameLifecycleHooks {
-  onGameStart?: (data: { roomCode: string; gameType: GameType; playerIds: string[] }) => void;
-  onGameEnd?: (data: {
-    roomCode: string;
-    gameType: GameType;
-    winnerId: string | null;
-    durationMs: number;
-  }) => void;
-}

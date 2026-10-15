@@ -2,72 +2,120 @@ import { LanguageSelector, t, useLocale } from '../i18n';
 import { ArrowLeft } from 'lucide-react';
 const copy = {
   es: [
-    [
-      'Privacidad y uso',
-      'Sobremesa es una web de juegos de mesa. No necesitas crear una cuenta. Puedes usar un apodo y el dinero de las partidas es ficticio. No hay apuestas, pagos, publicidad ni analítica de terceros en esta versión.',
-    ],
-    [
-      'Responsable y contacto',
-      'Samuel Ciocan · España. Para consultas de privacidad o comunicar problemas: contacto@samuelciocan.com.',
-    ],
-    [
-      'Qué datos se utilizan',
-      'Tu apodo y un identificador aleatorio permiten asignarte un sitio, mostrar las jugadas a los participantes de la sala y recuperar la conexión. El servidor mantiene las salas y partidas en memoria; no hay una base de datos de perfiles. Tu dirección IP se trata temporalmente para gestionar conexiones y limitar abusos. No pedimos correo, fecha de nacimiento ni nombre real para jugar.',
-    ],
-    [
-      'Para qué y durante cuánto tiempo',
-      'La base para prestar la partida es la ejecución del servicio de juego que solicitas (art. 6.1.b RGPD). Para prevenir abusos, la base es el interés legítimo en proteger el servicio (art. 6.1.f RGPD). La reserva de reconexión dura tres minutos por defecto, configurable por el administrador. Las salas se eliminan cuando se marcha el último participante humano o tras 30 minutos sin actividad humana. Los contadores técnicos de conexión se limpian periódicamente cuando dejan de ser necesarios. Un reinicio del servidor elimina las partidas. No se realizan perfiles publicitarios ni decisiones con efectos jurídicos.',
-    ],
-    [
-      'Almacenamiento en tu navegador',
-      'Guardamos el nombre, la confirmación del perfil, el idioma y tus favoritos en localStorage. sessionStorage guarda el secreto de tu sesión, tu identificador y el código de sala para la reconexión en esa pestaña. Las preferencias duran hasta que las borres; los datos de sesión dependen del cierre o restauración de la pestaña por tu navegador. Solo se usa almacenamiento funcional. Puedes borrar las preferencias con el botón de esta página o desde la configuración del navegador. Borrar una sesión durante una partida impide recuperarla.',
-    ],
-    [
-      'Quién puede verlos',
-      'Los participantes con el código de tu sala ven tu apodo y el estado público del juego; las cartas privadas solo se envían a su dueño. No compartas el código con desconocidos. El secreto de reconexión nunca se muestra en la sala. El alojamiento y, al acceder por el dominio público, Cloudflare pueden tratar datos técnicos necesarios para servir la web. No se venden datos. Cloudflare opera una red global; su política y acuerdo de tratamiento enlazados describen sus transferencias internacionales y garantías.',
-    ],
-    [
-      'Tus derechos',
-      'Puedes solicitar acceso, rectificación, supresión, limitación, portabilidad u oposición cuando correspondan escribiendo a contacto@samuelciocan.com. Para localizar una partida indica su código y tu apodo; no envíes el secreto de sesión. También puedes presentar una reclamación ante la Agencia Española de Protección de Datos en aepd.es.',
-    ],
-    [
-      'Uso y juegos',
-      'Respeta a las demás personas y evita apodos ofensivos o datos sensibles. Las partidas se ofrecen para entretenimiento, sin premios económicos. Sobremesa tiene diseño y recursos propios; no está afiliada a los titulares de otros juegos o marcas. Los nombres usados como términos de búsqueda solo ayudan a encontrar variantes. Las reglas de esta web, incluidas las opciones de la sala, describen cómo funciona cada juego.',
-    ],
+    {
+      heading: 'Privacidad y uso',
+      paragraphs: [
+        'Puedes jugar sin crear una cuenta. El dinero de las partidas es ficticio: aquí no hay apuestas ni premios económicos. La aplicación no lleva publicidad ni analítica de terceros y no guarda un historial de las partidas terminadas.',
+      ],
+    },
+    {
+      heading: 'Quién responde y cómo contactar',
+      paragraphs: [
+        'El responsable del tratamiento es Samuel Ciocan, en España. Para preguntar por tus datos o ejercer tus derechos, escribe a contacto@samuelciocan.com.',
+      ],
+    },
+    {
+      heading: 'Qué datos hacen falta para jugar',
+      paragraphs: [
+        'Usamos el apodo que eliges, un identificador opaco derivado de un secreto aleatorio de sesión y la información necesaria para mantener la sala y la partida. No hace falta dar el nombre real, el correo ni la fecha de nacimiento.',
+        'La dirección IP se procesa temporalmente en memoria para limitar conexiones y creación abusiva de salas. No se usa para crear perfiles.',
+        'Tratamos los datos de la partida para prestarte el servicio que has solicitado (art. 6.1.b del RGPD). Para limitar abusos nos basamos en nuestro interés legítimo de proteger el servicio (art. 6.1.f).',
+      ],
+    },
+    {
+      heading: 'Qué guarda el servidor y durante cuánto tiempo',
+      paragraphs: [
+        'La aplicación no tiene cuentas, base de datos de perfiles ni historial de partidas. El estado de las salas y los datos de juego se mantienen en la memoria RAM mientras hacen falta; la aplicación no los escribe en sus propios archivos. Reiniciar el servidor borra ese estado temporal.',
+        'Una sala se elimina cuando se va la última persona o tras seis horas sin actividad humana. Si se corta tu conexión, reservamos tu sitio durante cinco minutos por defecto; quien administra el servidor puede cambiar ese plazo.',
+        'Para limitar conexiones, la IP se mantiene mientras la conexión está activa y hasta que vence su ventana de control. Los contadores de creación de salas caducan al terminar su ventana —un minuto por defecto— y se purgan en un barrido periódico, como máximo en el siguiente barrido de un minuto. El alojamiento o Cloudflare pueden guardar registros técnicos por su cuenta; cuánto tiempo y qué datos depende de la configuración y de sus condiciones.',
+      ],
+    },
+    {
+      heading: 'Qué queda en tu navegador',
+      paragraphs: [
+        'El apodo, la confirmación del perfil, el idioma y los favoritos se guardan en el navegador hasta que los borres. Para que puedas volver a una partida, sessionStorage conserva en esa pestaña un secreto de sesión, su identificador y el código de sala. El secreto se envía al servidor para reconocer la sesión, pero no se muestra a los demás jugadores.',
+        'Algunos navegadores copian datos de sesión al duplicar una pestaña. Sobremesa comprueba entre pestañas del mismo navegador si comparten sesión y te avisa antes de sustituir una conexión. Esa comprobación intercambia temporalmente una huella derivada del secreto entre pestañas; no se guarda ni se envía al servidor. Si abres una invitación distinta y no hay otra pestaña activa, se inicia una sesión nueva para que puedas entrar con ese enlace.',
+        'El botón de esta página borra el apodo y las preferencias guardadas en este navegador. Si borras los datos de sesión mientras juegas, no podremos recuperar ese sitio.',
+      ],
+    },
+    {
+      heading: 'Quién puede ver la partida',
+      paragraphs: [
+        'Quienes tienen el código de la sala pueden ver tu apodo y el estado público de la partida. Las cartas privadas solo se envían a su dueño. No compartas el código con personas que no quieras invitar.',
+        'El alojamiento y Cloudflare también pueden tratar datos técnicos para conectar y proteger el servicio. La red de Cloudflare es global, así que algunos datos podrían tratarse fuera del Espacio Económico Europeo bajo las garantías que describe en sus condiciones. Sus registros y plazos dependen de la configuración y del servicio; abajo tienes sus avisos de privacidad y tratamiento de datos. Sobremesa no vende tus datos.',
+      ],
+    },
+    {
+      heading: 'Tus derechos',
+      paragraphs: [
+        'Puedes solicitar acceso, rectificación, supresión, limitación u oposición cuando corresponda. La portabilidad se aplica en los casos previstos por la ley. Como los datos de una sala caducan y no hay cuentas ni historial permanente, puede que ya no quede información que localizar cuando recibamos tu solicitud.',
+        'Para ayudarnos a encontrar una partida activa, indica tu apodo, el juego y una hora aproximada. No envíes el secreto de sesión ni el enlace o código de invitación. Responderemos dentro del plazo legal, normalmente un mes; si la ley permite ampliarlo, te lo comunicaremos. También puedes reclamar ante la Agencia Española de Protección de Datos.',
+      ],
+    },
+    {
+      heading: 'Unas normas para jugar',
+      paragraphs: [
+        'Trata bien a las demás personas y no pongas información sensible en tu apodo. Sobremesa está hecha para jugar y compartir un rato. Sus diseños y reglas son propios; no está afiliada a las marcas de otros juegos. Algunos términos de búsqueda solo sirven para que encuentres la variante de juego correspondiente.',
+      ],
+    },
   ],
   en: [
-    [
-      'Privacy and use',
-      'Sobremesa is a board game website. You don’t need an account. You can use a nickname and all game money is fictional. This version has no wagers, payments, advertising or third-party analytics.',
-    ],
-    [
-      'Controller and contact',
-      'Samuel Ciocan · Spain. For privacy enquiries or to report problems: contacto@samuelciocan.com.',
-    ],
-    [
-      'Data we use',
-      'Your nickname and a random identifier assign your seat, show moves to room participants and let you reconnect. The server holds rooms and games in memory; there is no profile database. Your IP address is temporarily processed to manage connections and limit abuse. We don’t ask for an email address, date of birth or real name to play.',
-    ],
-    [
-      'Purpose and retention',
-      'Providing the game you request is based on performance of the requested service (GDPR Article 6(1)(b)). Abuse prevention relies on our legitimate interest in protecting the service (Article 6(1)(f)). Reconnection reservations last three minutes by default, configurable by the administrator. Rooms are deleted when the last human leaves or after 30 minutes without human activity. Technical connection counters are periodically cleared once no longer needed. Restarting the server removes games. There is no advertising profiling or decision-making with legal effects.',
-    ],
-    [
-      'Browser storage',
-      'Your name, profile confirmation, language and favourites are saved in localStorage. sessionStorage holds your private session secret, player identifier and room code to reconnect within that tab. Preferences remain until you delete them; session data depends on how your browser closes or restores tabs. Only functional storage is used. Clear preferences with the button on this page or in your browser settings. Clearing a session during a game prevents recovery.',
-    ],
-    [
-      'Who can see the data',
-      'Participants with your room code see your nickname and the public game state; private cards are sent only to their owner. Don’t share your code with strangers. Your reconnection secret is never shown in the room. The hosting provider and, when using the public domain, Cloudflare may process technical data needed to serve the site. Data is not sold. Cloudflare operates a global network; its linked privacy policy and data processing terms describe international transfers and safeguards.',
-    ],
-    [
-      'Your rights',
-      'Where applicable, you may request access, rectification, erasure, restriction, portability or object by emailing contacto@samuelciocan.com. To identify a game, include its room code and your nickname; never send the session secret. You may also complain to the Spanish Data Protection Agency at aepd.es.',
-    ],
-    [
-      'Use and games',
-      'Respect other players and avoid offensive nicknames or sensitive information. Games are for entertainment without cash prizes. Sobremesa uses its own design and assets and is not affiliated with other game or trademark owners. Search terms simply help you find variants. This site’s rules, including room settings, describe how each game works.',
-    ],
+    {
+      heading: 'Privacy and use',
+      paragraphs: [
+        'You can play without creating an account. Game money is fictional, with no wagers or cash prizes. The app has no advertising or third-party analytics, and it does not keep a history of completed games.',
+      ],
+    },
+    {
+      heading: 'Who is responsible and how to get in touch',
+      paragraphs: [
+        'The data controller is Samuel Ciocan, based in Spain. For questions about your data or to exercise your rights, email contacto@samuelciocan.com.',
+      ],
+    },
+    {
+      heading: 'What we need to run a game',
+      paragraphs: [
+        'We use the nickname you choose, an opaque identifier derived from a random session secret, and the information needed to run your room and game. You do not need to provide your real name, email address or date of birth.',
+        'Your IP address is temporarily processed in memory to limit excessive connections and room creation. It is not used to build profiles.',
+        'We process game data to provide the service you asked for (GDPR Article 6(1)(b)). Abuse limits rely on our legitimate interest in protecting the service (Article 6(1)(f)).',
+      ],
+    },
+    {
+      heading: 'Server storage and retention',
+      paragraphs: [
+        'The app has no accounts, profile database or game history. Room state and game data stay in RAM while they are needed; the app does not write them to its own files. Restarting the server clears this temporary state.',
+        'A room is deleted when the last person leaves or after six hours without human activity. If your connection drops, your seat is held for five minutes by default; the server administrator can change that period.',
+        'For connection limits, an IP entry remains while the connection is active and until its control window expires. Room-creation counters expire at the end of their window — one minute by default — and are cleared in a periodic sweep, no later than the next one-minute sweep. Your host or Cloudflare may keep separate technical logs; their contents and retention depend on service settings and terms.',
+      ],
+    },
+    {
+      heading: 'What stays in your browser',
+      paragraphs: [
+        'Your nickname, profile confirmation, language and favourites stay in your browser until you delete them. To let you return to a game, sessionStorage keeps a session secret, its identifier and the room code in that tab. The secret is sent to the server to recognise your session, but is never shown to other players.',
+        'Some browsers copy session data when you duplicate a tab. Sobremesa checks whether tabs in the same browser share a session and warns you before replacing a connection. That check briefly exchanges a fingerprint derived from the secret between tabs; it is not saved or sent to the server. If you open a different invitation and no other active tab is found, a new guest session starts so you can use that link.',
+        'The button on this page clears your nickname and saved preferences from this browser. If you clear session data while playing, we cannot restore your seat.',
+      ],
+    },
+    {
+      heading: 'Who can see the game',
+      paragraphs: [
+        'People with the room code can see your nickname and the public game state. Private cards are sent only to their owner. Do not share the code with anyone you do not want to invite.',
+        'Your host and Cloudflare may also process technical data to connect and protect the service. Cloudflare operates a global network, so some data may be processed outside the European Economic Area under the safeguards described in its terms. Its logs and retention depend on configuration and service terms; links to its privacy and data-processing terms are below. Sobremesa does not sell your data.',
+      ],
+    },
+    {
+      heading: 'Your rights',
+      paragraphs: [
+        'You can request access, correction, erasure, restriction or object to processing where applicable. Data portability applies in the cases set out by law. Room data expires and there are no accounts or permanent history, so information may no longer be available when a request reaches us.',
+        'To help us find an active game, include your nickname, the game and an approximate time. Do not send your session secret or invitation link/code. We will reply within the legal time limit, normally one month; if an extension is allowed, we will let you know. You can also complain to the Spanish Data Protection Agency.',
+      ],
+    },
+    {
+      heading: 'A few ground rules',
+      paragraphs: [
+        'Treat other players kindly and keep sensitive information out of your nickname. Sobremesa is made for sharing a game and some time together. Its designs and rules are original; it is not affiliated with other game brands. Some search terms simply help you find the corresponding game variant.',
+      ],
+    },
   ],
 };
 export function Privacy() {
@@ -92,16 +140,26 @@ export function Privacy() {
         <LanguageSelector />
       </header>
       <main className="privacy-content">
-        {copy[locale].map(([heading, text], index) => (
-          <section key={index}>
+        {copy[locale].map(({ heading, paragraphs }, index) => (
+          <section key={heading}>
             {index === 0 ? <h1>{heading}</h1> : <h2>{heading}</h2>}
-            <p>{text}</p>
+            {paragraphs.map((paragraph, paragraphIndex) => (
+              <p key={paragraphIndex}>{paragraph}</p>
+            ))}
           </section>
         ))}
         <p>
           <a href="mailto:contacto@samuelciocan.com">contacto@samuelciocan.com</a> ·{' '}
-          <a href="https://www.aepd.es/" target="_blank" rel="noopener noreferrer">
-            AEPD
+          <a
+            href={
+              locale === 'es'
+                ? 'https://www.aepd.es/derechos-y-deberes/ejerce-tus-derechos'
+                : 'https://www.aepd.es/en/rights-and-duties/know-your-rights'
+            }
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {locale === 'es' ? 'AEPD: tus derechos' : 'AEPD: your rights'}
           </a>{' '}
           ·{' '}
           <a

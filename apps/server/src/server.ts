@@ -15,6 +15,7 @@ import {
 } from '@games/game-logic';
 import { CONFIG } from './config.js';
 import { RoomManager } from './RoomManager.js';
+import { RoomCreationLimiter } from './RoomCreationLimiter.js';
 import { registerSocketHandlers } from './socketHandlers.js';
 const app = express();
 app.disable('x-powered-by');
@@ -37,7 +38,13 @@ app.use((_req, res, next) => {
 const server = http.createServer(app);
 server.headersTimeout = 10000;
 server.requestTimeout = 15000;
+const MAX_TRACKED_IPS = 10000;
 const connections = new Map<string, { attempts: number; reset: number; active: number }>();
+const roomCreationLimiter = new RoomCreationLimiter(
+  CONFIG.ROOM_CREATE_LIMIT_PER_IP,
+  CONFIG.ROOM_CREATE_LIMIT_GLOBAL,
+  CONFIG.ROOM_CREATE_WINDOW_MS,
+);
 const ipFor = (req: http.IncomingMessage) => {
   const remote = req.socket.remoteAddress || 'unknown';
   // Only opt in when the origin is isolated behind your own cloudflared instance.
@@ -56,6 +63,10 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEve
       const ip = ipFor(req),
         now = Date.now(),
         previous = connections.get(ip);
+      if (!previous && connections.size >= MAX_TRACKED_IPS) {
+        callback('Servidor ocupado', false);
+        return;
+      }
       const bucket =
         previous && previous.reset > now
           ? previous
@@ -86,13 +97,18 @@ io.on('connection', (socket) => {
   const ip = ipFor(socket.request),
     bucket = connections.get(ip);
   if (bucket) bucket.active++;
-  registerSocketHandlers(io, socket, manager);
+  registerSocketHandlers(io, socket, manager, {
+    allowAttempt: () => roomCreationLimiter.allowAttempt(ip),
+    canCreateGlobally: () => roomCreationLimiter.canCreateGlobally(),
+    recordCreated: () => roomCreationLimiter.recordCreated(),
+  });
   socket.on('disconnect', () => {
     const entry = connections.get(ip);
     if (entry) entry.active = Math.max(0, entry.active - 1);
   });
 });
 const sweep = setInterval(() => {
+  roomCreationLimiter.sweep();
   for (const [ip, bucket] of connections)
     if (!bucket.active && bucket.reset < Date.now()) connections.delete(ip);
 }, 60000);

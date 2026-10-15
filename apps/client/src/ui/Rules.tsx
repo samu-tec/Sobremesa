@@ -33,7 +33,8 @@ export function Rules({
               <p>
                 {t('Dinero inicial')}: {formatMoney(room.customRules.startingCash)} ·{' '}
                 {t('Salario al pasar por Salida')}: {formatMoney(room.customRules.salaryGO)} ·{' '}
-                {t('Límite de rondas')}: {room.customRules.maxRounds}
+                {t('Límite de rondas')}:{' '}
+                {room.customRules.maxRounds == null ? t('Sin límite') : room.customRules.maxRounds}
               </p>
               {[
                 ['auctionEnabled', 'Subastar propiedades rechazadas'],

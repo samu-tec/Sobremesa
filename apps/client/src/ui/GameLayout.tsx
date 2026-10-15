@@ -1,6 +1,6 @@
 import { getGame, t, LanguageSelector } from '../i18n';
 import { TurnClock } from './TurnClock';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { type RoomInfo } from '@games/game-logic';
 import {
   ArrowLeft,
@@ -48,10 +48,29 @@ export function GameLayout({
 }) {
   const [rules, setRules] = useState(false),
     [confirmLeave, setConfirmLeave] = useState(false),
-    [copied, setCopied] = useState(false);
+    [copied, setCopied] = useState(false),
+    [turnNotice, setTurnNotice] = useState(false);
+  const previousTurn = useRef<string | null>(null);
   const game = getGame(room.gameType),
     turn = room.players.find((p) => p.id === currentTurn),
     finished = !!winner || !!isDraw;
+  useEffect(() => {
+    if (finished) {
+      previousTurn.current = null;
+      setTurnNotice(false);
+      return;
+    }
+    if (currentTurn !== myPlayerId) {
+      previousTurn.current = currentTurn;
+      setTurnNotice(false);
+      return;
+    }
+    if (previousTurn.current === myPlayerId) return;
+    previousTurn.current = myPlayerId;
+    setTurnNotice(true);
+    const timeout = window.setTimeout(() => setTurnNotice(false), 4500);
+    return () => window.clearTimeout(timeout);
+  }, [currentTurn, finished, myPlayerId]);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(room.code);
@@ -114,6 +133,12 @@ export function GameLayout({
             </div>
           </div>
         </div>
+        {turnNotice && (
+          <div className="turn-announcement" role="status" aria-live="assertive">
+            <strong>{t('¡Te toca!')}</strong>
+            <span>{t('Tus opciones están listas en el tablero.')}</span>
+          </div>
+        )}
         {room.players.some((p) => !p.connected) && (
           <div className="notice" role="status">
             {t('{0} está reconectando. Reservamos su sitio durante {1} segundos.', {

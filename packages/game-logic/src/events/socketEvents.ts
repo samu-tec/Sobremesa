@@ -2,7 +2,7 @@ import type { GameType, RoomInfo } from '../types/index.js';
 export interface Result {
   success: boolean;
   error?: string;
-  errorCode?: 'ROOM_UNAVAILABLE' | 'NOT_A_MEMBER';
+  errorCode?: 'ROOM_UNAVAILABLE' | 'NOT_A_MEMBER' | 'ROOM_CREATE_RATE_LIMITED';
 }
 export interface RoomResult extends Result {
   room?: RoomInfo;

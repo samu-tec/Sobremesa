@@ -1,7 +1,6 @@
-import { message as msg, term, type GameText } from '../../messages.js';
+import { message as msg, term } from '../../messages.js';
 import { IGameEngine } from '../../engine/IGameEngine.js';
 import {
-  Card,
   ColorClashAction,
   ColorClashPublicState,
   ColorClashState,

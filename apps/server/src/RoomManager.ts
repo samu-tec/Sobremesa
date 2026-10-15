@@ -14,7 +14,6 @@ import {
   type Player,
   type RoomInfo,
   type RoomStatus,
-  type GameLifecycleHooks,
   type ClientToServerEvents,
   type ServerToClientEvents,
   type SocketData,
@@ -41,7 +40,6 @@ interface ActiveRoom {
   turnActor?: string;
   turnTimeout?: NodeJS.Timeout;
   lastActivity: number;
-  gameStartTime?: number;
   customRules?: any;
 }
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -57,14 +55,11 @@ export class RoomManager {
   private rooms = new Map<string, ActiveRoom>();
   private socketToRoom = new Map<string, string>();
   private cleanupInterval: NodeJS.Timeout;
-  constructor(
-    private io: TypedServer,
-    private lifecycleHooks?: GameLifecycleHooks,
-  ) {
+  constructor(private io: TypedServer) {
     this.cleanupInterval = setInterval(() => {
       for (const room of this.rooms.values())
         if (Date.now() - room.lastActivity > CONFIG.ROOM_MAX_IDLE_TIME_MS)
-          this.destroyRoom(room.code, 'Sala cerrada tras 30 minutos sin actividad.');
+          this.destroyRoom(room.code, 'Sala cerrada tras 6 horas sin actividad.');
     }, CONFIG.CLEANUP_INTERVAL_MS);
     this.cleanupInterval.unref();
   }
@@ -120,6 +115,7 @@ export class RoomManager {
       return {
         success: false,
         error: 'No encontramos esa sala. Comprueba los seis caracteres del código.',
+        errorCode: 'ROOM_UNAVAILABLE' as const,
       };
     const current = this.getRoomBySocket(socketId);
     if (current && current !== room)
@@ -192,7 +188,7 @@ export class RoomManager {
         room.gameType === 'monopoly' &&
         ((key === 'startingCash' && [1000, 1500, 2000, 2500].includes(value as number)) ||
           (key === 'salaryGO' && [200, 300, 400].includes(value as number)) ||
-          (key === 'maxRounds' && [20, 40, 60].includes(value as number)) ||
+          (key === 'maxRounds' && (value === null || [20, 40, 60].includes(value as number))) ||
           (key === 'jailFine' && [50, 100, 150].includes(value as number)) ||
           (key === 'maxJailTurns' && [1, 2, 3].includes(value as number)) ||
           ([
@@ -225,12 +221,6 @@ export class RoomManager {
     );
     room.status = 'in_game';
     room.lastActivity = Date.now();
-    room.gameStartTime = Date.now();
-    this.lifecycleHooks?.onGameStart?.({
-      roomCode: code,
-      gameType: room.gameType,
-      playerIds: room.players.map((p) => p.id),
-    });
     this.armTurnClock(room, true);
     this.broadcastRoomUpdate(room);
     this.broadcastGameState(room, true);
@@ -298,12 +288,6 @@ export class RoomManager {
         : room.players.find((p) => p.id === winnerId)?.name || 'Ganador',
       isDraw,
     });
-    this.lifecycleHooks?.onGameEnd?.({
-      roomCode: room.code,
-      gameType: room.gameType,
-      winnerId,
-      durationMs: Date.now() - (room.gameStartTime ?? Date.now()),
-    });
     this.broadcastRoomUpdate(room);
   }
   reconnectPlayer(code: string, id: string, socketId: string) {
@@ -352,6 +336,7 @@ export class RoomManager {
     if (!player) return;
     player.connected = false;
     player.socketId = null;
+    room.lastActivity = Date.now();
     clearTimeout(player.disconnectTimeout);
     player.disconnectTimeout = setTimeout(
       () => this.removePlayer(room, player.id),

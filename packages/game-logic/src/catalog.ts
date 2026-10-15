@@ -31,7 +31,7 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
       'Completa un grupo de color para construir, de forma equilibrada, hasta cuatro casas y un hotel. La banca tiene suministro ilimitado. Puedes vender edificios por la mitad del coste e hipotecar el grupo cuando no tenga edificios.',
       'Los dobles permiten repetir; tres dobles seguidos te llevan a la cárcel. Sales con dobles, carta o pagando 50 €. Tras tres intentos pagas y avanzas; salir con dobles no da una tirada extra.',
       'Puedes intercambiar dinero y propiedades sin edificios. Para recuperar una hipoteca pagas su valor más un 10 %. El receptor de una propiedad hipotecada conserva esa hipoteca.',
-      'Si debes dinero, vende o hipoteca antes de continuar. Si declaras bancarrota, tus propiedades vuelven al banco. Gana la última persona solvente. Si se alcanza el límite de rondas (40 por defecto), gana el mayor patrimonio: efectivo + precio de propiedades + coste de edificios − hipotecas. Los empates se comparten. Abandonar equivale a bancarrota.',
+      'Por defecto no hay límite de rondas: gana la última persona solvente. Si el anfitrión fija un límite de 20, 40 o 60 rondas, gana quien tenga más patrimonio al alcanzarlo: efectivo + precio de propiedades + coste de edificios − hipotecas. Los empates se comparten. Si declaras bancarrota, tus propiedades vuelven al banco. Abandonar equivale a bancarrota.',
       'Las cartas, los impuestos y el bote opcional se resuelven automáticamente. Antes de empezar, el anfitrión puede ajustar dinero, salario, subastas, cárcel, construcción y bote de descanso. Las opciones de la sala prevalecen sobre estos valores predeterminados.',
     ],
     tip: 'Completa grupos de color y guarda efectivo para los alquileres.',

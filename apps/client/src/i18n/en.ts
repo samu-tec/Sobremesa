@@ -374,8 +374,11 @@ export const en: Record<string, string> = {
     'Doubles give you another roll; three in a row send you to jail. Leave with doubles, a release card or a fine (€50 by default). After the maximum attempts (three by default), pay and move. Doubles used to leave jail don’t give an extra roll.',
   'Puedes intercambiar dinero y propiedades sin edificios. Para recuperar una hipoteca pagas su valor más un 10 %. El receptor de una propiedad hipotecada conserva esa hipoteca.':
     'Trade cash and properties without buildings. Lifting a mortgage costs its value plus 10%. A traded mortgaged property keeps its mortgage.',
-  'Si debes dinero, vende o hipoteca antes de continuar. Si declaras bancarrota, tus propiedades vuelven al banco. Gana la última persona solvente. Si se alcanza el límite de rondas (40 por defecto), gana el mayor patrimonio: efectivo + precio de propiedades + coste de edificios − hipotecas. Los empates se comparten. Abandonar equivale a bancarrota.':
-    'Clear debt by selling or mortgaging before continuing. Bankruptcy returns properties to the bank. The last solvent player wins. At the round limit (40 by default), the highest net worth wins: cash + property prices + building costs − mortgage values. Ties are shared. Leaving counts as bankruptcy.',
+  'Por defecto no hay límite de rondas: gana la última persona solvente. Si el anfitrión fija un límite de 20, 40 o 60 rondas, gana quien tenga más patrimonio al alcanzarlo: efectivo + precio de propiedades + coste de edificios − hipotecas. Los empates se comparten. Si declaras bancarrota, tus propiedades vuelven al banco. Abandonar equivale a bancarrota.':
+    'There is no round limit by default: the last solvent player wins. If the host sets a limit of 20, 40 or 60 rounds, the player with the highest net worth wins when it is reached: cash + property prices + building costs − mortgage values. Ties are shared. Bankruptcy returns properties to the bank. Leaving counts as bankruptcy.',
+  'Sin límite': 'No limit',
+  '¡Te toca!': 'Your turn!',
+  'Tus opciones están listas en el tablero.': 'Your next move is ready on the board.',
   'Las cartas, los impuestos y el bote opcional se resuelven automáticamente. Antes de empezar, el anfitrión puede ajustar dinero, salario, subastas, cárcel, construcción y bote de descanso. Las opciones de la sala prevalecen sobre estos valores predeterminados.':
     'Cards, taxes and the optional pot resolve automatically. Before starting, the host can adjust cash, salary, jail rules, building rules, auctions and the rest stop pot. The room settings take precedence over these defaults.',
   'Completa grupos de color y guarda efectivo para los alquileres.':
@@ -484,7 +487,7 @@ export const en: Record<string, string> = {
   'Paga la factura del hospital de 100€.': 'Pay a €100 hospital bill.',
   'Heredas 100€ de un pariente lejano.': 'A distant relative leaves you €100.',
   'Avanza hasta la SALIDA y cobra tu sueldo.': 'Advance to Go and collect your salary.',
-  'Sala cerrada tras 30 minutos sin actividad.': 'Room closed after 30 minutes of inactivity.',
+  'Sala cerrada tras 6 horas sin actividad.': 'Room closed after 6 hours of inactivity.',
   'No se pudo crear un código. Inténtalo otra vez.': 'Couldn’t create a room code. Try again.',
   'Sal de la sala actual antes de crear otra.': 'Leave your current room before creating another.',
   'El servidor está lleno. Inténtalo en unos minutos.':
@@ -632,14 +635,29 @@ export const en: Record<string, string> = {
   'Esta sesión se ha abierto en otra conexión.':
     'This session has been opened on another connection.',
   'Recuperar aquí': 'Resume here',
+  'Ya tienes Sobremesa abierto en otra pestaña': 'Sobremesa is already open in another tab.',
+  'Esta pestaña comparte la misma sesión que otra. Si continúas aquí, la anterior se desconectará y esta intentará recuperar su sala actual. Para entrar a la invitación sin interrumpirla, elige un invitado nuevo.':
+    'This tab shares the same session as another. If you continue here, the other tab will disconnect and this tab will try to restore its current room. To join the invitation without interrupting it, choose a new guest.',
+  'Hay otra pestaña abierta en Sobremesa. Si usas el mismo apodo, aparecerás con ese nombre en ambas. Puedes crear un invitado nuevo para que los jugadores se distingan.':
+    'Sobremesa is open in another tab. Using the same nickname will show that name in both tabs. You can create a new guest with another name to make the players easy to tell apart.',
+  'Esta pestaña no se ha conectado. Puedes cerrarla desde el navegador y volver a la pestaña anterior.':
+    'This tab has not connected. Close it in your browser and return to the other tab.',
+  'Usar esta sesión aquí': 'Use this session here',
+  'Entrar como {0}': 'Join as {0}',
+  'Entrar como invitado nuevo': 'Join as a new guest',
+  'Ahora no': 'Not now',
+  'La sala ha caducado o se ha cerrado. Crea otra o pide un enlace nuevo.':
+    'The room has expired or closed. Create another room or ask for a new invite link.',
+  'Has alcanzado el límite de creación de salas. Espera un poco y vuelve a intentarlo.':
+    'You’ve reached the room creation limit. Wait a little and try again.',
   juego: 'game',
   juegos: 'games',
   oscura: 'dark',
   clara: 'light',
   'Privacidad y uso': 'Privacy and use',
   'Cerrar diálogo': 'Close dialog',
-  'Si se corta tu conexión, vuelve desde la misma pestaña en menos de tres minutos para recuperar tu sitio.':
-    'If your connection drops, return to the same tab within three minutes to keep your place.',
+  'Si se corta tu conexión, vuelve desde la misma pestaña en menos de cinco minutos para recuperar tu sitio.':
+    'If your connection drops, return to the same tab within five minutes to keep your place.',
   'Quitar {0} de favoritos': 'Remove {0} from favourites',
   'Añadir {0} a favoritos': 'Add {0} to favourites',
   'Ver la posición de {0}': 'View {0}’s position',

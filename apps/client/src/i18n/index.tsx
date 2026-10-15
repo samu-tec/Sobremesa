@@ -89,16 +89,10 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     const copy = brandCopy[locale];
     document.documentElement.lang = locale;
     document.title = copy.title;
-    document
-      .querySelector('meta[name="description"]')
-      ?.setAttribute('content', copy.description);
+    document.querySelector('meta[name="description"]')?.setAttribute('content', copy.description);
     document.querySelector('meta[property="og:title"]')?.setAttribute('content', copy.title);
-    document
-      .querySelector('meta[property="og:description"]')
-      ?.setAttribute('content', copy.social);
-    document
-      .querySelector('meta[property="og:locale"]')
-      ?.setAttribute('content', copy.ogLocale);
+    document.querySelector('meta[property="og:description"]')?.setAttribute('content', copy.social);
+    document.querySelector('meta[property="og:locale"]')?.setAttribute('content', copy.ogLocale);
     document
       .querySelector('meta[property="og:locale:alternate"]')
       ?.setAttribute('content', copy.ogAlternateLocale);

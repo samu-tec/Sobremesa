@@ -1,6 +1,5 @@
 import { getGame, t, gameText } from '../i18n';
 import {
-  type GameType,
   type TicTacToeState,
   type TicTacToeAction,
   type Connect4State,

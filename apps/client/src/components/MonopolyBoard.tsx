@@ -1,5 +1,5 @@
 import { t, gameText, formatMoney } from '../i18n';
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   BOARD_TILES,
   PROPERTY_GROUPS,
@@ -35,7 +35,6 @@ import {
   Crown,
   Sailboat,
   Gem,
-  X,
 } from 'lucide-react';
 import { DiceFace, type BoardProps } from '../ui/GameLayout';
 import { Modal } from '../ui/Modal';
@@ -88,7 +87,6 @@ const TileIcon = ({ tile }: { tile: BoardTile }) =>
     <CircleHelp />
   ) : null;
 export function MonopolyBoard({
-  room,
   state,
   myPlayerId,
   onAction,
@@ -112,6 +110,8 @@ export function MonopolyBoard({
     [offered, setOffered] = useState<number[]>([]),
     [requested, setRequested] = useState<number[]>([]),
     [bid, setBid] = useState(10);
+  const [rolling, setRolling] = useState(false);
+  const rollTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const me = state.players.find((p) => p.id === myPlayerId),
     current = state.players.find((p) => p.id === state.currentTurnPlayerId),
     myTurn = state.currentTurnPlayerId === myPlayerId && !state.winner && !me?.isBankrupt && !busy;
@@ -128,6 +128,7 @@ export function MonopolyBoard({
     () => setBid((state.auction?.currentBid ?? 0) + 10),
     [state.auction?.currentBid, state.auction?.tileIndex],
   );
+  useEffect(() => () => clearTimeout(rollTimer.current), []);
   useEffect(() => {
     const close = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setManagementOpen(false);
@@ -233,7 +234,16 @@ export function MonopolyBoard({
                 )}
               </>
             )}
-            <button className="button primary" onClick={() => onAction({ type: 'ROLL_DICE' })}>
+            <button
+              className="button primary"
+              disabled={rolling}
+              onClick={() => {
+                setRolling(true);
+                clearTimeout(rollTimer.current);
+                rollTimer.current = setTimeout(() => setRolling(false), 900);
+                onAction({ type: 'ROLL_DICE' });
+              }}
+            >
               <Dices size={19} /> {t('Tirar dados')}{' '}
             </button>
           </>
@@ -656,7 +666,9 @@ export function MonopolyBoard({
             <div className="city-board" role="group" aria-label={t('Tablero de Ciudad Fortuna')}>
               <div className="city-center">
                 <span className="city-center-eyebrow">
-                  {t('RONDA')} {state.round} {t('DE')} {state.customRules.maxRounds ?? 40}
+                  {state.customRules.maxRounds == null
+                    ? `${t('RONDA')} ${state.round} · ${t('Sin límite')}`
+                    : `${t('RONDA')} ${state.round} ${t('DE')} ${state.customRules.maxRounds}`}
                 </span>
                 <Building2 className="city-center-building" size={38} />
                 <h2>
@@ -681,7 +693,7 @@ export function MonopolyBoard({
                     </button>
                   ))}
                 </div>
-                <div className="city-dice">
+                <div className={`city-dice ${rolling ? 'dice-rolling' : ''}`}>
                   <DiceFace value={state.lastDice[0]} />
                   <DiceFace value={state.lastDice[1]} />
                 </div>

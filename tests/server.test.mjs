@@ -1,6 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RoomManager } from '../apps/server/dist/RoomManager.js';
+import { RoomCreationLimiter } from '../apps/server/dist/RoomCreationLimiter.js';
+
+test('La creación de salas queda limitada por IP, globalmente y en memoria', () => {
+  const limiter = new RoomCreationLimiter(5, 30, 60000, 2);
+  let allowed = 0;
+  for (let i = 0; i < 100000; i++) if (limiter.allowAttempt('192.0.2.1', 1000)) allowed++;
+  assert.equal(allowed, 5);
+  assert.equal(limiter.allowAttempt('192.0.2.2', 1000), true);
+  assert.equal(limiter.allowAttempt('192.0.2.3', 1000), false);
+  assert.equal(limiter.allowAttempt('192.0.2.3', 61000), true);
+
+  const global = new RoomCreationLimiter(10, 3, 60000);
+  for (let i = 0; i < 3; i++) {
+    assert.equal(global.canCreateGlobally(1000), true);
+    global.recordCreated(1000);
+  }
+  assert.equal(global.canCreateGlobally(1000), false);
+  assert.equal(global.canCreateGlobally(61000), true);
+});
 
 test('Los turnos automáticos no mantienen viva una sala abandonada por inactividad', (context) => {
   context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
@@ -15,13 +34,35 @@ test('Los turnos automáticos no mantienen viva una sala abandonada por inactivi
     assert.equal(created.success, true);
     const code = created.room.code;
     manager.joinRoom(code, 'Bruno', 'b', 'socket-b');
-    manager.updateRoomRules(code, 'a', { turnSeconds: 30 });
+    manager.updateRoomRules(code, 'a', { turnSeconds: 180 });
     manager.startGame(code, 'a');
-    context.mock.timers.tick(30000);
+    context.mock.timers.tick(180000);
     assert.ok(emitted.some((e) => e.event === 'game:state_update'));
-    context.mock.timers.tick(31 * 60000);
+    context.mock.timers.tick(6 * 60 * 60 * 1000 + 60000);
     assert.equal(manager.getRoomsCount(), 0);
     assert.ok(emitted.some((e) => e.event === 'room:closed'));
+    assert.ok(emitted.some((e) => e.event === 'room:closed' && /6 horas/.test(e.payload)));
+  } finally {
+    manager.dispose();
+    context.mock.timers.reset();
+  }
+});
+
+test('La limpieza por inactividad respeta la reserva después de desconectar', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+  const io = {
+    to: () => ({ emit: () => {} }),
+    sockets: { sockets: new Map() },
+  };
+  const manager = new RoomManager(io);
+  try {
+    const created = manager.createRoom('Ana', 'a', 'socket-a', 'tictactoe');
+    assert.equal(created.success, true);
+    context.mock.timers.tick(359 * 60000);
+    manager.handleDisconnect('socket-a');
+    context.mock.timers.tick(90000);
+    assert.equal(manager.getRoomsCount(), 1);
+    assert.equal(manager.reconnectPlayer(created.room.code, 'a', 'socket-b').success, true);
   } finally {
     manager.dispose();
     context.mock.timers.reset();

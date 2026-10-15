@@ -474,7 +474,7 @@ export function LobbyView({
             <Link2 size={22} />
             <p>
               {t(
-                'Si se corta tu conexión, vuelve desde la misma pestaña en menos de tres minutos para recuperar tu sitio.',
+                'Si se corta tu conexión, vuelve desde la misma pestaña en menos de cinco minutos para recuperar tu sitio.',
               )}{' '}
             </p>
           </div>

@@ -9,6 +9,11 @@ import {
 import type { RoomManager } from './RoomManager.js';
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, any, SocketData>;
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents, any, SocketData>;
+interface RoomCreationGuard {
+  allowAttempt: () => boolean;
+  canCreateGlobally: () => boolean;
+  recordCreated: () => void;
+}
 const record = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value);
 const name = (value: unknown) =>
@@ -27,10 +32,12 @@ export function registerSocketHandlers(
   _io: TypedServer,
   socket: TypedSocket,
   manager: RoomManager,
+  roomCreationGuard: RoomCreationGuard,
 ) {
   socket.emit('session:ready', { playerId: socket.data.playerId });
   let tokens = 30,
-    updated = Date.now();
+    updated = Date.now(),
+    rateLimitViolations = 0;
   // Runtime guards matter: network messages do not inherit TypeScript's guarantees.
   const on = (event: string, handler: (...args: any[]) => unknown) => {
     (socket.on as Function)(event, (...args: any[]) => {
@@ -41,10 +48,13 @@ export function registerSocketHandlers(
       tokens = Math.min(30, tokens + (now - updated) / 200);
       updated = now;
       if (tokens < 1) {
+        rateLimitViolations++;
         reply({ success: false, error: 'Demasiadas acciones. Espera un momento.' });
+        if (rateLimitViolations >= 20) socket.disconnect(true);
         return;
       }
       tokens--;
+      rateLimitViolations = Math.max(0, rateLimitViolations - 1);
       try {
         reply(handler(...args));
       } catch {
@@ -74,14 +84,20 @@ export function registerSocketHandlers(
       !GAME_CATALOG.some((g) => g.id === data.gameType)
     )
       return { success: false, error: 'Elige un nombre y un juego válidos.' };
-    return enter(
-      manager.createRoom(
-        name(data.playerName),
-        socket.data.playerId,
-        socket.id,
-        data.gameType as GameType,
-      ),
+    if (!roomCreationGuard.allowAttempt() || !roomCreationGuard.canCreateGlobally())
+      return {
+        success: false,
+        error: 'Se alcanzó el límite temporal de creación de salas. Inténtalo de nuevo más tarde.',
+        errorCode: 'ROOM_CREATE_RATE_LIMITED' as const,
+      };
+    const result = manager.createRoom(
+      name(data.playerName),
+      socket.data.playerId,
+      socket.id,
+      data.gameType as GameType,
     );
+    if (result.success) roomCreationGuard.recordCreated();
+    return enter(result);
   });
   on('room:join', (data: unknown) => {
     if (!record(data) || !code(data.roomCode) || !name(data.playerName))

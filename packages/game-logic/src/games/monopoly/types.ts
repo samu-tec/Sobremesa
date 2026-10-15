@@ -36,7 +36,7 @@ export interface BoardTile {
 }
 
 export interface MonopolyCustomRules {
-  maxRounds?: number;
+  maxRounds?: number | null;
   startingCash: number; // 1500 (standard), 1000, 2000, 2500
   salaryGO: number; // 200 (standard), 300, 400
   doubleGoSalary: boolean; // landing directly on GO pays double
@@ -49,7 +49,7 @@ export interface MonopolyCustomRules {
 }
 
 export const DEFAULT_MONOPOLY_RULES: MonopolyCustomRules = {
-  maxRounds: 40,
+  maxRounds: null,
   startingCash: 1500,
   salaryGO: 200,
   doubleGoSalary: false,

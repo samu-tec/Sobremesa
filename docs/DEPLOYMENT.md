@@ -53,6 +53,8 @@ Configura `ALLOWED_ORIGINS=https://games.samuelciocan.com` para el servicio púb
 
 `TRUST_CLOUDFLARE=true` permite identificar la IP del visitante para los límites de conexión. Úsalo solo si el origen está aislado y las peticiones públicas llegan por tu cloudflared. Con la opción desactivada, las conexiones del túnel comparten el límite de su IP. No se confía en `X-Forwarded-For`.
 
+La aplicación limita la creación a 10 salas por IP y 30 en total por minuto, además del máximo predeterminado de 500 salas y 2.000 conexiones activas. El contenedor tiene un límite de memoria de 1 GB y un núcleo de CPU. Las salas abandonadas se cierran después de seis horas sin actividad humana. Los límites de salas y conexiones se pueden ajustar en `.env` si el equipo lo permite. Configura `TRUST_CLOUDFLARE=true` únicamente con el origen aislado para que el límite por IP use al visitante y no la IP compartida del túnel. Estos límites reducen el abuso de salas, pero no sustituyen la protección frente a tráfico volumétrico de Cloudflare; activa las protecciones y reglas de tráfico disponibles para tu dominio.
+
 Referencias: [publicar una aplicación con Cloudflare Tunnel](https://developers.cloudflare.com/tunnel/get-started/), [WebSockets](https://developers.cloudflare.com/network/websockets/) y [túneles administrados localmente](https://developers.cloudflare.com/tunnel/features/locally-managed-tunnels/create-local-tunnel/).
 
 ## Comprobación después de publicar
@@ -65,4 +67,4 @@ Las salas viven en memoria en una sola instancia. Reiniciar el proceso termina l
 
 La aplicación incluye `/privacy` en español e inglés, con el responsable y contacto facilitados. Antes de publicar comprueba los registros que actives en Cloudflare y en el equipo, la contratación del proveedor y cualquier tratamiento o transferencia de datos de tu configuración concreta. El aviso describe esta versión sin anuncios ni analítica; revísalo si añades monetización u otros servicios. Las decisiones y las fuentes de referencia están en [DECISIONS.md](DECISIONS.md).
 
-Mantén una sola instancia de Node para estas salas en memoria. Se admiten varias salas independientes, tanto del mismo juego como de juegos distintos. El reloj continúa cuando alguien pierde conexión; la reserva predeterminada es de 180.000 ms y permite volver desde otra IP con el mismo secreto de pestaña. Un reinicio del servidor requiere una partida nueva.
+Mantén una sola instancia de Node para estas salas en memoria. Se admiten varias salas independientes, tanto del mismo juego como de juegos distintos. El reloj continúa cuando alguien pierde conexión; la reserva predeterminada es de 300.000 ms y permite volver desde otra IP con el mismo secreto de pestaña. Un reinicio del servidor requiere una partida nueva.

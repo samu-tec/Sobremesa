@@ -17,6 +17,8 @@ before(async () => {
       NODE_ENV: 'production',
       BOT_THINKING_TIME_MS: '10',
       DISCONNECT_GRACE_PERIOD_MS: '1000',
+      ROOM_CREATE_LIMIT_PER_IP: '100',
+      ROOM_CREATE_LIMIT_GLOBAL: '500',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

@@ -19,6 +19,13 @@ export default defineConfig({
     url: 'http://127.0.0.1:3187/health',
     reuseExistingServer: false,
     timeout: 15000,
-    env: { PORT: '3187', HOST: '127.0.0.1', NODE_ENV: 'production', BOT_THINKING_TIME_MS: '60' },
+    env: {
+      PORT: '3187',
+      HOST: '127.0.0.1',
+      NODE_ENV: 'production',
+      BOT_THINKING_TIME_MS: '60',
+      ROOM_CREATE_LIMIT_PER_IP: '100',
+      ROOM_CREATE_LIMIT_GLOBAL: '500',
+    },
   },
 });

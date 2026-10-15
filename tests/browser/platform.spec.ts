@@ -41,7 +41,7 @@ test('Catálogo, alias, categorías y favoritos', async ({ page }) => {
   ).toBeVisible();
   await page.getByRole('button', { name: 'Reglas de Ciudad Fortuna', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByRole('dialog')).toContainText('40 por defecto');
+  await expect(page.getByRole('dialog')).toContainText('no hay límite de rondas');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
@@ -74,6 +74,7 @@ for (const name of games)
     await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
     await expect(page.getByRole('heading', { name: `${name}.`, exact: true })).toBeVisible();
     await expect(page.getByText('Es tu turno', { exact: true })).toBeVisible();
+    await expect(page.getByText('¡Te toca!', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Reglas', exact: true }).click();
     await expect(page.getByRole('dialog')).toContainText(name);
     await page.keyboard.press('Escape');
@@ -175,6 +176,49 @@ test('Dos navegadores juegan, terminan y preparan revancha', async ({ page, brow
   await context.close();
 });
 
+test('Un enlace a otra sala tiene prioridad sobre una sala guardada al reabrir la pestaña', async ({
+  page,
+  browser,
+}) => {
+  await ready(page);
+  await page
+    .locator('.game-tictactoe')
+    .getByRole('button', { name: 'Jugar con amigos', exact: true })
+    .click();
+  const previousCode = (await page.locator('.room-code-text').innerText()).trim();
+  const previousSession = await page.evaluate(() => ({
+    token: sessionStorage.getItem('sobremesa.session'),
+    playerId: sessionStorage.getItem('sobremesa.playerId'),
+    room: sessionStorage.getItem('sobremesa.room'),
+  }));
+  await page.close();
+
+  const hostContext = await browser.newContext();
+  const host = await hostContext.newPage();
+  await ready(host);
+  await host
+    .locator('.game-tictactoe')
+    .getByRole('button', { name: 'Jugar con amigos', exact: true })
+    .click();
+  const inviteCode = (await host.locator('.room-code-text').innerText()).trim();
+  expect(inviteCode).not.toBe(previousCode);
+
+  const resumed = await page.context().newPage();
+  await resumed.addInitScript((saved) => {
+    if (saved.token) sessionStorage.setItem('sobremesa.session', saved.token);
+    if (saved.playerId) sessionStorage.setItem('sobremesa.playerId', saved.playerId);
+    if (saved.room) sessionStorage.setItem('sobremesa.room', saved.room);
+  }, previousSession);
+  await resumed.goto(`/?room=${inviteCode}`);
+  await resumed.getByRole('button', { name: 'Unirme a la partida', exact: true }).click();
+  await expect(host.locator('.waiting-player:not(.empty-seat)')).toHaveCount(2);
+  expect(await resumed.evaluate(() => sessionStorage.getItem('sobremesa.room'))).toBe(inviteCode);
+
+  await resumed.getByRole('button', { name: 'Volver a los juegos', exact: true }).click();
+  await host.getByRole('button', { name: 'Volver a los juegos', exact: true }).click();
+  await hostContext.close();
+});
+
 test('Escritorio, tablet y móvil sin desbordamiento horizontal', async ({ page }) => {
   for (const width of [1440, 1024, 768, 600, 390, 360, 320]) {
     await page.setViewportSize({ width, height: 900 });
@@ -256,7 +300,7 @@ test('Primera visita: idioma, apodo aleatorio, persistencia y privacidad', async
   await expect(page.locator('.topbar-profile')).toContainText('Suerte');
   await page.getByRole('link', { name: 'Privacy and use', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: 'Controller and contact', exact: true }),
+    page.getByRole('heading', { name: 'Who is responsible and how to get in touch', exact: true }),
   ).toBeVisible();
   await expect(page.locator('main')).toContainText('contacto@samuelciocan.com');
 });
@@ -283,6 +327,8 @@ for (const [spanish, english] of [
     await expect(page.locator('.city-board, .color-table, .play-area')).toHaveCount(0);
     await page.getByRole('combobox', { name: 'Time per turn' }).selectOption('60');
     if (english === 'Fortune City') {
+      await expect(page.getByRole('combobox', { name: 'Round limit' })).toHaveValue('unlimited');
+      await page.getByRole('combobox', { name: 'Round limit' }).selectOption('60');
       await page.getByRole('switch', { name: 'Collect rent while in jail', exact: true }).uncheck();
       await expect(
         page.getByRole('switch', { name: 'Collect rent while in jail', exact: true }),

@@ -1,4 +1,4 @@
-import { message as msg, term, type GameText } from '../../messages.js';
+import { message as msg, type GameText } from '../../messages.js';
 import type { IGameEngine } from '../../engine/IGameEngine.js';
 export interface ReversiState {
   board: (string | null)[];

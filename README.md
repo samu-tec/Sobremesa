@@ -84,4 +84,4 @@ Las pruebas de integración y navegador necesitan que hayas ejecutado `pnpm buil
 - [Pruebas](docs/TESTING.md): comprobaciones manuales y automáticas.
 - [Despliegue](docs/DEPLOYMENT.md): Node, Docker y Cloudflare Tunnel para `games.samuelciocan.com`.
 
-Las salas están en memoria: reiniciar el servidor termina las partidas. La reconexión permite recuperar el sitio durante tres minutos por defecto mientras el servidor siga funcionando.
+Las salas están en memoria: reiniciar el servidor termina las partidas. La reconexión permite recuperar el sitio durante cinco minutos por defecto mientras el servidor siga funcionando. Las invitaciones dejan de funcionar cuando se cierra o caduca la sala.
