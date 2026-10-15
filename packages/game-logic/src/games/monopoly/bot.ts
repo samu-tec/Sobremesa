@@ -4,8 +4,10 @@ import { MonopolyAction, MonopolyState, PropertyGroup } from './types.js';
 export function getBotMonopolyAction(state: MonopolyState, botId: string): MonopolyAction | null {
   if (state.winner !== null) return null;
   if (state.auction) {
-    if (state.auction.currentBidderId !== botId) return null;
-    const bot = state.players.find((p) => p.id === botId)!;
+    if (state.auction.highestBidderId === botId || state.auction.passedPlayerIds.includes(botId))
+      return null;
+    const bot = state.players.find((p) => p.id === botId && !p.isBankrupt);
+    if (!bot) return null;
     const amount = state.auction.currentBid + 10;
     return amount <= Math.min(BOARD_TILES[state.auction.tileIndex].price || 0, bot.cash - 100)
       ? { type: 'BID', amount }

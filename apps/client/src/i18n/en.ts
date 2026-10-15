@@ -163,13 +163,18 @@ export const en: Record<string, string> = {
   'Bote:': 'Pot:',
   'Sigues en la mesa como espectador': 'You’re now watching the game',
   'La propiedad sale a subasta': 'This property is up for auction',
+  'Subasta abierta': 'Auction is open',
   'Toca equilibrar las cuentas': 'Time to balance the books',
   'Una nueva oportunidad': 'A new opportunity',
   'Tu siguiente movimiento': 'Your next move',
   'La suerte está en tus manos': 'Your luck is in your hands',
   '{0} está jugando': '{0} is playing',
   'Tu rival': 'Your opponent',
-  '{0} · Puja actual: {1}': '{0} · Current bid: {1}',
+  '{0} · Puja de {1}: {2}': '{0} · {1} is leading at {2}',
+  '{0} · Sin ofertas; mínimo {1}': '{0} · No bids yet; minimum {1}',
+  'Vas ganando la subasta. Si te superan, podrás volver a pujar.':
+    'You’re in the lead. If someone outbids you, you can bid again.',
+  'Te has retirado de esta subasta.': 'You have left this auction.',
   'Te faltan {0}. Vende edificios o hipoteca propiedades.':
     'You’re short of {0}. Sell buildings or mortgage properties.',
   '{0} puede ser tuya por {1}.': '{0} could be yours for {1}.',
@@ -193,7 +198,6 @@ export const en: Record<string, string> = {
   'Tu puja en euros': 'Your bid in euros',
   Pujar: 'Bid',
   Pasar: 'Pass',
-  'Espera la puja de': 'Waiting for a bid from',
   '{0}{1}. Ver detalles.': '{0}{1}. View details.',
   ', propiedad de {0}': ', owned by {0}',
   'Pulsa cualquier casilla para ver su precio y alquiler. Las fichas indican dónde está cada jugador.':
@@ -364,8 +368,8 @@ export const en: Record<string, string> = {
     'Buy streets, trade with friends and build your own little empire.',
   'Por defecto, empiezas con 1.500 €. Tira dos dados y avanza por las 40 casillas. Al pasar por Salida cobras 200 €.':
     'By default, you start with €1,500. Roll two dice to move around 40 spaces. Collect €200 when passing Go.',
-  'Compra una propiedad libre o déjala en subasta. Todos los jugadores solventes pueden pujar, incluido quien rechazó comprarla. La puja mínima aumenta 10 €; pasar te retira de esa subasta.':
-    'Buy an unowned property or put it up for auction. All solvent players may bid, including the player who declined it. Each bid must increase by at least €10; passing withdraws you from that auction.',
+  'Compra una propiedad libre o déjala en subasta. Todos los jugadores solventes pueden pujar, incluido quien rechazó comprarla. Cada oferta debe superar la anterior en al menos 10 €. La puja más alta gana cuando termina el plazo; cada nueva puja válida reinicia los 15 segundos. Pasar te retira de esa subasta.':
+    'Buy an unowned property or put it up for auction. All solvent players may bid, including the player who declined it. Each bid must be at least €10 higher than the previous one. The highest bid wins when time runs out; each valid bid resets the 15-second clock. Passing withdraws you from that auction.',
   'Paga alquiler al caer en propiedades rivales. Un grupo de calles completo duplica el alquiler sin edificios. Las hipotecas no cobran alquiler.':
     'Pay rent when landing on another player’s property. A complete street set doubles rent without buildings. Mortgaged properties collect no rent.',
   'Completa un grupo de color para construir, de forma equilibrada, hasta cuatro casas y un hotel. La banca tiene suministro ilimitado. Puedes vender edificios por la mitad del coste e hipotecar el grupo cuando no tenga edificios.':
@@ -622,8 +626,8 @@ export const en: Record<string, string> = {
     'Choose a name for the table. A nickname is fine; you don’t need your real name.',
   'Entrar a Sobremesa': 'Enter Sobremesa',
   'Tiempo por turno': 'Time per turn',
-  'Al agotarse el tiempo, se completa una jugada automática. En las subastas, cada puja tiene su propio plazo.':
-    'When time runs out, a move is completed automatically. Each auction bid has its own timer.',
+  'Al agotarse el tiempo de turno, se completa una jugada automática. Las subastas duran 15 segundos y cada nueva puja reinicia el contador.':
+    'When a turn runs out, the game makes a legal move automatically. Auctions last 15 seconds, and each new bid resets the clock.',
   'Cartas iniciales': 'Starting hand',
   'Cobrar alquiler estando en la cárcel': 'Collect rent while in jail',
   'Construcción equilibrada': 'Build evenly across a set',

@@ -27,6 +27,7 @@ export function GameLayout({
   room,
   myPlayerId,
   currentTurn,
+  isAuction = false,
   winner,
   isDraw,
   busy,
@@ -38,6 +39,7 @@ export function GameLayout({
   room: RoomInfo;
   myPlayerId: string;
   currentTurn: string;
+  isAuction?: boolean;
   winner: string | null;
   isDraw?: boolean;
   busy: boolean;
@@ -53,10 +55,16 @@ export function GameLayout({
   const previousTurn = useRef<string | null>(null);
   const game = getGame(room.gameType),
     turn = room.players.find((p) => p.id === currentTurn),
-    finished = !!winner || !!isDraw;
+    finished = !!winner || !!isDraw,
+    yourTurn = currentTurn === myPlayerId && !finished && !isAuction;
   useEffect(() => {
     if (finished) {
       previousTurn.current = null;
+      setTurnNotice(false);
+      return;
+    }
+    if (isAuction) {
+      previousTurn.current = currentTurn;
       setTurnNotice(false);
       return;
     }
@@ -70,7 +78,7 @@ export function GameLayout({
     setTurnNotice(true);
     const timeout = window.setTimeout(() => setTurnNotice(false), 4500);
     return () => window.clearTimeout(timeout);
-  }, [currentTurn, finished, myPlayerId]);
+  }, [currentTurn, finished, isAuction, myPlayerId]);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(room.code);
@@ -117,19 +125,18 @@ export function GameLayout({
           </div>
           <div className="turn-summary">
             <TurnClock room={room} />
-            <div
-              className={`turn-badge ${currentTurn === myPlayerId && !finished ? 'your-turn' : ''}`}
-              role="status"
-            >
+            <div className={`turn-badge ${yourTurn ? 'your-turn' : ''}`} role="status">
               <span />
               <span className="turn-text">
                 {finished
                   ? t('Partida terminada')
-                  : currentTurn === myPlayerId
-                    ? t('Es tu turno')
-                    : t('Turno de {0}', { '0': turn?.name || t('Tu rival') })}
+                  : isAuction
+                    ? t('Subasta abierta')
+                    : currentTurn === myPlayerId
+                      ? t('Es tu turno')
+                      : t('Turno de {0}', { '0': turn?.name || t('Tu rival') })}
               </span>
-              {turn?.isBot && !finished && <Bot size={16} />}
+              {turn?.isBot && !finished && !isAuction && <Bot size={16} />}
             </div>
           </div>
         </div>

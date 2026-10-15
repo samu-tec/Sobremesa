@@ -377,7 +377,8 @@ export function App() {
         <GameLayout
           room={room}
           myPlayerId={playerId}
-          currentTurn={'auction' in state && state.auction ? state.auction.currentBidderId : turn}
+          currentTurn={turn}
+          isAuction={'auction' in state && !!state.auction}
           winner={state.winner}
           isDraw={'isDraw' in state && state.isDraw}
           busy={busy || !connected}

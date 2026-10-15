@@ -179,6 +179,5 @@ export interface MonopolyAuction {
   tileIndex: number;
   currentBid: number;
   highestBidderId: string | null;
-  currentBidderId: string;
   passedPlayerIds: string[];
 }

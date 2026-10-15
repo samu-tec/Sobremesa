@@ -26,7 +26,7 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     aliases: ['monopoly', 'monopoli', 'capital clash', 'richup', 'inmobiliario', 'propiedades'],
     rules: [
       'Por defecto, empiezas con 1.500 €. Tira dos dados y avanza por las 40 casillas. Al pasar por Salida cobras 200 €.',
-      'Compra una propiedad libre o déjala en subasta. Todos los jugadores solventes pueden pujar, incluido quien rechazó comprarla. La puja mínima aumenta 10 €; pasar te retira de esa subasta.',
+      'Compra una propiedad libre o déjala en subasta. Todos los jugadores solventes pueden pujar, incluido quien rechazó comprarla. Cada oferta debe superar la anterior en al menos 10 €. La puja más alta gana cuando termina el plazo; cada nueva puja válida reinicia los 15 segundos. Pasar te retira de esa subasta.',
       'Paga alquiler al caer en propiedades rivales. Un grupo de calles completo duplica el alquiler sin edificios. Las hipotecas no cobran alquiler.',
       'Completa un grupo de color para construir, de forma equilibrada, hasta cuatro casas y un hotel. La banca tiene suministro ilimitado. Puedes vender edificios por la mitad del coste e hipotecar el grupo cuando no tenga edificios.',
       'Los dobles permiten repetir; tres dobles seguidos te llevan a la cárcel. Sales con dobles, carta o pagando 50 €. Tras tres intentos pagas y avanzas; salir con dobles no da una tirada extra.',

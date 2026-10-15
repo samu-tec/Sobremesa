@@ -43,6 +43,7 @@ interface ActiveRoom {
   customRules?: any;
 }
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const AUCTION_BID_SECONDS = 15;
 const engineFactories = {
   tictactoe: () => new TicTacToeEngine(),
   colorclash: () => new ColorClashEngine(),
@@ -260,7 +261,7 @@ export class RoomManager {
       room.gameType === 'colorclash'
         ? kind === 'PLAY_CARD' || kind === 'PASS_TURN' || !room.gameState.hasDrawnThisTurn
         : room.gameType === 'monopoly'
-          ? kind === 'END_TURN' || kind === 'BID' || kind === 'PASS_AUCTION'
+          ? kind === 'END_TURN' || kind === 'BID'
           : room.gameType === 'pig'
             ? kind === 'HOLD' || room.gameState.lastRoll === 1
             : true;
@@ -379,11 +380,9 @@ export class RoomManager {
     this.broadcastRoomUpdate(room);
   }
   private actor(room: ActiveRoom): string {
-    return (
-      room.gameState?.auction?.currentBidderId ||
-      room.gameState?.currentTurn ||
-      room.gameState?.currentTurnPlayerId
-    );
+    if (room.gameType === 'monopoly' && room.gameState?.auction)
+      return `auction:${room.gameState.auction.tileIndex}`;
+    return room.gameState?.currentTurn || room.gameState?.currentTurnPlayerId;
   }
   private clearTurnClock(room: ActiveRoom) {
     clearTimeout(room.turnTimeout);
@@ -397,39 +396,44 @@ export class RoomManager {
     if (!force && room.turnActor === actor && room.turnTimeout) return;
     this.clearTurnClock(room);
     room.turnActor = actor;
-    room.turnDeadline = Date.now() + room.turnSeconds * 1000;
+    const duration = room.gameState?.auction ? AUCTION_BID_SECONDS : room.turnSeconds;
+    room.turnDeadline = Date.now() + duration * 1000;
     const deadline = room.turnDeadline;
     room.turnTimeout = setTimeout(() => {
       if (room.status !== 'in_game' || room.turnDeadline !== deadline) return;
       // Complete a legal, conservative turn, including unresolved purchase decisions.
       // Clearing first prevents a stale deadline from acting on a later turn.
       this.clearTurnClock(room);
-      for (let i = 0; i < 100 && room.status === 'in_game' && this.actor(room) === actor; i++) {
-        const s = room.gameState;
-        let action: any;
-        if (room.gameType === 'monopoly') {
-          const p = s.players.find((p: any) => p.id === actor);
-          action = s.auction
-            ? { type: 'PASS_AUCTION' }
-            : p.cash < 0
-              ? room.engine.getBotAction(s, actor)
-              : {
-                  type:
-                    s.turnPhase === 'roll'
-                      ? 'ROLL_DICE'
-                      : s.turnPhase === 'tile_action'
-                        ? 'PASS_PROPERTY'
-                        : 'END_TURN',
-                };
-        } else if (room.gameType === 'colorclash')
-          action = { type: s.hasDrawnThisTurn ? 'PASS_TURN' : 'DRAW_CARD' };
-        else if (room.gameType === 'pig') action = { type: s.turnTotal > 0 ? 'HOLD' : 'ROLL' };
-        else action = room.engine.getBotAction(s, actor);
-        if (!action || !room.engine.validateAction(s, actor, action)) break;
-        room.gameState = room.engine.applyAction(s, actor, action);
+      if (room.gameType === 'monopoly' && room.gameState.auction) {
+        room.gameState = (room.engine as MonopolyEngine).finishAuction(room.gameState);
         this.finishIfNeeded(room);
-        if (room.gameType === 'monopoly' && action.type === 'END_TURN') break;
-        if (!['monopoly', 'colorclash', 'pig'].includes(room.gameType)) break;
+      } else {
+        for (let i = 0; i < 100 && room.status === 'in_game' && this.actor(room) === actor; i++) {
+          const s = room.gameState;
+          let action: any;
+          if (room.gameType === 'monopoly') {
+            const p = s.players.find((p: any) => p.id === actor);
+            action =
+              p?.cash < 0
+                ? room.engine.getBotAction(s, actor)
+                : {
+                    type:
+                      s.turnPhase === 'roll'
+                        ? 'ROLL_DICE'
+                        : s.turnPhase === 'tile_action'
+                          ? 'PASS_PROPERTY'
+                          : 'END_TURN',
+                  };
+          } else if (room.gameType === 'colorclash')
+            action = { type: s.hasDrawnThisTurn ? 'PASS_TURN' : 'DRAW_CARD' };
+          else if (room.gameType === 'pig') action = { type: s.turnTotal > 0 ? 'HOLD' : 'ROLL' };
+          else action = room.engine.getBotAction(s, actor);
+          if (!action || !room.engine.validateAction(s, actor, action)) break;
+          room.gameState = room.engine.applyAction(s, actor, action);
+          this.finishIfNeeded(room);
+          if (room.gameType === 'monopoly' && action.type === 'END_TURN') break;
+          if (!['monopoly', 'colorclash', 'pig'].includes(room.gameType)) break;
+        }
       }
       if (Array.isArray(room.gameState.logs))
         room.gameState.logs = room.gameState.logs.slice(0, 80);
@@ -437,7 +441,7 @@ export class RoomManager {
       this.broadcastRoomUpdate(room);
       this.broadcastGameState(room);
       this.checkAndTriggerBotTurn(room);
-    }, room.turnSeconds * 1000);
+    }, duration * 1000);
   }
   private checkAndTriggerBotTurn(room: ActiveRoom) {
     clearTimeout(room.botLoopTimeout);
@@ -449,12 +453,24 @@ export class RoomManager {
     )
       return;
     const state = room.gameState;
-    const targetId = state.auction?.currentBidderId || state.activeTrade?.toPlayerId;
+    const auctionBot =
+      state.auction && room.gameType === 'monopoly'
+        ? room.players.find(
+            (player) =>
+              player.isBot &&
+              !state.auction.passedPlayerIds.includes(player.id) &&
+              state.auction.highestBidderId !== player.id &&
+              state.players.find(
+                (participant: any) => participant.id === player.id && !participant.isBankrupt,
+              ),
+          )
+        : undefined;
+    const targetId = state.activeTrade?.toPlayerId;
     const target = room.players.find((p) => p.id === targetId && p.isBot);
     const current = room.players.find(
       (p) => p.id === (state.currentTurn || state.currentTurnPlayerId) && p.isBot,
     );
-    const bot = target || (!state.auction ? current : undefined);
+    const bot = state.auction ? auctionBot : target || current;
     if (!bot) return;
     room.botLoopTimeout = setTimeout(() => {
       room.botLoopTimeout = undefined;

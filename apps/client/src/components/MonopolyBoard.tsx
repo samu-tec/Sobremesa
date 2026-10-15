@@ -187,10 +187,16 @@ export function MonopolyBoard({
           </strong>
           <p>
             {auction
-              ? t('{0} · Puja actual: {1}', {
-                  '0': t(BOARD_TILES[auction.tileIndex].name),
-                  '1': money(auction.currentBid),
-                })
+              ? auction.highestBidderId
+                ? t('{0} · Puja de {1}: {2}', {
+                    '0': t(BOARD_TILES[auction.tileIndex].name),
+                    '1': state.players.find((p) => p.id === auction.highestBidderId)?.name || '',
+                    '2': money(auction.currentBid),
+                  })
+                : t('{0} · Sin ofertas; mínimo {1}', {
+                    '0': t(BOARD_TILES[auction.tileIndex].name),
+                    '1': money(10),
+                  })
               : debt
                 ? t('Te faltan {0}. Vende edificios o hipoteca propiedades.', {
                     '0': money(Math.abs(me?.cash ?? 0)),
@@ -287,7 +293,9 @@ export function MonopolyBoard({
           </>
         )}
         {auction &&
-          (auction.currentBidderId === myPlayerId ? (
+          (!me?.isBankrupt &&
+          !auction.passedPlayerIds.includes(myPlayerId) &&
+          auction.highestBidderId !== myPlayerId ? (
             <form
               className="auction-form"
               onSubmit={(e) => {
@@ -328,12 +336,13 @@ export function MonopolyBoard({
                 {t('Pasar')}{' '}
               </button>
             </form>
-          ) : (
+          ) : auction.highestBidderId === myPlayerId ? (
             <span className="muted">
-              {t('Espera la puja de')}{' '}
-              {state.players.find((p) => p.id === auction.currentBidderId)?.name}.
+              {t('Vas ganando la subasta. Si te superan, podrás volver a pujar.')}
             </span>
-          ))}
+          ) : auction.passedPlayerIds.includes(myPlayerId) ? (
+            <span className="muted">{t('Te has retirado de esta subasta.')}</span>
+          ) : null)}
       </div>
     </section>
   );
@@ -670,6 +679,10 @@ export function MonopolyBoard({
                     ? `${t('RONDA')} ${state.round} · ${t('Sin límite')}`
                     : `${t('RONDA')} ${state.round} ${t('DE')} ${state.customRules.maxRounds}`}
                 </span>
+                <div className="city-event-banner" aria-live="polite">
+                  <span>{t('LO ÚLTIMO EN LA CIUDAD')}</span>
+                  <p>{gameText(state.logs[0])}</p>
+                </div>
                 <Building2 className="city-center-building" size={38} />
                 <h2>
                   {t('CIUDAD')} <br />
@@ -711,9 +724,6 @@ export function MonopolyBoard({
                   </span>
                 )}
                 {!compact && actions}
-                <p className="city-mobile-event" aria-live="polite">
-                  {gameText(state.logs[0])}
-                </p>
                 <span className="city-center-flower">✳</span>
               </div>
               {BOARD_TILES.map((tile) => {
@@ -791,10 +801,6 @@ export function MonopolyBoard({
             )}{' '}
           </p>
         </section>
-        <div className="panel city-activity">
-          <span className="eyebrow">{t('LO ÚLTIMO EN LA CIUDAD')}</span>
-          <p aria-live="polite">{gameText(state.logs[0])}</p>
-        </div>
       </div>
       {compact && (
         <div className="city-mobile-dock">

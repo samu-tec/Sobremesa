@@ -129,7 +129,7 @@ test('Dados: guardar, perder solo el turno y llegar a cien', () => {
   assert.equal(end.winner, 'a');
   assert.equal(engine.validateAction(end, 'a', { type: 'ROLL' }), false);
 });
-test('Ciudad Fortuna: subasta entre todos y cobro al cerrar', () => {
+test('Ciudad Fortuna: todos pueden pujar y gana la oferta más alta al cerrar', () => {
   const engine = new MonopolyEngine(),
     original = engine.initGame(players),
     s = {
@@ -138,21 +138,30 @@ test('Ciudad Fortuna: subasta entre todos y cobro al cerrar', () => {
       pendingTileAction: { tileIndex: 1, actionType: 'buy_property' as const },
     };
   let state = engine.applyAction(s, 'a', { type: 'PASS_PROPERTY' });
-  assert.equal(state.auction?.currentBidderId, 'b');
-  assert.equal(engine.validateAction(state, 'a', { type: 'BID', amount: 10 }), false);
+  assert.equal(state.auction?.highestBidderId, null);
+  assert.equal(engine.validateAction(state, 'a', { type: 'BID', amount: 10 }), true);
+  assert.equal(engine.validateAction(state, 'b', { type: 'BID', amount: 10 }), true);
   for (const amount of [-1, 0, 9, 10.5, 2000, NaN])
     assert.equal(engine.validateAction(state, 'b', { type: 'BID', amount }), false);
   state = engine.applyAction(state, 'b', { type: 'BID', amount: 20 });
   assert.equal(state.players[1].cash, 1500);
-  assert.equal(state.auction?.currentBidderId, 'a');
-  state = engine.applyAction(state, 'a', { type: 'PASS_AUCTION' });
+  assert.equal(state.auction?.highestBidderId, 'b');
+  assert.equal(engine.validateAction(state, 'a', { type: 'BID', amount: 29 }), false);
+  assert.equal(engine.validateAction(state, 'a', { type: 'BID', amount: 30 }), true);
+  assert.equal(engine.validateAction(state, 'b', { type: 'BID', amount: 40 }), false);
+  state = engine.applyAction(state, 'a', { type: 'BID', amount: 40 });
+  assert.equal(state.auction?.highestBidderId, 'a');
+  assert.equal(state.auction?.currentBid, 40);
+  state = engine.finishAuction(state);
   assert.equal(state.auction, null);
-  assert.equal(state.properties[1].ownerId, 'b');
-  assert.equal(state.players[1].cash, 1480);
+  assert.equal(state.properties[1].ownerId, 'a');
+  assert.equal(state.players[0].cash, 1460);
   assert.equal(state.turnPhase, 'end_turn');
   assert.equal(original.properties[1].ownerId, null);
   let vacant = engine.applyAction(s, 'a', { type: 'PASS_PROPERTY' });
   vacant = engine.applyAction(vacant, 'b', { type: 'PASS_AUCTION' });
+  assert.equal(vacant.auction !== null, true);
+  assert.equal(engine.validateAction(vacant, 'b', { type: 'BID', amount: 10 }), false);
   vacant = engine.applyAction(vacant, 'a', { type: 'PASS_AUCTION' });
   assert.equal(vacant.auction, null);
   assert.equal(vacant.properties[1].ownerId, null);
@@ -226,14 +235,33 @@ for (const [name, Engine, count, max] of [
       let steps = 0;
       while (!engine.checkWinner(state) && !state.isDraw && steps < max) {
         const id =
-            state.auction?.currentBidderId ||
+            (state.auction &&
+              state.players.find(
+                (p) =>
+                  p.isBot &&
+                  !p.isBankrupt &&
+                  p.id !== state.auction!.highestBidderId &&
+                  !state.auction!.passedPlayerIds.includes(p.id),
+              )?.id) ||
             state.activeTrade?.toPlayerId ||
             state.currentTurn ||
             state.currentTurnPlayerId,
           action = engine.getBotAction(state, id);
         assert.ok(
           action,
-          `${name}: bot bloqueado: ${JSON.stringify({ phase: state.turnPhase, steps, id })}`,
+          `${name}: bot bloqueado: ${JSON.stringify({
+            phase: state.turnPhase,
+            pending: state.pendingTileAction,
+            auction: state.auction,
+            currentTurn: state.currentTurnPlayerId,
+            players: state.players.map((player: any) => ({
+              id: player.id,
+              cash: player.cash,
+              bankrupt: player.isBankrupt,
+            })),
+            steps,
+            id,
+          })}`,
         );
         assert.ok(engine.validateAction(state, id, action), `${name}: ${JSON.stringify(action)}`);
         const before = JSON.stringify(state),

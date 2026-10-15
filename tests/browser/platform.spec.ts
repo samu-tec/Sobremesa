@@ -80,7 +80,7 @@ for (const name of games)
     await page.keyboard.press('Escape');
     if (name === 'Ciudad Fortuna') {
       await page.getByRole('button', { name: 'Tirar dados', exact: true }).click();
-      await expect(page.locator('.city-activity')).toContainText(
+      await expect(page.locator('.city-event-banner')).toContainText(
         /cayó|cárcel|Suerte|Comunidad|SALIDA|dobles|compró|pagó|Al sacar/,
       );
       await page.locator('.city-tile').nth(1).click();
@@ -385,12 +385,14 @@ test('Ciudad Fortuna: tablero orientado, fichas y acciones accesibles sin despla
       ratio: 1,
     });
     await expect(page.locator('.city-board')).toBeInViewport({ ratio: 1 });
+    await expect(page.locator('.city-event-banner')).toBeInViewport({ ratio: 1 });
     if (width === 390 || width === 1440 || width === 844)
       await page.screenshot({
         path: `tests/.output/screenshots/city-${width}.png`,
         fullPage: true,
       });
     if (width <= 900) {
+      await expect(page.locator('.city-tile:not(.corner-tile) .tile-name').first()).toBeVisible();
       await expect(
         page.getByRole('button', { name: 'Ampliar tablero', exact: true }),
       ).toBeInViewport({ ratio: 1 });
@@ -409,6 +411,47 @@ test('Ciudad Fortuna: tablero orientado, fichas y acciones accesibles sin despla
   await expect(page.locator('.city-sidebar')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.city-sidebar')).not.toBeVisible();
+});
+
+test('Ciudad Fortuna: la subasta abierta ofrece la puja a todos y muestra al líder', async ({
+  page,
+}) => {
+  await page.routeWebSocket('**/socket.io/**', (route) => {
+    const server = route.connectToServer();
+    server.onMessage((message) => {
+      if (typeof message === 'string' && message.startsWith('42')) {
+        try {
+          const packet = JSON.parse(message.slice(2));
+          if (packet[0] === 'game:started' && packet[1].gameType === 'monopoly') {
+            const state = packet[1].publicState;
+            const bot = state.players.find(
+              (player: { isBot: boolean; id: string }) => player.isBot,
+            );
+            state.auction = {
+              tileIndex: 1,
+              currentBid: 30,
+              highestBidderId: bot.id,
+              passedPlayerIds: [],
+            };
+            route.send(`42${JSON.stringify(packet)}`);
+            return;
+          }
+        } catch {
+          /* Other Socket.IO packets pass through. */
+        }
+      }
+      route.send(message);
+    });
+  });
+  await ready(page);
+  await page
+    .getByRole('button', { name: 'Jugar a Ciudad Fortuna contra un bot', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
+  await expect(page.locator('.turn-badge')).toContainText('Subasta abierta');
+  await expect(page.locator('.auction-form')).toBeVisible();
+  await expect(page.locator('#auction-bid')).toHaveAttribute('min', '40');
+  await expect(page.getByRole('button', { name: 'Pasar', exact: true })).toBeVisible();
 });
 
 test('Cambio de Color: el selector deja la mano visible y permite comparar colores', async ({

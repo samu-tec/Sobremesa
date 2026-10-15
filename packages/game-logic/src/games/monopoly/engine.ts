@@ -103,13 +103,14 @@ export class MonopolyEngine implements IGameEngine<
     if (state.winner !== null || state.isDraw) return false;
     if (state.auction) {
       const bidder = state.players.find((p) => p.id === playerId && !p.isBankrupt);
-      if (!bidder || state.auction.currentBidderId !== playerId) return false;
+      if (!bidder || state.auction.passedPlayerIds.includes(playerId)) return false;
+      if (action.type === 'PASS_AUCTION') return playerId !== state.auction.highestBidderId;
       return (
-        action.type === 'PASS_AUCTION' ||
-        (action.type === 'BID' &&
-          Number.isSafeInteger(action.amount) &&
-          action.amount >= state.auction.currentBid + 10 &&
-          action.amount <= bidder.cash)
+        action.type === 'BID' &&
+        playerId !== state.auction.highestBidderId &&
+        Number.isSafeInteger(action.amount) &&
+        action.amount >= state.auction.currentBid + 10 &&
+        action.amount <= bidder.cash
       );
     }
 
@@ -324,7 +325,7 @@ export class MonopolyEngine implements IGameEngine<
       } else {
         newState.auction.passedPlayerIds.push(playerId);
       }
-      this.advanceAuction(newState, playerId);
+      if (!this.hasAuctionChallenger(newState)) this.settleAuction(newState);
       return newState;
     }
 
@@ -525,10 +526,8 @@ export class MonopolyEngine implements IGameEngine<
           tileIndex: tile.index,
           currentBid: 0,
           highestBidderId: null,
-          currentBidderId: playerId,
           passedPlayerIds: [],
         };
-        this.advanceAuction(newState, playerId);
         return newState;
       }
       newState.turnPhase = newState.isDouble ? 'roll' : 'end_turn';
@@ -674,33 +673,51 @@ export class MonopolyEngine implements IGameEngine<
     return next;
   }
 
-  private advanceAuction(state: MonopolyState, previousId: string): void {
-    const auction = state.auction!;
-    const start = state.players.findIndex((p) => p.id === previousId);
-    for (let offset = 1; offset <= state.players.length; offset++) {
-      const player = state.players[(start + offset) % state.players.length];
-      if (
+  private hasAuctionChallenger(state: MonopolyState): boolean {
+    const auction = state.auction;
+    if (!auction) return false;
+    return state.players.some(
+      (player) =>
         !player.isBankrupt &&
         player.id !== auction.highestBidderId &&
         !auction.passedPlayerIds.includes(player.id) &&
-        player.cash >= auction.currentBid + 10
-      ) {
-        auction.currentBidderId = player.id;
-        return;
-      }
-    }
+        player.cash >= auction.currentBid + 10,
+    );
+  }
+
+  /** Finish an auction after the server-side bidding window expires. */
+  finishAuction(state: MonopolyState): MonopolyState {
+    if (!state.auction) return state;
+    const next: MonopolyState = {
+      ...state,
+      players: state.players.map((player) => ({ ...player })),
+      properties: Object.fromEntries(
+        Object.entries(state.properties).map(([index, property]) => [index, { ...property }]),
+      ),
+      logs: [...state.logs],
+      auction: { ...state.auction, passedPlayerIds: [...state.auction.passedPlayerIds] },
+    };
+    this.settleAuction(next);
+    return next;
+  }
+
+  private settleAuction(state: MonopolyState): void {
+    const auction = state.auction;
+    if (!auction) return;
     if (auction.highestBidderId) {
-      const winner = state.players.find((p) => p.id === auction.highestBidderId)!;
-      winner.cash -= auction.currentBid;
-      state.properties[auction.tileIndex] = { ownerId: winner.id, houses: 0, isMortgaged: false };
-      state.logs.unshift(
-        msg(
-          '{0} gana la subasta de {1} por {2} €.',
-          winner.name,
-          term(BOARD_TILES[auction.tileIndex].name),
-          auction.currentBid,
-        ),
-      );
+      const winner = state.players.find((p) => p.id === auction.highestBidderId && !p.isBankrupt);
+      if (winner) {
+        winner.cash -= auction.currentBid;
+        state.properties[auction.tileIndex] = { ownerId: winner.id, houses: 0, isMortgaged: false };
+        state.logs.unshift(
+          msg(
+            '{0} gana la subasta de {1} por {2} €.',
+            winner.name,
+            term(BOARD_TILES[auction.tileIndex].name),
+            auction.currentBid,
+          ),
+        );
+      } else state.logs.unshift(msg('Subasta desierta. La propiedad sigue en el banco.'));
     } else state.logs.unshift(msg('Subasta desierta. La propiedad sigue en el banco.'));
     state.auction = null;
     state.turnPhase = state.isDouble ? 'roll' : 'end_turn';

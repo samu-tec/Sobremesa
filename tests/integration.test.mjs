@@ -251,6 +251,76 @@ test('Salas simultáneas del mismo juego y de otro juego mantienen sus estados s
     person.socket.disconnect();
   }
 });
+
+test('Ciudad Fortuna: todos pueden pujar y una oferta renueva la ventana de 15 segundos', async () => {
+  const host = await connect(),
+    guest = await connect(),
+    room = await create(host, 'monopoly');
+  await ack(guest.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' });
+  let state = null;
+  host.socket.on('game:started', (game) => (state = game.publicState));
+  await ack(host.socket, 'room:start_game');
+  assert.ok(state);
+
+  const act = async (player, action) => {
+    const update = new Promise((resolve) => host.socket.once('game:state_update', resolve));
+    const result = await ack(player.socket, 'game:action', action);
+    assert.equal(result.success, true, `Acción de subasta rechazada: ${JSON.stringify(action)}`);
+    return await update;
+  };
+  for (let steps = 0; !state.auction && steps < 100; steps++) {
+    const id = state.currentTurnPlayerId,
+      player = id === host.playerId ? host : guest,
+      current = state.players.find((participant) => participant.id === id),
+      action =
+        current.cash < 0
+          ? { type: 'DECLARE_BANKRUPTCY' }
+          : state.turnPhase === 'roll'
+            ? { type: 'ROLL_DICE' }
+            : state.turnPhase === 'tile_action'
+              ? { type: 'PASS_PROPERTY' }
+              : { type: 'END_TURN' };
+    state = await act(player, action);
+    assert.ok(!state.winner, 'La partida no debería terminar antes de abrir la subasta');
+  }
+  assert.ok(state.auction, 'Una casilla de propiedad debe abrir una subasta');
+  assert.equal(state.auction.currentBid, 0);
+  const auctionTileIndex = state.auction.tileIndex;
+
+  const getRoom = async () => {
+    const result = await ack(host.socket, 'game:reconnect', { roomCode: room.code });
+    assert.equal(result.success, true);
+    return result.room;
+  };
+  const initialRoom = await getRoom();
+  assert.ok(initialRoom.turnDeadline - initialRoom.serverNow <= 15000);
+  assert.ok(initialRoom.turnDeadline - initialRoom.serverNow > 14000);
+
+  state = await act(host, { type: 'BID', amount: 10 });
+  assert.equal(state.auction.highestBidderId, host.playerId);
+  let afterBidRoom = await getRoom();
+  assert.ok(afterBidRoom.turnDeadline > initialRoom.turnDeadline);
+  assert.ok(afterBidRoom.turnDeadline - afterBidRoom.serverNow > 14000);
+
+  state = await act(guest, { type: 'BID', amount: 20 });
+  assert.equal(state.auction.highestBidderId, guest.playerId);
+  const secondBidRoom = await getRoom();
+  assert.ok(secondBidRoom.turnDeadline > afterBidRoom.turnDeadline);
+
+  state = await act(host, { type: 'BID', amount: 30 });
+  assert.equal(state.auction.highestBidderId, host.playerId);
+  const cashBeforeAward = state.players.find((p) => p.id === host.playerId).cash;
+  state = await act(guest, { type: 'PASS_AUCTION' });
+  assert.equal(state.auction, null);
+  assert.equal(state.properties[auctionTileIndex].ownerId, host.playerId);
+  assert.equal(state.players.find((p) => p.id === host.playerId).cash, cashBeforeAward - 30);
+
+  await ack(host.socket, 'room:leave');
+  await ack(guest.socket, 'room:leave');
+  host.socket.disconnect();
+  guest.socket.disconnect();
+});
+
 test(
   'El servidor resuelve turnos agotados en los seis juegos sin depender del navegador',
   { timeout: 45000 },
@@ -282,14 +352,19 @@ test(
     for (const session of sessions) {
       const { latest, updates } = session.read();
       assert.ok(updates > 0, `No terminó el turno de ${session.game}`);
-      const actor =
-        latest.auction?.currentBidderId || latest.currentTurn || latest.currentTurnPlayerId;
-      assert.equal(actor, session.guest.playerId, `Turno bloqueado en ${session.game}`);
+      const actor = latest.currentTurn || latest.currentTurnPlayerId;
+      if (session.game === 'monopoly' && latest.auction) {
+        assert.equal(latest.auction.highestBidderId, null);
+      } else {
+        assert.equal(actor, session.guest.playerId, `Turno bloqueado en ${session.game}`);
+      }
       const recovered = await ack(session.host.socket, 'game:reconnect', {
         roomCode: session.room.code,
       });
       assert.equal(recovered.room.turnSeconds, 30);
       assert.ok(recovered.room.turnDeadline > Date.now());
+      if (session.game === 'monopoly' && latest.auction)
+        assert.ok(recovered.room.turnDeadline - recovered.room.serverNow <= 15000);
       if (session.game === 'tictactoe') assert.equal(latest.board.filter(Boolean).length, 1);
       if (session.game === 'colorclash') assert.equal('drawPile' in latest, false);
       await ack(session.host.socket, 'room:leave');

@@ -60,7 +60,7 @@ export function Rules({
           </p>
           <p>
             {t(
-              'Al agotarse el tiempo, se completa una jugada automática. En las subastas, cada puja tiene su propio plazo.',
+              'Al agotarse el tiempo de turno, se completa una jugada automática. Las subastas duran 15 segundos y cada nueva puja reinicia el contador.',
             )}
           </p>
         </section>

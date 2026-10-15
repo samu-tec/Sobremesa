@@ -32,7 +32,7 @@ Cada acción se valida en el servidor: jugador, turno, tipo, posición, enteros 
 
 `applyAction` devuelve un estado nuevo y conserva intactos los objetos del anterior. `getSanitizedState` construye una vista explícita por jugador, sin manos ajenas, orden del mazo ni secretos de sesión. Conviene evitar copiar todo el estado y quitar después algunos campos: un campo nuevo podría quedar expuesto por accidente.
 
-El bot produce acciones que su validador acepta y limita el trabajo de cálculo de cada turno. Los temporizadores los gestiona el servidor. Si el juego tiene turnos especiales, como subastas, el planificador debe saber a qué jugador despertar.
+El bot produce acciones que su validador acepta y limita el trabajo de cálculo de cada turno. Los temporizadores los gestiona el servidor. Si un juego abre una fase simultánea, como las subastas de Ciudad Fortuna, cada jugador elegible puede actuar durante la ventana y una puja reinicia el plazo; no se simula como una ronda de turnos individuales.
 
 ## Interfaz
 

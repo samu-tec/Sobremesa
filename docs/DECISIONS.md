@@ -36,7 +36,7 @@ La interfaz usa fondos claros, verde bosque, salvia y coral, con ilustraciones p
 
 El recorrido es catálogo → sala → partida → resultado → revancha o catálogo. Cada juego tiene reglas accesibles durante la partida y confirmación antes de abandonar. Los errores se muestran en un aviso común.
 
-La página permite zoom, navegación por teclado y movimiento reducido. Los diálogos gestionan el foco y las superposiciones. El catálogo utiliza una columna por debajo de 420 px. Ciudad Fortuna conserva el tablero completo y muestra detalles al tocar una casilla; las acciones principales están en el centro en escritorio y en una barra inferior fija en móvil. El panel de propiedades tiene desplazamiento independiente en escritorio y se abre en un diálogo accesible en móvil. Salida está arriba a la izquierda y el recorrido avanza hacia la derecha. Cada jugador tiene color y figura estables, repetidos en sus fichas, resumen y propiedades. El tablero se puede ampliar en móvil sin desplazar sus controles principales.
+La página permite zoom, navegación por teclado y movimiento reducido. Los diálogos gestionan el foco y las superposiciones. El catálogo utiliza una columna por debajo de 420 px. Ciudad Fortuna conserva el tablero completo y muestra detalles al tocar una casilla; el último movimiento aparece en un aviso compacto en el centro del tablero, sobre el título. Los iconos de las casillas tienen más presencia y las fichas son pequeñas para dejar leer sus nombres. Las acciones principales están en el centro en escritorio y en una barra inferior fija en móvil. El panel de propiedades tiene desplazamiento independiente en escritorio y se abre en un diálogo accesible en móvil. Salida está arriba a la izquierda y el recorrido avanza hacia la derecha. Cada jugador tiene color y figura estables, repetidos en sus fichas, resumen y propiedades. El tablero se puede ampliar en móvil sin desplazar sus controles principales.
 
 Al comenzar el turno propio aparece un aviso breve y accesible, además del indicador persistente del turno. En Ciudad Fortuna, los dados y la llegada de las fichas tienen animación; la preferencia de movimiento reducido desactiva las animaciones.
 
@@ -46,8 +46,8 @@ Las reglas del catálogo describen lo que ejecutan los motores. Cambiar una regl
 
 Ciudad Fortuna utiliza:
 
-- Compras, alquileres, subastas por turnos, edificios equilibrados, hipotecas, intercambios y cárcel.
-- Incremento mínimo de subasta de 10 €. Pasar retira al postor; el importe se cobra al cerrar.
+- Compras, alquileres, edificios equilibrados, hipotecas, intercambios y cárcel.
+- Las subastas son abiertas: cualquier jugador solvente puede pujar, la oferta debe superar la actual en 10 € como mínimo y pasar retira a ese postor. El reloj da 15 segundos y se reinicia con cada puja válida; al vencer, gana y paga la oferta más alta. Se cierra antes si ya no quedan posibles postores. Los bots pueden entrar en la subasta mientras el reloj corre.
 - Cartas de libertad fuera del mazo hasta usarse o devolverse por abandono o bancarrota.
 - Saldo negativo que impide tirar hasta recuperar dinero o declarar bancarrota.
 - Sin límite de rondas por defecto. El anfitrión puede elegir 20, 40 o 60; al llegar al límite, gana el mayor patrimonio. Gana antes la última persona solvente. Patrimonio = efectivo + precio de propiedades + coste de edificios − valor de hipotecas. Igual patrimonio produce empate.
@@ -104,7 +104,7 @@ La primera visita pide un apodo; no solicita identidad real ni crea cuentas. Se 
 
 Cada sala tiene un plazo de 30, 60, 90, 120 o 180 segundos, con 90 por defecto. El servidor publica el plazo y su hora; el cliente descuenta con un reloj monotónico local. Cambiar opciones está limitado al anfitrión y a salas en espera. Las acciones de gestión o los tratos no renuevan el turno; una nueva puja sí tiene un plazo propio. Los temporizadores se eliminan al finalizar, reiniciar o destruir una sala.
 
-Al agotar el tiempo, Ciudad Fortuna tira si hace falta, rechaza compras pendientes, pasa en subastas y termina el turno. Si hay deuda, liquida bienes legalmente antes de continuar o declara bancarrota. Cambio de Color roba y pasa; Dados guarda los puntos disponibles o resuelve una tirada; los juegos de tablero realizan una jugada legal. Los dobles siguen perteneciendo al mismo plazo. La reconexión conserva el asiento, pero no detiene el reloj de la partida.
+Al agotar el tiempo, Ciudad Fortuna tira si hace falta, rechaza compras pendientes y termina el turno; si hay una subasta abierta, la cierra y adjudica la oferta más alta. Si hay deuda, liquida bienes legalmente antes de continuar o declara bancarrota. Cambio de Color roba y pasa; Dados guarda los puntos disponibles o resuelve una tirada; los juegos de tablero realizan una jugada legal. Los dobles siguen perteneciendo al mismo plazo. La reconexión conserva el asiento y el plazo actual de la subasta o del turno.
 
 Además de las opciones originales, Ciudad Fortuna permite ajustar multa e intentos de cárcel, cobrar alquiler desde prisión y exigir construcción equilibrada. Cambio de Color admite manos iniciales de cinco, siete o nueve cartas. Las reglas durante la partida muestran las opciones reales de la sala junto a las reglas generales. El selector de comodín es un panel junto a la mano, con el número de cartas de cada color, sin superposición que la tape.
 
@@ -120,7 +120,7 @@ Fuentes consultadas: [AEPD: qué son los datos personales](https://www.aepd.es/p
 
 Se revisaron la portada de [Richup](https://richup.io/) y su [blog oficial](https://blog.richup.io/) el 15 de octubre de 2026. Se contrastaron la compra, alquiler, grupos, casas y hoteles, configuración, reloj y figuras distinguibles. Su sala pública permaneció en «Loading game…» desde el entorno de revisión, por lo que no se declara paridad completa con su versión actual.
 
-Ciudad Fortuna conserva una variante propia: banco ilimitado, subastas por pujas de turno, sin transferencias de cartas de libertad ni modos de equipos. Las funciones sociales con cuentas, tienda, clasificaciones y torneos de Richup no forman parte de esta web de invitados. No se han copiado sus recursos o código. Estas diferencias deben permanecer explícitas al documentar o ampliar el juego.
+Ciudad Fortuna conserva una variante propia: banco ilimitado, subastas abiertas con ventana de 15 segundos, sin transferencias de cartas de libertad ni modos de equipos. Las funciones sociales con cuentas, tienda, clasificaciones y torneos de Richup no forman parte de esta web de invitados. No se han copiado sus recursos o código. Estas diferencias deben permanecer explícitas al documentar o ampliar el juego.
 
 ## Herramientas y documentación
 
