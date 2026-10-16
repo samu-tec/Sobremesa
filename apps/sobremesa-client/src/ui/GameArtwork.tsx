@@ -1,6 +1,6 @@
 import { t } from '../i18n';
 import { useId } from 'react';
-import type { GameType } from '@games/game-logic';
+import type { GameType } from 'sobremesa-logic';
 // Original SVG illustrations, kept as code: crisp at any screen density, no third-party assets.
 export function GameArtwork({ game, hero = false }: { game: GameType; hero?: boolean }) {
   const uid = useId().replace(/:/g, '');

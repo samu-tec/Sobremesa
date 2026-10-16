@@ -1,5 +1,5 @@
 import { io, type Socket } from 'socket.io-client';
-import type { ClientToServerEvents, ServerToClientEvents } from '@games/game-logic';
+import type { ClientToServerEvents, ServerToClientEvents } from 'sobremesa-logic';
 export type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 const memory = new Map<string, string>();
 export const sessionStore = {

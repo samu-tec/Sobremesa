@@ -1,7 +1,7 @@
 import { useLocale, localizeGame, t } from '../i18n';
 import { randomName } from '../ui/Welcome';
 import { useState } from 'react';
-import { GAME_CATALOG as BASE_CATALOG, matchesGame, type GameType } from '@games/game-logic';
+import { GAME_CATALOG as BASE_CATALOG, matchesGame, type GameType } from 'sobremesa-logic';
 import {
   ArrowRight,
   ArrowUpRight,

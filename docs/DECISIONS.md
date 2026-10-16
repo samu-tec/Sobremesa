@@ -4,23 +4,23 @@
 
 Sobremesa se organiza en tres paquetes:
 
-- `apps/client`: aplicación React, componentes y conexión con Socket.IO.
-- `apps/server`: servidor HTTP, sesiones, salas y turnos de bots.
-- `packages/game-logic`: motores, tipos, catálogo y reglas sin dependencias de la interfaz o el transporte.
+- `apps/sobremesa-client`: aplicación React, componentes y conexión con Socket.IO.
+- `apps/sobremesa-server`: servidor HTTP, sesiones, salas y turnos de bots.
+- `packages/sobremesa-logic`: motores, tipos, catálogo y reglas sin dependencias de la interfaz o el transporte.
 
 pnpm workspaces conecta los paquetes. TypeScript se usa en modo estricto. El cliente y el servidor comparten contratos; los mensajes recibidos se validan también en ejecución, porque los tipos no protegen la entrada de red.
 
 Cliente, API y Socket.IO comparten origen en producción. Vite actúa como proxy durante el desarrollo. El despliegue está pensado para un servidor Node detrás de Cloudflare Tunnel, sin servicios externos necesarios para jugar.
 
-## Marca, repositorio y dominio
+## Marca y dominio
 
 El nombre del proyecto y la marca visible son **Sobremesa**. El logotipo escribe «sobremesa.» en minúsculas por decisión visual. La dirección pública prevista es `https://games.samuelciocan.com`; el subdominio describe dónde se juega, no cambia el nombre del producto. El título, la descripción y las tarjetas al compartir la web deben conservar esta relación en español e inglés.
 
-El paquete raíz también se llama `sobremesa`. Los nombres `games-client`, `games-server` y `@games/game-logic` son identificadores internos de pnpm; no aparecen como nombres de producto para los visitantes. El remoto de GitHub todavía es `samu-tec/Games`; el nombre elegido para el repositorio es `samu-tec/sobremesa`. Tras cambiarlo en GitHub, actualiza el remoto local a `https://github.com/samu-tec/sobremesa.git`.
+El paquete raíz se llama `sobremesa`; los paquetes internos son `sobremesa-client`, `sobremesa-server` y `sobremesa-logic`. En Docker, el proyecto, el servicio, el contenedor y la imagen se llaman `sobremesa`.
 
 ## Catálogo y motores
 
-`packages/game-logic/src/catalog.ts` es la fuente común de nombres, jugadores, categorías, reglas, consejos y alias de búsqueda. El servidor obtiene de ahí los límites de cada sala.
+`packages/sobremesa-logic/src/catalog.ts` es la fuente común de nombres, jugadores, categorías, reglas, consejos y alias de búsqueda. El servidor obtiene de ahí los límites de cada sala.
 
 Cada juego implementa `IGameEngine`: inicialización, validación, aplicación de acciones, proyección por jugador, ganador, bot y abandono. El motor no conoce React ni sockets. Las acciones devuelven estados nuevos y no mutan los anteriores.
 
@@ -30,7 +30,7 @@ Los bots tienen un cálculo acotado: minimax en Tres en Raya, búsqueda limitada
 
 ## Estilo e interacción
 
-La interfaz usa fondos claros, verde bosque, salvia y coral, con ilustraciones propias en SVG y fuentes del sistema. Los estilos comunes están en `apps/client/src/styles.css`.
+La interfaz usa fondos claros, verde bosque, salvia y coral, con ilustraciones propias en SVG y fuentes del sistema. Los estilos comunes están en `apps/sobremesa-client/src/styles.css`.
 
 `GameLayout`, `PlayersPanel`, `GameTip`, `DiceFace`, `Modal` y `Rules` se reutilizan entre juegos. Los componentes comparten botones, campos, paneles, avisos, turnos y resultados.
 
@@ -94,7 +94,7 @@ Las ilustraciones SVG son propias. El código parte del proyecto proporcionado p
 
 Español e inglés usan el mismo estado y las mismas acciones. Cambiar de idioma no recarga la página ni abandona la sala. Se ofrece el idioma del navegador cuando es compatible, con español como alternativa, y se recuerda la elección del usuario. El selector está disponible en catálogo, sala, partida y privacidad.
 
-`apps/client/src/i18n/` contiene el registro de idiomas, formato monetario, traducciones y acceso al catálogo localizado. El español es el texto fuente; las traducciones inglesas viven en `en.ts`. Las claves se interpolan con parámetros, nunca concatenando o traduciendo apodos. `GameText` conserva las plantillas y sus valores en los mensajes de los motores; cada cliente los representa en su idioma. Los términos del juego se marcan explícitamente y los nombres de jugadores permanecen intactos. Las calles conservan sus nombres propios; las casillas especiales sí se traducen.
+`apps/sobremesa-client/src/i18n/` contiene el registro de idiomas, formato monetario, traducciones y acceso al catálogo localizado. El español es el texto fuente; las traducciones inglesas viven en `en.ts`. Las claves se interpolan con parámetros, nunca concatenando o traduciendo apodos. `GameText` conserva las plantillas y sus valores en los mensajes de los motores; cada cliente los representa en su idioma. Los términos del juego se marcan explícitamente y los nombres de jugadores permanecen intactos. Las calles conservan sus nombres propios; las casillas especiales sí se traducen.
 
 Para añadir un idioma: registrar código y formato en `LANGUAGES`, incorporar su diccionario a `dictionaries`, traducir también el contenido de `Privacy`, añadir el generador de apodos adecuado y ampliar la comprobación de cobertura. `pnpm test:i18n` detecta textos del catálogo, cartas, mensajes e interfaz sin traducción inglesa o con parámetros distintos. Los textos nuevos deben pasar por `t`, y los eventos nuevos por `message` y `term`.
 

@@ -7,7 +7,7 @@ import {
   type MonopolyAction,
   type MonopolyPublicState,
   type PropertyGroup,
-} from '@games/game-logic';
+} from 'sobremesa-logic';
 import {
   ArrowRight,
   Building2,

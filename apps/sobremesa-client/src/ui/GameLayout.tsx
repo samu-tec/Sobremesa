@@ -1,7 +1,7 @@
 import { getGame, t, LanguageSelector } from '../i18n';
 import { TurnClock } from './TurnClock';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { type RoomInfo } from '@games/game-logic';
+import { type RoomInfo } from 'sobremesa-logic';
 import {
   ArrowLeft,
   BookOpen,

@@ -5,7 +5,7 @@ import {
   type ServerToClientEvents,
   type SocketData,
   type GameType,
-} from '@games/game-logic';
+} from 'sobremesa-logic';
 import type { RoomManager } from './RoomManager.js';
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, any, SocketData>;
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents, any, SocketData>;

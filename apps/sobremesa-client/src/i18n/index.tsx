@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { getGame as getBaseGame, type GameDefinition, type GameType } from '@games/game-logic';
+import { getGame as getBaseGame, type GameDefinition, type GameType } from 'sobremesa-logic';
 import { en } from './en';
 
 // Add a dictionary and a descriptor here to support another language.
@@ -122,7 +122,7 @@ export function LanguageSelector() {
   );
 }
 
-export function gameText(value: import('@games/game-logic').GameText | null | undefined): string {
+export function gameText(value: import('sobremesa-logic').GameText | null | undefined): string {
   if (!value) return '';
   return t(
     value.key,

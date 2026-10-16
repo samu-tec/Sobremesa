@@ -15,7 +15,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: 'node apps/server/dist/server.js',
+    command: 'node apps/sobremesa-server/dist/server.js',
     url: 'http://127.0.0.1:3187/health',
     reuseExistingServer: false,
     timeout: 15000,

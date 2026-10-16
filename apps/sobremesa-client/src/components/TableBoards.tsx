@@ -8,7 +8,7 @@ import {
   type ReversiAction,
   type PigState,
   type PigAction,
-} from '@games/game-logic';
+} from 'sobremesa-logic';
 import { ArrowDown, Circle, X, Dices, Download } from 'lucide-react';
 import { DiceFace, GameTip, PlayersPanel, type BoardProps } from '../ui/GameLayout';
 type State = TicTacToeState | Connect4State | ReversiState | PigState;

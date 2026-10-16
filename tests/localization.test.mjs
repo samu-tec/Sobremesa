@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import ts from 'typescript';
-import { en } from '../apps/client/src/i18n/en.ts';
+import { en } from '../apps/sobremesa-client/src/i18n/en.ts';
 import {
   GAME_CATALOG,
   BOARD_TILES,
   CHANCE_CARDS,
   COMMUNITY_CHEST_CARDS,
-} from '../packages/game-logic/src/index.ts';
+} from '../packages/sobremesa-logic/src/index.ts';
 function files(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) =>
     entry.isDirectory()
@@ -26,7 +26,10 @@ function translated(key) {
   assert.deepEqual(placeholders(en[key]), placeholders(key), `Parámetros diferentes: ${key}`);
 }
 test('Los textos de interfaz y los mensajes de los motores tienen traducción y los mismos parámetros', () => {
-  for (const file of [...files('apps/client/src'), ...files('packages/game-logic/src/games')]) {
+  for (const file of [
+    ...files('apps/sobremesa-client/src'),
+    ...files('packages/sobremesa-logic/src/games'),
+  ]) {
     if (file.endsWith('/en.ts')) continue;
     const source = ts.createSourceFile(
       file,

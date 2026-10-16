@@ -9,7 +9,7 @@ const clients = [];
 const secret = () => randomBytes(32).toString('hex');
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 before(async () => {
-  server = spawn(process.execPath, ['apps/server/dist/server.js'], {
+  server = spawn(process.execPath, ['apps/sobremesa-server/dist/server.js'], {
     env: {
       ...process.env,
       PORT: '3190',
@@ -69,6 +69,7 @@ test('HTTP: cabeceras, catálogo de seis juegos y rutas desconocidas', async () 
   assert.equal(res.headers.get('x-powered-by'), null);
   assert.equal(res.headers.get('x-frame-options'), 'DENY');
   assert.match(res.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+  assert.match(res.headers.get('content-security-policy'), /wss:\/\/games\.samuelciocan\.com/);
   assert.ok(!(await res.text()).includes('fonts.googleapis'));
   const stats = await fetch(url + '/api/stats');
   assert.equal((await stats.json()).supportedGames.length, 6);
@@ -302,6 +303,7 @@ test('Ciudad Fortuna: todos pueden pujar y una oferta renueva la ventana de 15 s
   assert.ok(afterBidRoom.turnDeadline > initialRoom.turnDeadline);
   assert.ok(afterBidRoom.turnDeadline - afterBidRoom.serverNow > 14000);
 
+  await wait(20);
   state = await act(guest, { type: 'BID', amount: 20 });
   assert.equal(state.auction.highestBidderId, guest.playerId);
   const secondBidRoom = await getRoom();

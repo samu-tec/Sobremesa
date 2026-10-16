@@ -6,7 +6,7 @@ import {
   type ColorClashAction,
   type ColorClashPublicState,
   type PlayableColor,
-} from '@games/game-logic';
+} from 'sobremesa-logic';
 import { ArrowRight, Layers3, Repeat2, CircleSlash2 } from 'lucide-react';
 import { PlayersPanel, GameTip, type BoardProps } from '../ui/GameLayout';
 const colorNames: Record<string, string> = {

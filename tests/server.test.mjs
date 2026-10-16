@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RoomManager } from '../apps/server/dist/RoomManager.js';
-import { RoomCreationLimiter } from '../apps/server/dist/RoomCreationLimiter.js';
+import { RoomManager } from '../apps/sobremesa-server/dist/RoomManager.js';
+import { RoomCreationLimiter } from '../apps/sobremesa-server/dist/RoomCreationLimiter.js';
 
 test('La creación de salas queda limitada por IP, globalmente y en memoria', () => {
   const limiter = new RoomCreationLimiter(5, 30, 60000, 2);

@@ -1,6 +1,6 @@
 import { getGame, t, LanguageSelector, formatMoney } from '../i18n';
 import { useEffect, useState } from 'react';
-import { type RoomInfo } from '@games/game-logic';
+import { type RoomInfo } from 'sobremesa-logic';
 import {
   ArrowLeft,
   ArrowRight,

@@ -17,7 +17,7 @@ import {
   type ClientToServerEvents,
   type ServerToClientEvents,
   type SocketData,
-} from '@games/game-logic';
+} from 'sobremesa-logic';
 import { CONFIG } from './config.js';
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents, any, SocketData>;
 interface RoomPlayer extends Player {

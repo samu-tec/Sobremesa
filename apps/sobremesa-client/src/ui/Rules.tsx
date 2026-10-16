@@ -1,5 +1,5 @@
 import { getGame, formatMoney, t } from '../i18n';
-import { type RoomInfo, type GameType } from '@games/game-logic';
+import { type RoomInfo, type GameType } from 'sobremesa-logic';
 import { Lightbulb } from 'lucide-react';
 import { Modal } from './Modal';
 export function Rules({

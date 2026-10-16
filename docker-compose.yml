@@ -1,11 +1,14 @@
+name: sobremesa
+
 services:
-  game-server:
+  sobremesa:
     build: .
+    image: sobremesa:latest
+    container_name: sobremesa
     restart: unless-stopped
     ports:
       - '127.0.0.1:3000:3000'
     networks:
-      - default
       - cloudflare
     environment:
       NODE_ENV: production

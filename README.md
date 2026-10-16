@@ -32,10 +32,10 @@ La [guía de pruebas](docs/TESTING.md) explica qué revisar en cada juego, cómo
 
 ```text
 apps/
-  client/              Interfaz, idiomas, componentes y conexión con las salas
-  server/              Servidor HTTP, sesiones y partidas multijugador
+  sobremesa-client/    Interfaz, idiomas, componentes y conexión con las salas
+  sobremesa-server/    Servidor HTTP, sesiones y partidas multijugador
 packages/
-  game-logic/          Reglas, tipos y bots de los seis juegos
+  sobremesa-logic/     Reglas, tipos y bots de los seis juegos
     src/games/         Un directorio por juego
     test/              Pruebas de los motores
 tests/                Pruebas de integración y navegador

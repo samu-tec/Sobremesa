@@ -12,7 +12,7 @@ import {
   type InterServerEvents,
   type ServerToClientEvents,
   type SocketData,
-} from '@games/game-logic';
+} from 'sobremesa-logic';
 import { CONFIG } from './config.js';
 import { RoomManager } from './RoomManager.js';
 import { RoomCreationLimiter } from './RoomCreationLimiter.js';
@@ -29,7 +29,7 @@ app.use((_req, res, next) => {
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
     'Content-Security-Policy':
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws://localhost:3000 ws://127.0.0.1:3000; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' wss://games.samuelciocan.com ws://localhost:3000 ws://127.0.0.1:3000; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
   });
   if (process.env.NODE_ENV === 'production')
     res.setHeader('Strict-Transport-Security', 'max-age=31536000');
@@ -122,7 +122,10 @@ app.get('/api/stats', (_req, res) => {
   res.json({ activeRooms: manager.getRoomsCount(), supportedGames: GAME_CATALOG.map((g) => g.id) });
 });
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
-const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
+const clientDist = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../sobremesa-client/dist',
+);
 if (fs.existsSync(clientDist)) {
   app.use(
     express.static(clientDist, {
@@ -148,7 +151,7 @@ if (fs.existsSync(clientDist)) {
   });
 }
 server.listen(CONFIG.PORT, CONFIG.HOST, () =>
-  console.log(`Games disponible en http://${CONFIG.HOST}:${CONFIG.PORT}`),
+  console.log(`Sobremesa disponible en http://${CONFIG.HOST}:${CONFIG.PORT}`),
 );
 let closing = false;
 function shutdown() {

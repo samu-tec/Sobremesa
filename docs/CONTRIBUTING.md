@@ -2,11 +2,11 @@
 
 ## Organización del código
 
-`apps/client` contiene la aplicación React. `App.tsx` coordina el catálogo, la sala de espera y el tablero. Las pantallas están en `views/`, los tableros en `components/` y los componentes comunes en `ui/`. La conexión Socket.IO está en `services/socket.ts`.
+`apps/sobremesa-client` contiene la aplicación React. `App.tsx` coordina el catálogo, la sala de espera y el tablero. Las pantallas están en `views/`, los tableros en `components/` y los componentes comunes en `ui/`. La conexión Socket.IO está en `services/socket.ts`.
 
-`apps/server` contiene el servidor y las salas. `server.ts` configura HTTP y Socket.IO, `socketHandlers.ts` comprueba las peticiones y `RoomManager.ts` gestiona jugadores, permisos, reconexiones y bots. `config.ts` lee las opciones del entorno.
+`apps/sobremesa-server` contiene el servidor y las salas. `server.ts` configura HTTP y Socket.IO, `socketHandlers.ts` comprueba las peticiones y `RoomManager.ts` gestiona jugadores, permisos, reconexiones y bots. `config.ts` lee las opciones del entorno.
 
-`packages/game-logic` contiene las reglas. Cada juego tiene su directorio en `src/games/`. El catálogo común está en `src/catalog.ts`, los eventos en `src/events/` y el contrato de los motores en `src/engine/IGameEngine.ts`.
+`packages/sobremesa-logic` contiene las reglas. Cada juego tiene su directorio en `src/games/`. El catálogo común está en `src/catalog.ts`, los eventos en `src/events/` y el contrato de los motores en `src/engine/IGameEngine.ts`.
 
 Las decisiones de arquitectura y estilo se describen en [DECISIONS.md](DECISIONS.md).
 
@@ -14,7 +14,7 @@ Las decisiones de arquitectura y estilo se describen en [DECISIONS.md](DECISIONS
 
 Define primero sus jugadores, objetivo, jugadas legales, final, empate, información oculta y comportamiento cuando alguien abandona.
 
-1. Crea `packages/game-logic/src/games/<id>/engine.ts`. Separa los tipos y el bot en archivos propios cuando su tamaño lo justifique.
+1. Crea `packages/sobremesa-logic/src/games/<id>/engine.ts`. Separa los tipos y el bot en archivos propios cuando su tamaño lo justifique.
 2. Implementa `IGameEngine<Estado, Acción, EstadoPúblico>`: inicialización, validación, aplicación de jugadas, estado por jugador, ganador, bot y abandono.
 3. Añade el identificador a `GameType` en `types/index.ts` y exporta el motor y sus tipos desde `src/index.ts`.
 4. Registra sus datos en `GAME_CATALOG`: nombre, categoría, jugadores, duración orientativa, descripción, reglas, consejo y alias de búsqueda.
@@ -61,6 +61,6 @@ Al cambiar arquitectura, reglas, seguridad o alojamiento, actualiza [DECISIONS.m
 
 ## Idiomas e interacción
 
-Usa `t` para textos de interfaz y el catálogo localizado desde `apps/client/src/i18n`. Añade las traducciones a `en.ts` y ejecuta `pnpm test:i18n`. Los motores envían mensajes `GameText` con `message`; marca solo términos del juego con `term`. No traduzcas apodos ni guardes textos ya traducidos dentro del estado. Usa interpolaciones para que cada idioma pueda cambiar el orden de las frases.
+Usa `t` para textos de interfaz y el catálogo localizado desde `apps/sobremesa-client/src/i18n`. Añade las traducciones a `en.ts` y ejecuta `pnpm test:i18n`. Los motores envían mensajes `GameText` con `message`; marca solo términos del juego con `term`. No traduzcas apodos ni guardes textos ya traducidos dentro del estado. Usa interpolaciones para que cada idioma pueda cambiar el orden de las frases.
 
 Un juego nuevo debe pasar por la sala de configuración, también con bots. Respeta el reloj compartido y añade su política de turno agotado a `RoomManager`; debe salir de cualquier decisión pendiente con acciones legales. Prueba por separado dos salas del mismo juego, una desconexión, cambio de idioma y una pantalla de 320 px. Los controles principales deben permanecer visibles y los selectores no deben ocultar la información necesaria para decidir.

@@ -3,7 +3,13 @@
 **/dist
 .env
 .env.*
-!.env.example
-tests/.output
+docs
+tests
+**/test
+README.md
+playwright.config.ts
+.gitattributes
+.gitignore
+*.local
 *.zip
 .DS_Store

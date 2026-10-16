@@ -1,5 +1,5 @@
 import { t, LanguageSelector } from '../i18n';
-import { GAME_CATALOG } from '@games/game-logic';
+import { GAME_CATALOG } from 'sobremesa-logic';
 import type { ReactNode } from 'react';
 import {
   Dice5,

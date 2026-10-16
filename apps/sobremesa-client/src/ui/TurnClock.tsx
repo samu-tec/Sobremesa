@@ -1,7 +1,7 @@
 import { t } from '../i18n';
 import { useEffect, useState } from 'react';
 import { Timer } from 'lucide-react';
-import type { RoomInfo } from '@games/game-logic';
+import type { RoomInfo } from 'sobremesa-logic';
 export function TurnClock({ room }: { room: RoomInfo }) {
   const [remaining, setRemaining] = useState(0);
   useEffect(() => {

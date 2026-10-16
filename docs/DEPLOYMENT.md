@@ -17,20 +17,20 @@ El servidor escucha en `127.0.0.1:3000` por defecto. Para mantenerlo activo, uti
 Con Docker arrancado:
 
 ```sh
-docker compose -p sobremesa up -d --build game-server
+docker compose up -d --build --remove-orphans sobremesa
 ```
 
-El puerto del juego se publica solo en `127.0.0.1:3000`. El contenedor ejecuta Node sin privilegios, con sistema de archivos de solo lectura y límites de recursos. Antes de arrancar Compose por primera vez en el servidor, comprueba que exista la red externa que ya usa tu contenedor de Cloudflared (`docker network inspect cloudflare`). Si aún no existe, créala con `docker network create cloudflare`. La app se conecta a esa red y también a su red Compose; no inicia ni administra Cloudflared.
+El puerto del juego se publica solo en `127.0.0.1:3000`. El contenedor ejecuta Node sin privilegios, con sistema de archivos de solo lectura y límites de recursos. Antes de arrancar Compose por primera vez en el servidor, comprueba que exista la red externa que ya usa tu contenedor de Cloudflared (`docker network inspect cloudflare`). Si aún no existe, créala con `docker network create cloudflare`. La app se conecta únicamente a esa red externa; no inicia ni administra Cloudflared y Compose no crea una red propia para el proyecto.
 
 Comprueba la configuración sin arrancar contenedores:
 
 ```sh
-docker compose -p sobremesa config --quiet
+docker compose config --quiet
 ```
 
 ## Cloudflare Tunnel
 
-Cloudflared se configura y ejecuta por separado en su propio contenedor; no hay token, servicio ni archivo de configuración de Cloudflared dentro del proyecto. Ambos contenedores comparten la red Docker externa `cloudflare`. En el panel del túnel, dirige `games.samuelciocan.com` a `http://game-server:3000`; `game-server` es el nombre del servicio resoluble dentro de esa red. El contenedor de Cloudflared debe seguir conectado a `cloudflare`, incluso después de recrearlo al actualizar su imagen. Mantén el token fuera del repositorio.
+El contenedor de Cloudflared se administra por separado y comparte la red externa `cloudflare` con `sobremesa`. En la configuración del túnel, dirige `games.samuelciocan.com` a `http://sobremesa:3000`. Mantén el contenedor conectado a `cloudflare` al recrearlo y guarda el token fuera del repositorio.
 
 `TRUST_CLOUDFLARE=true` permite identificar la IP del visitante para los límites de conexión. Actívalo únicamente si el origen está aislado y las peticiones públicas llegan por Cloudflare Tunnel. No se confía en `X-Forwarded-For`.
 

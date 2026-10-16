@@ -12,7 +12,7 @@ import type {
   Connect4State,
   ReversiState,
   PigState,
-} from '@games/game-logic';
+} from 'sobremesa-logic';
 import {
   findOtherSobremesaTab,
   socket,
