@@ -584,7 +584,7 @@ export function MonopolyBoard({
                       id="offered-cash"
                       type="number"
                       min={0}
-                      max={me?.cash ?? 0}
+                      max={Math.max(0, me?.cash ?? 0)}
                       step={1}
                       disabled={!canTrade}
                       value={offeredCash}
@@ -602,7 +602,7 @@ export function MonopolyBoard({
                       id="requested-cash"
                       type="number"
                       min={0}
-                      max={partner.cash}
+                      max={Math.max(0, partner.cash)}
                       step={1}
                       disabled={!canTrade}
                       value={requestedCash}
@@ -653,8 +653,8 @@ export function MonopolyBoard({
                   disabled={
                     !canTrade ||
                     (!offeredCash && !requestedCash && !offered.length && !requested.length) ||
-                    offeredCash > (me?.cash ?? 0) ||
-                    requestedCash > partner.cash
+                    offeredCash > Math.max(0, me?.cash ?? 0) ||
+                    requestedCash > Math.max(0, partner.cash)
                   }
                   onClick={trade}
                 >

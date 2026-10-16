@@ -217,6 +217,42 @@ test('Cartas: solo la recién robada se puede jugar; no se filtran mazos', () =>
   assert.equal('drawPile' in mine, false);
   assert.equal('cards' in mine.opponents[0], false);
 });
+test('La carta robada sigue siendo privada después de pasar o abandonar el turno', () => {
+  const engine = new ColorClashEngine();
+  const state = engine.initGame([...players, { id: 'c', isBot: false }]);
+  state.activeColor = 'red';
+  state.discardPile = [{ id: 'top', color: 'red', value: '1' }];
+  state.drawPile = [
+    { id: 'unplayable', color: 'blue', value: '8' },
+    { id: 'private', color: 'red', value: '7' },
+  ];
+  const drawn = engine.applyAction(state, 'a', { type: 'DRAW_CARD' });
+  assert.equal(engine.getSanitizedState(drawn, 'a').drawnCardId, 'private');
+  const passed = engine.applyAction(drawn, 'a', { type: 'PASS_TURN' });
+  assert.equal(passed.currentTurnPlayerId, 'b');
+  assert.equal(passed.drawnCardId, null);
+  assert.equal(
+    passed.players[0].cards.some((card) => card.id === 'private'),
+    true,
+  );
+  for (const player of passed.players)
+    assert.equal(engine.getSanitizedState(passed, player.playerId).drawnCardId, null);
+  assert.equal(
+    engine.getSanitizedState({ ...passed, drawnCardId: 'private' }, 'b').drawnCardId,
+    null,
+  );
+  const unplayable = engine.applyAction(passed, 'b', { type: 'DRAW_CARD' });
+  assert.equal(unplayable.currentTurnPlayerId, 'c');
+  assert.equal(unplayable.drawnCardId, null);
+  const departed = engine.forfeitPlayer(drawn, 'a');
+  assert.equal(departed.currentTurnPlayerId, 'b');
+  assert.equal(departed.drawnCardId, null);
+  assert.equal(engine.getSanitizedState(departed, 'b').drawnCardId, null);
+  const otherLeft = engine.forfeitPlayer(drawn, 'b');
+  assert.equal(engine.getSanitizedState(otherLeft, 'a').drawnCardId, 'private');
+  assert.equal(engine.getSanitizedState(otherLeft, 'c').drawnCardId, null);
+  assert.equal(drawn.drawnCardId, 'private');
+});
 for (const [name, Engine, count, max] of [
   ['Tres en Raya', TicTacToeEngine, 2, 9],
   ['Cuatro en Línea', Connect4Engine, 2, 42],
@@ -460,4 +496,66 @@ test('El reparto configurable conserva las 108 cartas y no filtra las manos', ()
     assert.equal(view.opponents[0].cardCount, n);
     assert.equal('cards' in view.opponents[0], false);
   }
+});
+
+test('Ciudad Fortuna permite vender una propiedad para saldar deudas mediante un intercambio', () => {
+  const engine = new MonopolyEngine();
+  for (const debtor of ['a', 'b']) {
+    const state = engine.initGame(players);
+    state.players.find((p) => p.id === debtor)!.cash = -100;
+    state.properties[1].ownerId = debtor;
+    const trade = {
+      fromPlayerId: 'a',
+      toPlayerId: 'b',
+      offeredCash: debtor === 'a' ? 0 : 100,
+      requestedCash: debtor === 'a' ? 100 : 0,
+      offeredPropertyIndices: debtor === 'a' ? [1] : [],
+      requestedPropertyIndices: debtor === 'a' ? [] : [1],
+    };
+    assert.equal(engine.validateAction(state, 'a', { type: 'PROPOSE_TRADE', trade }), true);
+    const proposed = engine.applyAction(state, 'a', { type: 'PROPOSE_TRADE', trade });
+    const settled = engine.applyAction(proposed, 'b', {
+      type: 'RESPOND_TRADE',
+      tradeId: proposed.activeTrade!.id,
+      accept: true,
+    });
+    assert.equal(settled.players.find((p) => p.id === debtor)!.cash, 0);
+    assert.equal(settled.players.find((p) => p.id !== debtor)!.cash, 1400);
+    assert.notEqual(settled.properties[1].ownerId, debtor);
+    assert.equal(state.players.find((p) => p.id === debtor)!.cash, -100);
+    assert.equal(state.properties[1].ownerId, debtor);
+    const overspent = {
+      ...trade,
+      ...(debtor === 'a' ? { offeredCash: 1 } : { requestedCash: 1 }),
+    };
+    assert.equal(
+      engine.validateAction(state, 'a', { type: 'PROPOSE_TRADE', trade: overspent }),
+      false,
+    );
+  }
+});
+
+test('Un bot endeudado puede aceptar efectivo sin ofrecer dinero que no tiene', () => {
+  const engine = new MonopolyEngine();
+  const state = engine.initGame(players);
+  state.players[1].cash = -100;
+  const proposed = engine.applyAction(state, 'a', {
+    type: 'PROPOSE_TRADE',
+    trade: {
+      fromPlayerId: 'a',
+      toPlayerId: 'b',
+      offeredCash: 100,
+      requestedCash: 0,
+      offeredPropertyIndices: [],
+      requestedPropertyIndices: [],
+    },
+  });
+  const action = engine.getBotAction(proposed, 'b');
+  assert.deepEqual(action, {
+    type: 'RESPOND_TRADE',
+    tradeId: proposed.activeTrade!.id,
+    accept: true,
+  });
+  assert.equal(engine.validateAction(proposed, 'b', action!), true);
+  assert.equal(engine.applyAction(proposed, 'b', action!).players[1].cash, 0);
 });

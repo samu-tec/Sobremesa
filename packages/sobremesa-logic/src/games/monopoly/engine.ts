@@ -259,7 +259,7 @@ export class MonopolyEngine implements IGameEngine<
     const to = state.players.find((player) => player.id === trade.toPlayerId);
     if (!from || !to || from.isBankrupt || to.isBankrupt) return false;
     const validCash = (amount: number, available: number) =>
-      Number.isSafeInteger(amount) && amount >= 0 && amount <= available;
+      Number.isSafeInteger(amount) && amount >= 0 && amount <= Math.max(0, available);
     if (!validCash(trade.offeredCash, from.cash) || !validCash(trade.requestedCash, to.cash))
       return false;
 

@@ -114,8 +114,10 @@ export function TableBoards({
                           '0': Math.floor(index / 7) + 1,
                           '1': (index % 7) + 1,
                           '2': id
-                            ? `ficha de ${room.players.find((p) => p.id === id)?.name}`
-                            : 'vacía',
+                            ? t('ficha de {0}', {
+                                '0': room.players.find((p) => p.id === id)?.name,
+                              })
+                            : t('vacía'),
                         })}
                         className={`connect-hole ${id ? `disc-${s.players.findIndex((p) => p.id === id)}` : ''} ${s.winningLine.includes(index) ? 'winning-disc' : ''} ${s.lastMove === index ? 'last-disc' : ''}`}
                       >
@@ -149,8 +151,8 @@ export function TableBoards({
                             ? t('oscura')
                             : t('clara')
                           : s.legalMoves.includes(index)
-                            ? 'jugada válida'
-                            : 'vacía',
+                            ? t('jugada válida')
+                            : t('vacía'),
                       })}
                       className={`${id ? `reversi-disc-${s.players.findIndex((p) => p.id === id)}` : ''} ${s.lastMove === index ? 'last-move' : ''}`}
                       onClick={() => onAction({ type: 'PLACE', index })}

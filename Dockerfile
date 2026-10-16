@@ -23,6 +23,7 @@ COPY --from=builder /app/apps/sobremesa-client/dist ../sobremesa-client/dist
 USER node
 RUN test -f dist/server.js \
     && test -f node_modules/sobremesa-logic/dist/index.js \
+    && test -f ../sobremesa-client/dist/index.html \
     && cd dist \
     && node --input-type=module -e "await import('sobremesa-logic')"
 EXPOSE 3000

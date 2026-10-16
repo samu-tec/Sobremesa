@@ -30,13 +30,9 @@ Cloudflare puede servir la web sin esa variable. Mientras la lista esté vacía,
 
 Los límites predeterminados son 10 intentos de creación de sala por IP y minuto, 30 creaciones globales por minuto, 500 salas y 2.000 conexiones. También hay límites por conexión. Estas medidas no sustituyen las protecciones de tráfico de Cloudflare.
 
-## Despliegue manual futuro
-
-El script privado de despliegue puede instalarse en `/home/samuel/Sobremesa/deploy.sh`; Git y el contexto de Docker lo excluyen. Debe actualizar solo Sobremesa y conservar los archivos locales no versionados y cualquier dato persistente que se añada.
-
-Las salas y partidas actuales viven en memoria. Recrear o reiniciar el contenedor termina las partidas activas. No hay volúmenes de datos que deban sincronizarse.
-
 ## Comprobaciones operativas
+
+Las salas y partidas viven en memoria. Recrear o reiniciar el contenedor termina las partidas activas. No hay volúmenes de datos que deban sincronizarse.
 
 Después de un despliegue, comprueba `/health`, una sala entre dos dispositivos, una jugada en cada dirección, la reconexión y las invitaciones. La ruta pública es `https://games.samuelciocan.com/health`.
 

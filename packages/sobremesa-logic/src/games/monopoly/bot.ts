@@ -25,8 +25,9 @@ export function getBotMonopolyAction(state: MonopolyState, botId: string): Monop
       accept:
         trade.offeredCash >= trade.requestedCash &&
         netPropertyGain >= 0 &&
-        (state.players.find((p) => p.id === botId)?.cash ?? 0) >= trade.requestedCash &&
-        (state.players.find((p) => p.id === trade.fromPlayerId)?.cash ?? 0) >= trade.offeredCash,
+        Math.max(0, state.players.find((p) => p.id === botId)?.cash ?? 0) >= trade.requestedCash &&
+        Math.max(0, state.players.find((p) => p.id === trade.fromPlayerId)?.cash ?? 0) >=
+          trade.offeredCash,
     };
   }
   if (state.currentTurnPlayerId !== botId) return null;

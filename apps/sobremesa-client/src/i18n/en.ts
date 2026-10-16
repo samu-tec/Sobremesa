@@ -71,6 +71,7 @@ export const en: Record<string, string> = {
   'Código de la sala': 'Room code',
   'Entrarás como': 'You’ll join as',
   'Unirme a la partida': 'Join the game',
+  'Entrando…': 'Joining…',
   '¿Cómo te llamamos?': 'What should we call you?',
   'Tus amigos verán este nombre en las partidas.': 'Your friends will see this name during games.',
   'Tu nombre': 'Your name',

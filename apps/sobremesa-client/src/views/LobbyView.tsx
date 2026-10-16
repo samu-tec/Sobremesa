@@ -394,7 +394,7 @@ export function LobbyView({
               disabled={playDisabled || roomCode.length !== 6}
               type="submit"
             >
-              {isConnecting ? 'Entrando…' : t('Unirme a la partida')} <ArrowRight size={17} />
+              {isConnecting ? t('Entrando…') : t('Unirme a la partida')} <ArrowRight size={17} />
             </button>
           </form>
         </Modal>

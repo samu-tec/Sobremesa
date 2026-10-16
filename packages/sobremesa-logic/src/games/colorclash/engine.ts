@@ -124,6 +124,7 @@ export class ColorClashEngine implements IGameEngine<
     const topDiscard = newState.discardPile[newState.discardPile.length - 1];
 
     if (action.type === 'DRAW_CARD') {
+      newState.drawnCardId = null;
       this.ensureDrawPile(newState);
       if (newState.drawPile.length > 0) {
         const drawnCard = newState.drawPile.pop()!;
@@ -151,6 +152,7 @@ export class ColorClashEngine implements IGameEngine<
 
     if (action.type === 'PASS_TURN') {
       newState.hasDrawnThisTurn = false;
+      newState.drawnCardId = null;
       newState.currentTurnPlayerId = this.getNextPlayerId(newState, 1);
       newState.lastActionDescription = msg('Pasó el turno');
       return newState;
@@ -241,7 +243,8 @@ export class ColorClashEngine implements IGameEngine<
 
     return {
       myHand,
-      drawnCardId: state.currentTurnPlayerId === playerId ? state.drawnCardId : null,
+      drawnCardId:
+        state.hasDrawnThisTurn && state.currentTurnPlayerId === playerId ? state.drawnCardId : null,
       opponents,
       topDiscardCard: { ...topDiscardCard },
       activeColor: state.activeColor,
@@ -272,6 +275,7 @@ export class ColorClashEngine implements IGameEngine<
       currentTurnPlayerId: nextId,
       winner: players.length === 1 ? players[0].playerId : null,
       hasDrawnThisTurn: state.currentTurnPlayerId === id ? false : state.hasDrawnThisTurn,
+      drawnCardId: state.currentTurnPlayerId === id ? null : state.drawnCardId,
       lastActionDescription: msg('Un jugador abandonó. Sus cartas vuelven al mazo.'),
     };
   }

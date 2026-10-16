@@ -341,6 +341,23 @@ for (const [spanish, english] of [
     await expect(page.getByRole('heading', { name: `${english}.`, exact: true })).toBeVisible();
     await expect(page.getByRole('timer')).toContainText(/0:5\d|1:00/);
     if (english === 'Colour Switch') await expect(page.locator('.hand-card')).toHaveCount(9);
+    if (english === 'Four in a Row') {
+      await expect(
+        page.getByRole('img', { name: 'Row 1, column 1: empty', exact: true }),
+      ).toBeVisible();
+      await page.getByRole('button', { name: 'Drop a disc in column 1', exact: true }).click();
+      await expect(
+        page.getByRole('img', { name: 'Row 6, column 1: Suerte’s disc', exact: true }),
+      ).toBeVisible();
+    }
+    if (english === 'Reversi') {
+      await expect(
+        page.getByRole('button', { name: 'Row 1, column 1: empty', exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('button', { name: 'Row 3, column 4: legal move', exact: true }),
+      ).toBeEnabled();
+    }
     await page.getByRole('button', { name: 'Rules', exact: true }).click();
     await expect(page.getByRole('dialog')).toContainText(`How to play · ${english}`);
     await expect(page.getByRole('dialog')).not.toContainText('jugadores');
