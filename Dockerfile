@@ -12,19 +12,19 @@ COPY tsconfig.json ./
 COPY packages/sobremesa-logic ./packages/sobremesa-logic
 COPY apps/sobremesa-server ./apps/sobremesa-server
 COPY apps/sobremesa-client ./apps/sobremesa-client
-RUN pnpm build
+RUN pnpm build \
+    && pnpm --filter sobremesa-server deploy --prod --frozen-lockfile /prod/sobremesa-server
 
-FROM base AS runner
+FROM node:22-alpine AS runner
+WORKDIR /app/apps/sobremesa-server
 ENV NODE_ENV=production HOST=0.0.0.0
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/sobremesa-logic/package.json ./packages/sobremesa-logic/
-COPY apps/sobremesa-server/package.json ./apps/sobremesa-server/
-COPY apps/sobremesa-client/package.json ./apps/sobremesa-client/
-RUN pnpm install --prod --filter sobremesa-server... --frozen-lockfile
-COPY --from=builder /app/packages/sobremesa-logic/dist ./packages/sobremesa-logic/dist
-COPY --from=builder /app/apps/sobremesa-server/dist ./apps/sobremesa-server/dist
-COPY --from=builder /app/apps/sobremesa-client/dist ./apps/sobremesa-client/dist
+COPY --from=builder /prod/sobremesa-server ./
+COPY --from=builder /app/apps/sobremesa-client/dist ../sobremesa-client/dist
 USER node
+RUN test -f dist/server.js \
+    && test -f node_modules/sobremesa-logic/dist/index.js \
+    && cd dist \
+    && node --input-type=module -e "await import('sobremesa-logic')"
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node -e "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
-CMD ["node", "apps/sobremesa-server/dist/server.js"]
+CMD ["node", "dist/server.js"]
