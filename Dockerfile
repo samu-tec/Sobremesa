@@ -15,7 +15,7 @@ COPY apps/sobremesa-client ./apps/sobremesa-client
 RUN pnpm build
 
 FROM base AS runner
-ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0
+ENV NODE_ENV=production HOST=0.0.0.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/sobremesa-logic/package.json ./packages/sobremesa-logic/
 COPY apps/sobremesa-server/package.json ./apps/sobremesa-server/

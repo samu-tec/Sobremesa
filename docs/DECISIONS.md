@@ -12,9 +12,11 @@ pnpm workspaces conecta los paquetes. TypeScript se usa en modo estricto. El cli
 
 Cliente, API y Socket.IO comparten origen en producción. Vite actúa como proxy durante el desarrollo. El despliegue está pensado para un servidor Node detrás de Cloudflare Tunnel, sin servicios externos necesarios para jugar.
 
+El proyecto es personal y el repositorio es público. No se requiere `.env`: la aplicación usa valores predeterminados y acepta variables de entorno reales cuando se necesita ajustar una opción.
+
 ## Marca y dominio
 
-El nombre del proyecto y la marca visible son **Sobremesa**. El logotipo escribe «sobremesa.» en minúsculas por decisión visual. La dirección pública prevista es `https://games.samuelciocan.com`; el subdominio describe dónde se juega, no cambia el nombre del producto. El título, la descripción y las tarjetas al compartir la web deben conservar esta relación en español e inglés.
+El nombre del proyecto y la marca visible son **Sobremesa**. El logotipo escribe «sobremesa.» en minúsculas por decisión visual. La dirección pública es `https://games.samuelciocan.com`; el subdominio describe dónde se juega, no cambia el nombre del producto. El título, la descripción y las tarjetas al compartir la web deben conservar esta relación en español e inglés.
 
 El paquete raíz se llama `sobremesa`; los paquetes internos son `sobremesa-client`, `sobremesa-server` y `sobremesa-logic`. En Docker, el proyecto, el servicio, el contenedor y la imagen se llaman `sobremesa`.
 
@@ -70,13 +72,15 @@ Las desconexiones reservan el sitio durante 300 segundos por defecto, configurab
 
 Las reglas se ejecutan en el servidor. Dados, dinero y cartas no dependen de resultados enviados por el cliente. Cada participante recibe una proyección del estado que excluye manos ajenas y orden de los mazos.
 
-Los mensajes tienen un máximo de 16 KiB. Cada conexión admite una ráfaga de 30 acciones y repone cinco por segundo; tras 20 excesos de ritmo se desconecta ese socket. Los límites predeterminados son 120 intentos por IP y minuto, 30 conexiones por IP, 2.000 conexiones globales y 500 salas. La creación usa además una cubeta por IP de 10 salas/minuto y otra global de 30 salas/minuto; el seguimiento temporal de IPs está limitado a 10.000 claves. Las salas se cierran tras seis horas sin actividad humana y los contadores se limpian periódicamente. Los límites numéricos admiten ajustes mediante las variables de entorno documentadas; el plazo de inactividad queda fijado en seis horas.
+Los mensajes tienen un máximo de 16 KiB. Cada conexión admite una ráfaga de 30 acciones y repone cinco por segundo; tras 20 excesos de ritmo se desconecta ese socket. Los límites predeterminados son 120 intentos por IP y minuto, 30 conexiones por IP, 2.000 conexiones globales y 500 salas. La creación usa además una cubeta por IP de 10 salas/minuto y otra global de 30 salas/minuto; el seguimiento temporal de IPs está limitado a 10.000 claves. Las salas se cierran tras seis horas sin actividad humana y los contadores se limpian periódicamente. Los límites numéricos admiten ajustes mediante variables de entorno; el plazo de inactividad queda fijado en seis horas.
 
 Se comprueba el origen del handshake además de aplicar CORS con una lista explícita. Las conexiones sin `Origin` siguen necesitando una sesión válida. No se inserta HTML aportado por usuarios ni hay subidas de archivos, chat o ejecución de código de visitantes.
 
 El servidor incluye CSP, protección contra iframes y MIME incorrecto, política de referencias y restricciones de cámara, micrófono y ubicación. Producción añade HSTS. CSP permite estilos en línea para los colores y posiciones de los tableros; los scripts se limitan al propio origen. Los assets con huella usan caché larga y el HTML puede actualizarse sin quedar congelado.
 
-Node escucha en loopback por defecto. Docker publica el puerto en `127.0.0.1` y usa un usuario sin privilegios, sistema de archivos de solo lectura y límites de recursos. `TRUST_CLOUDFLARE` está desactivado por defecto: activarlo requiere que el origen esté aislado tras un proxy de confianza.
+Node escucha en loopback por defecto. La imagen Docker escucha dentro del contenedor en `0.0.0.0`, mientras Compose publica el puerto solo en `127.0.0.1`. Docker usa un usuario sin privilegios, sistema de archivos de solo lectura y límites de recursos. Compose referencia únicamente la red externa existente `cloudflare`; Cloudflared se administra fuera del repositorio y apunta a `http://sobremesa:3000`.
+
+No se confía en `X-Forwarded-For`. `CF-Connecting-IP` solo se acepta cuando la dirección TCP de origen coincide con una IP exacta de `TRUSTED_CLOUDFLARE_IPS`, validada con `net.isIP`. La lista está vacía por defecto porque la red `cloudflare` es compartida y la cabecera puede falsificarse desde otro contenedor. Sin una IP de origen confiable, Cloudflare sigue atendiendo la aplicación, pero los límites por IP usan la dirección de Cloudflared y se comparten entre visitantes. No se puede autenticar con seguridad esa cabecera por defecto sin conocer el origen confiable o cambiar la topología de red.
 
 ## Persistencia y crecimiento
 

@@ -4,6 +4,8 @@ Juegos de mesa para compartir con amigos desde el navegador. Incluye Ciudad Fort
 
 **Dirección pública prevista:** [games.samuelciocan.com](https://games.samuelciocan.com). El proyecto se llama **Sobremesa**; `games.samuelciocan.com` es su dirección web.
 
+Sobremesa es un proyecto personal y su código fuente es público en [GitHub](https://github.com/samu-tec/Sobremesa).
+
 ## Probar la aplicación
 
 Necesitas Node.js 22.13 o superior y pnpm 12.10.1.
@@ -46,17 +48,16 @@ Los tres paquetes comparten tipos mediante pnpm workspaces. Las reglas se ejecut
 
 Los archivos de configuración de la raíz tienen estas funciones:
 
-| Archivo                                             | Para qué sirve                                                               |
-| --------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `package.json`                                      | Dependencias, comandos y configuración de Prettier                           |
-| `pnpm-workspace.yaml`                               | Agrupa los paquetes del proyecto y permite compilar esbuild                  |
-| `pnpm-lock.yaml`                                    | Fija las versiones instaladas para que todos usen las mismas                 |
-| `tsconfig.json`                                     | Configuración común de TypeScript; cada paquete tiene sus ajustes            |
-| `playwright.config.ts`                              | Navegador y servidor temporal para las pruebas automáticas                   |
-| `.gitignore`                                        | Excluye dependencias, compilaciones, secretos y resultados de pruebas de Git |
-| `.gitattributes`                                    | Mantiene el tratamiento de archivos de texto consistente entre sistemas      |
-| `.env.example`                                      | Ejemplo de opciones del servidor, sin credenciales                           |
-| `Dockerfile`, `docker-compose.yml`, `.dockerignore` | Construcción y ejecución con Docker                                          |
+| Archivo                                             | Para qué sirve                                                        |
+| --------------------------------------------------- | --------------------------------------------------------------------- |
+| `package.json`                                      | Dependencias, comandos y configuración de Prettier                    |
+| `pnpm-workspace.yaml`                               | Declara los paquetes del monorepositorio y permisos de build          |
+| `pnpm-lock.yaml`                                    | Fija las versiones para instalaciones reproducibles                   |
+| `tsconfig.json`                                     | Configuración común de TypeScript; cada paquete tiene sus ajustes     |
+| `playwright.config.ts`                              | Navegador y servidor temporal para las pruebas automáticas            |
+| `.gitignore`                                        | Excluye dependencias, compilaciones, secretos y resultados de pruebas |
+| `.gitattributes`                                    | Mantiene el tratamiento de archivos de texto entre sistemas           |
+| `Dockerfile`, `docker-compose.yml`, `.dockerignore` | Construcción y ejecución con Docker                                   |
 
 `node_modules/` contiene las dependencias instaladas y `dist/` los resultados de compilación. Son directorios generados. Los resultados de las pruebas quedan en `tests/.output/` y tampoco se guardan en Git.
 
@@ -83,4 +84,4 @@ Las pruebas de integración y navegador necesitan que hayas ejecutado `pnpm buil
 - [Pruebas](docs/TESTING.md): comprobaciones manuales y automáticas.
 - [Despliegue](docs/DEPLOYMENT.md): Node, Docker y Cloudflare Tunnel para `games.samuelciocan.com`.
 
-Las salas están en memoria: reiniciar el servidor termina las partidas. La reconexión permite recuperar el sitio durante cinco minutos por defecto mientras el servidor siga funcionando. Las invitaciones dejan de funcionar cuando se cierra o caduca la sala.
+Las salas están en memoria: reiniciar el servidor termina las partidas. La reconexión permite recuperar la plaza durante cinco minutos por defecto mientras el servidor siga funcionando. Las invitaciones dejan de funcionar cuando se cierra o caduca la sala.

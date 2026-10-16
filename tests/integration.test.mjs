@@ -15,6 +15,7 @@ before(async () => {
       PORT: '3190',
       HOST: '127.0.0.1',
       NODE_ENV: 'production',
+      TRUSTED_CLOUDFLARE_IPS: '',
       BOT_THINKING_TIME_MS: '10',
       DISCONNECT_GRACE_PERIOD_MS: '1000',
       ROOM_CREATE_LIMIT_PER_IP: '100',

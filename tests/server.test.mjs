@@ -2,6 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RoomManager } from '../apps/sobremesa-server/dist/RoomManager.js';
 import { RoomCreationLimiter } from '../apps/sobremesa-server/dist/RoomCreationLimiter.js';
+import {
+  parseTrustedCloudflareIps,
+  resolveClientIp,
+} from '../apps/sobremesa-server/dist/clientIp.js';
+
+test('CF-Connecting-IP solo se acepta desde direcciones proxy autorizadas y debe ser una IP válida', () => {
+  const trusted = parseTrustedCloudflareIps('172.20.0.4, ::ffff:172.20.0.5');
+  assert.deepEqual([...trusted], ['172.20.0.4', '172.20.0.5']);
+  assert.equal(resolveClientIp('172.20.0.4', '198.51.100.12', trusted), '198.51.100.12');
+  assert.equal(resolveClientIp('172.20.0.9', '198.51.100.12', trusted), '172.20.0.9');
+  assert.equal(resolveClientIp('172.20.0.4', 'invalid', trusted), '172.20.0.4');
+  assert.equal(resolveClientIp('172.20.0.4', ['198.51.100.12'], trusted), '172.20.0.4');
+  assert.throws(() => parseTrustedCloudflareIps('cloudflared'), /TRUSTED_CLOUDFLARE_IPS/);
+});
 
 test('La creación de salas queda limitada por IP, globalmente y en memoria', () => {
   const limiter = new RoomCreationLimiter(5, 30, 60000, 2);

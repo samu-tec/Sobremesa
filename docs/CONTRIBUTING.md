@@ -4,7 +4,7 @@
 
 `apps/sobremesa-client` contiene la aplicación React. `App.tsx` coordina el catálogo, la sala de espera y el tablero. Las pantallas están en `views/`, los tableros en `components/` y los componentes comunes en `ui/`. La conexión Socket.IO está en `services/socket.ts`.
 
-`apps/sobremesa-server` contiene el servidor y las salas. `server.ts` configura HTTP y Socket.IO, `socketHandlers.ts` comprueba las peticiones y `RoomManager.ts` gestiona jugadores, permisos, reconexiones y bots. `config.ts` lee las opciones del entorno.
+`apps/sobremesa-server` contiene el servidor y las salas. `server.ts` configura HTTP y Socket.IO, `socketHandlers.ts` comprueba las peticiones y `RoomManager.ts` gestiona jugadores, permisos, reconexiones y bots. `config.ts` aplica los valores predeterminados y permite ajustes mediante variables de entorno; no carga archivos `.env`.
 
 `packages/sobremesa-logic` contiene las reglas. Cada juego tiene su directorio en `src/games/`. El catálogo común está en `src/catalog.ts`, los eventos en `src/events/` y el contrato de los motores en `src/engine/IGameEngine.ts`.
 

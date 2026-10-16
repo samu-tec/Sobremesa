@@ -14,6 +14,7 @@ import {
   type SocketData,
 } from 'sobremesa-logic';
 import { CONFIG } from './config.js';
+import { resolveClientIp } from './clientIp.js';
 import { RoomManager } from './RoomManager.js';
 import { RoomCreationLimiter } from './RoomCreationLimiter.js';
 import { registerSocketHandlers } from './socketHandlers.js';
@@ -45,12 +46,12 @@ const roomCreationLimiter = new RoomCreationLimiter(
   CONFIG.ROOM_CREATE_LIMIT_GLOBAL,
   CONFIG.ROOM_CREATE_WINDOW_MS,
 );
-const ipFor = (req: http.IncomingMessage) => {
-  const remote = req.socket.remoteAddress || 'unknown';
-  // Only opt in when the origin is isolated behind your own cloudflared instance.
-  const forwarded = req.headers['cf-connecting-ip'];
-  return CONFIG.TRUST_CLOUDFLARE && typeof forwarded === 'string' ? forwarded.slice(0, 64) : remote;
-};
+const ipFor = (req: http.IncomingMessage) =>
+  resolveClientIp(
+    req.socket.remoteAddress,
+    req.headers['cf-connecting-ip'],
+    CONFIG.TRUSTED_CLOUDFLARE_IPS,
+  );
 const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(
   server,
   {
