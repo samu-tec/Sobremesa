@@ -3,6 +3,9 @@
  * Ensures zero-trust server-authoritative state progression and individual state sanitization.
  */
 export interface IGameEngine<GameState, PlayerAction, PublicState> {
+  /** Optional pre-game settings, validated by the room manager. */
+  setRules?(rules: any): void;
+
   /**
    * Initializes a brand new game state with the assigned players.
    */

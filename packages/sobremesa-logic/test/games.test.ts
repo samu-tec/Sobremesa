@@ -1,25 +1,33 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  Connect4Engine,
+  CuatroEnLineaEngine,
   ReversiEngine,
   reversiFlips,
-  PigEngine,
-  MonopolyEngine,
-  TicTacToeEngine,
-  ColorClashEngine,
+  DadosAl100Engine,
+  CiudadFortunaEngine,
+  TresEnRayaEngine,
+  CambioDeColorEngine,
   GAME_CATALOG,
   matchesGame,
   type IGameEngine,
-  type MonopolyState,
+  type CiudadFortunaState,
 } from '../src/index.js';
 const players = [
   { id: 'a', isBot: true, name: 'Ana' },
   { id: 'b', isBot: true, name: 'Bruno' },
 ];
-test('Catálogo: seis juegos, alias y reglas propias', () => {
-  assert.equal(GAME_CATALOG.length, 6);
-  assert.equal(new Set(GAME_CATALOG.map((g) => g.id)).size, 6);
+test('Catálogo: quince juegos, alias y reglas propias', () => {
+  assert.equal(GAME_CATALOG.length, 15);
+  assert.equal(new Set(GAME_CATALOG.map((g) => g.id)).size, 15);
+  assert.deepEqual(
+    GAME_CATALOG.filter((game) => matchesGame(game, 'uno')).map((game) => game.id),
+    ['colorclash'],
+  );
+  assert.deepEqual(
+    GAME_CATALOG.filter((game) => matchesGame(game, 'rummikub')).map((game) => game.id),
+    ['rummy'],
+  );
   for (const [query, id] of [
     ['monopoly', 'monopoly'],
     ['MONÓPOLI', 'monopoly'],
@@ -34,7 +42,7 @@ test('Catálogo: seis juegos, alias y reglas propias', () => {
   }
 });
 test('Cuatro en Línea: gravedad, victorias, turnos y límites', () => {
-  const engine = new Connect4Engine();
+  const engine = new CuatroEnLineaEngine();
   let state = engine.initGame(players);
   for (const value of [-1, 7, 2.5, NaN, Infinity, '3'])
     assert.equal(
@@ -69,7 +77,7 @@ test('Cuatro en Línea: gravedad, victorias, turnos y límites', () => {
   );
 });
 test('El bot de Cuatro en Línea gana y bloquea amenazas', () => {
-  const engine = new Connect4Engine();
+  const engine = new CuatroEnLineaEngine();
   let state = engine.initGame(players);
   state.board[35] = state.board[36] = state.board[37] = 'a';
   assert.deepEqual(engine.getBotAction(state, 'a'), { type: 'DROP', column: 3 });
@@ -106,7 +114,7 @@ test('Reversi termina cuando nadie puede mover', () => {
   assert.equal(next.legalMoves.length, 0);
 });
 test('Dados: guardar, perder solo el turno y llegar a cien', () => {
-  const engine = new PigEngine(),
+  const engine = new DadosAl100Engine(),
     state = engine.initGame(players);
   assert.equal(engine.validateAction(state, 'a', { type: 'HOLD' }), false);
   assert.equal(engine.validateAction(state, 'b', { type: 'ROLL' }), false);
@@ -130,7 +138,7 @@ test('Dados: guardar, perder solo el turno y llegar a cien', () => {
   assert.equal(engine.validateAction(end, 'a', { type: 'ROLL' }), false);
 });
 test('Ciudad Fortuna: todos pueden pujar y gana la oferta más alta al cerrar', () => {
-  const engine = new MonopolyEngine(),
+  const engine = new CiudadFortunaEngine(),
     original = engine.initGame(players),
     s = {
       ...original,
@@ -167,9 +175,9 @@ test('Ciudad Fortuna: todos pueden pujar y gana la oferta más alta al cerrar', 
   assert.equal(vacant.properties[1].ownerId, null);
 });
 test('Ciudad Fortuna: deuda antes de dobles, cárcel y abandono en subastas', () => {
-  const engine = new MonopolyEngine(),
+  const engine = new CiudadFortunaEngine(),
     state = engine.initGame(players),
-    debt: MonopolyState = {
+    debt: CiudadFortunaState = {
       ...state,
       players: state.players.map((p, i) => ({ ...p, cash: i === 0 ? -5 : 1500 })),
     };
@@ -200,7 +208,7 @@ test('Ciudad Fortuna: deuda antes de dobles, cárcel y abandono en subastas', ()
   assert.equal(auction.winner, 'a');
 });
 test('Cartas: solo la recién robada se puede jugar; no se filtran mazos', () => {
-  const engine = new ColorClashEngine(),
+  const engine = new CambioDeColorEngine(),
     state = engine.initGame(players);
   state.activeColor = 'red';
   state.discardPile = [{ id: 'top', color: 'red', value: '1' }];
@@ -218,7 +226,7 @@ test('Cartas: solo la recién robada se puede jugar; no se filtran mazos', () =>
   assert.equal('cards' in mine.opponents[0], false);
 });
 test('La carta robada sigue siendo privada después de pasar o abandonar el turno', () => {
-  const engine = new ColorClashEngine();
+  const engine = new CambioDeColorEngine();
   const state = engine.initGame([...players, { id: 'c', isBot: false }]);
   state.activeColor = 'red';
   state.discardPile = [{ id: 'top', color: 'red', value: '1' }];
@@ -254,16 +262,16 @@ test('La carta robada sigue siendo privada después de pasar o abandonar el turn
   assert.equal(drawn.drawnCardId, 'private');
 });
 for (const [name, Engine, count, max] of [
-  ['Tres en Raya', TicTacToeEngine, 2, 9],
-  ['Cuatro en Línea', Connect4Engine, 2, 42],
+  ['Tres en Raya', TresEnRayaEngine, 2, 9],
+  ['Cuatro en Línea', CuatroEnLineaEngine, 2, 42],
   ['Reversi', ReversiEngine, 2, 64],
-  ['Dados al 100', PigEngine, 4, 2000],
-  ['Cambio de Color', ColorClashEngine, 4, 5000],
-  ['Ciudad Fortuna', MonopolyEngine, 3, 20000],
+  ['Dados al 100', DadosAl100Engine, 4, 2000],
+  ['Cambio de Color', CambioDeColorEngine, 4, 5000],
+  ['Ciudad Fortuna', CiudadFortunaEngine, 3, 20000],
 ] as const) {
   test(`${name}: diez partidas completas sin acciones ilegales`, () => {
     const engine: IGameEngine<any, any, any> = new Engine();
-    if (engine instanceof MonopolyEngine) engine.setRules({ maxRounds: 40 });
+    if (engine instanceof CiudadFortunaEngine) engine.setRules({ maxRounds: 40 });
     for (let match = 0; match < 10; match++) {
       let state = engine.initGame(
         Array.from({ length: count }, (_, i) => ({ id: `p${i}`, isBot: true, name: `Bot ${i}` })),
@@ -315,13 +323,13 @@ for (const [name, Engine, count, max] of [
   });
 }
 test('Las cartas de libertad salen del mazo hasta que se usan o se devuelve la mano', () => {
-  const engine = new MonopolyEngine(),
+  const engine = new CiudadFortunaEngine(),
     state = engine.initGame(players);
   const card = state.chanceDeck.find((c) => c.type === 'jail_free')!;
   state.chanceDeck = [card, ...state.chanceDeck.filter((c) => c !== card)];
   state.players[0].position = 5;
   const originalRandom = Math.random;
-  let next: MonopolyState;
+  let next: CiudadFortunaState;
   try {
     Math.random = () => 0;
     next = engine.applyAction(state, 'a', { type: 'ROLL_DICE' });
@@ -352,7 +360,7 @@ test('Las cartas de libertad salen del mazo hasta que se usan o se devuelve la m
   assert.equal(next.heldJailCards.length, 1);
 });
 test('El límite opcional de rondas decide por patrimonio y permite empatar', () => {
-  const engine = new MonopolyEngine({ maxRounds: 40 }),
+  const engine = new CiudadFortunaEngine({ maxRounds: 40 }),
     state = engine.initGame(players);
   state.currentTurnPlayerId = 'b';
   state.turnPhase = 'end_turn';
@@ -370,7 +378,7 @@ test('El límite opcional de rondas decide por patrimonio y permite empatar', ()
   assert.equal(won.isDraw, false);
 });
 test('Ciudad Fortuna no termina por rondas cuando el límite está desactivado', () => {
-  const engine = new MonopolyEngine(),
+  const engine = new CiudadFortunaEngine(),
     state = engine.initGame(players);
   state.currentTurnPlayerId = 'b';
   state.turnPhase = 'end_turn';
@@ -382,7 +390,7 @@ test('Ciudad Fortuna no termina por rondas cuando el límite está desactivado',
   assert.equal(next.customRules.maxRounds, null);
 });
 test('Ciudad Fortuna cobra los alquileres de calles, grupos, edificios, estaciones y servicios', () => {
-  const engine = new MonopolyEngine();
+  const engine = new CiudadFortunaEngine();
   const random = Math.random;
   try {
     Math.random = () => 0;
@@ -415,7 +423,7 @@ test('Ciudad Fortuna cobra los alquileres de calles, grupos, edificios, estacion
   }
 });
 test('Ciudad Fortuna paga Salida y manda a la cárcel tras tres dobles', () => {
-  const engine = new MonopolyEngine();
+  const engine = new CiudadFortunaEngine();
   engine.setRules({ doubleGoSalary: true });
   const random = Math.random;
   try {
@@ -458,7 +466,7 @@ test('Reversi pasa automáticamente al mismo jugador y resuelve el empate final'
 });
 
 test('Las reglas de construcción y alquiler en prisión cambian las acciones y el cobro', () => {
-  const engine = new MonopolyEngine({ evenBuilding: false, rentInJail: false });
+  const engine = new CiudadFortunaEngine({ evenBuilding: false, rentInJail: false });
   const state = engine.initGame(players);
   state.properties[1].ownerId = state.properties[3].ownerId = 'a';
   state.properties[1].houses = 1;
@@ -484,7 +492,7 @@ test('Las reglas de construcción y alquiler en prisión cambian las acciones y 
 });
 test('El reparto configurable conserva las 108 cartas y no filtra las manos', () => {
   for (const n of [5, 7, 9]) {
-    const engine = new ColorClashEngine(n);
+    const engine = new CambioDeColorEngine(n);
     const state = engine.initGame(players);
     assert.deepEqual(
       state.players.map((p) => p.cards.length),
@@ -499,7 +507,7 @@ test('El reparto configurable conserva las 108 cartas y no filtra las manos', ()
 });
 
 test('Ciudad Fortuna permite vender una propiedad para saldar deudas mediante un intercambio', () => {
-  const engine = new MonopolyEngine();
+  const engine = new CiudadFortunaEngine();
   for (const debtor of ['a', 'b']) {
     const state = engine.initGame(players);
     state.players.find((p) => p.id === debtor)!.cash = -100;
@@ -536,7 +544,7 @@ test('Ciudad Fortuna permite vender una propiedad para saldar deudas mediante un
 });
 
 test('Un bot endeudado puede aceptar efectivo sin ofrecer dinero que no tiene', () => {
-  const engine = new MonopolyEngine();
+  const engine = new CiudadFortunaEngine();
   const state = engine.initGame(players);
   state.players[1].cash = -100;
   const proposed = engine.applyAction(state, 'a', {

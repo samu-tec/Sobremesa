@@ -64,19 +64,26 @@ async function create(client, gameType = 'tictactoe') {
   return result.room;
 }
 
-test('HTTP: cabeceras, catálogo de seis juegos y rutas desconocidas', async () => {
+test('HTTP: cabeceras, catálogo de quince juegos y rutas desconocidas', async () => {
   const res = await fetch(url);
   assert.equal(res.status, 200);
   assert.equal(res.headers.get('x-powered-by'), null);
   assert.equal(res.headers.get('x-frame-options'), 'DENY');
+  assert.equal(res.headers.get('referrer-policy'), 'no-referrer');
+  assert.equal(res.headers.get('cross-origin-resource-policy'), 'same-origin');
   assert.match(res.headers.get('content-security-policy'), /frame-ancestors 'none'/);
   assert.match(res.headers.get('content-security-policy'), /wss:\/\/games\.samuelciocan\.com/);
   assert.ok(!(await res.text()).includes('fonts.googleapis'));
   const stats = await fetch(url + '/api/stats');
-  assert.equal((await stats.json()).supportedGames.length, 6);
+  assert.equal((await stats.json()).supportedGames.length, 15);
   assert.equal(stats.headers.get('cache-control'), 'no-store');
   assert.equal((await fetch(url + '/api/unknown')).status, 404);
   assert.equal((await fetch(url + '/missing.js')).status, 404);
+  const transport = await fetch(url + '/socket.io/?EIO=4&transport=polling');
+  assert.equal(transport.headers.get('cache-control'), 'no-store');
+  const notices = await fetch(url + '/third-party-notices.txt');
+  assert.equal(notices.status, 200);
+  assert.match(await notices.text(), /lucide-react[\s\S]*react-dom[\s\S]*socket.io-client/);
 });
 test('Rechaza orígenes ajenos y secretos de sesión no válidos', async () => {
   await assert.rejects(connect('short'));
@@ -374,6 +381,122 @@ test(
       await ack(session.guest.socket, 'room:leave');
       session.host.socket.disconnect();
       session.guest.socket.disconnect();
+    }
+  },
+);
+
+test('Nuevos juegos: dos salas independientes, proyección privada y reconexión', async () => {
+  for (const game of [
+    'rummy',
+    'chess',
+    'impostor',
+    'dominoes',
+    'checkers',
+    'backgammon',
+    'battleship',
+    'mancala',
+    'combinations',
+  ]) {
+    const host = await connect(),
+      guest = await connect(),
+      other = await connect();
+    const room = await create(host, game),
+      second = await create(other, game);
+    await ack(guest.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' });
+    if (game === 'impostor') await ack(host.socket, 'room:add_bot');
+    await ack(other.socket, 'room:add_bot');
+    if (game === 'impostor') await ack(other.socket, 'room:add_bot');
+    assert.equal((await ack(host.socket, 'room:start_game')).success, true);
+    assert.equal((await ack(other.socket, 'room:start_game')).success, true);
+    const a = await ack(host.socket, 'game:reconnect', { roomCode: room.code }),
+      b = await ack(guest.socket, 'game:reconnect', { roomCode: room.code });
+    assert.equal(a.success, true);
+    assert.equal(b.success, true);
+    assert.notEqual(room.code, second.code);
+    assert.equal(
+      (await ack(guest.socket, 'game:reconnect', { roomCode: second.code })).success,
+      false,
+    );
+    assert.equal(
+      (await ack(host.socket, 'game:action', { type: 'FIRE', index: Infinity })).success,
+      false,
+    );
+    if (game === 'rummy' || game === 'dominoes') {
+      assert.equal('stock' in a.state, false);
+      assert.equal('hand' in a.state.players[1], false);
+      assert.ok(a.state.hand.length);
+      assert.ok(!a.state.hand.some((c) => b.state.hand.some((d) => d.id === c.id)));
+    }
+    if (game === 'impostor') {
+      for (const s of [a.state, b.state]) {
+        assert.equal('secret' in s, false);
+        assert.equal('impostorId' in s, false);
+        assert.deepEqual(s.votes, {});
+        assert.equal(s.word === null, s.isImpostor);
+      }
+    }
+    if (game === 'battleship') {
+      await ack(host.socket, 'game:action', { type: 'RANDOMIZE' });
+      const v = await ack(guest.socket, 'game:reconnect', { roomCode: room.code });
+      assert.deepEqual(v.state.ships, []);
+      assert.equal(v.state.revealedFleet, null);
+      assert.equal('ships' in v.state.players[0], false);
+    }
+    await ack(host.socket, 'room:leave');
+    await ack(guest.socket, 'room:leave');
+    await ack(other.socket, 'room:leave');
+    host.socket.disconnect();
+    guest.socket.disconnect();
+    other.socket.disconnect();
+  }
+});
+
+test(
+  'Los nueve juegos nuevos completan decisiones agotadas con acciones legales',
+  { timeout: 45000 },
+  async () => {
+    const sessions = [];
+    for (const game of [
+      'rummy',
+      'chess',
+      'impostor',
+      'dominoes',
+      'checkers',
+      'backgammon',
+      'battleship',
+      'mancala',
+      'combinations',
+    ]) {
+      const host = await connect(),
+        guest = await connect(),
+        room = await create(host, game);
+      await ack(guest.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' });
+      if (game === 'impostor') await ack(host.socket, 'room:add_bot');
+      await ack(host.socket, 'room:update_rules', { turnSeconds: 30 });
+      let latest = null,
+        updates = 0;
+      host.socket.on('game:state_update', (s) => {
+        latest = s;
+        updates++;
+      });
+      await ack(host.socket, 'room:start_game');
+      const initial = (await ack(host.socket, 'game:reconnect', { roomCode: room.code })).state;
+      sessions.push({ host, guest, room, game, initial, read: () => ({ latest, updates }) });
+    }
+    await wait(31500);
+    for (const s of sessions) {
+      const { latest, updates } = s.read();
+      assert.ok(updates > 0, `Sin progreso en ${s.game}`);
+      assert.notDeepEqual(latest, s.initial, `Decisión bloqueada: ${s.game}`);
+      const recovered = await ack(s.host.socket, 'game:reconnect', { roomCode: s.room.code });
+      assert.equal(recovered.success, true);
+      assert.ok(recovered.room.turnDeadline > Date.now());
+      if (s.game === 'rummy') assert.equal(latest.lastAction, 'draw');
+      if (s.game === 'battleship') assert.ok(latest.players[0].ready);
+      await ack(s.host.socket, 'room:leave');
+      await ack(s.guest.socket, 'room:leave');
+      s.host.socket.disconnect();
+      s.guest.socket.disconnect();
     }
   },
 );

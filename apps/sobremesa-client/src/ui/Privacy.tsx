@@ -55,7 +55,7 @@ const copy = {
     {
       heading: 'Unas normas para jugar',
       paragraphs: [
-        'Trata bien a las demás personas y no pongas información sensible en tu apodo. Sobremesa está hecha para jugar y compartir un rato. Sus diseños y reglas son propios; no está afiliada a las marcas de otros juegos. Algunos términos de búsqueda solo sirven para que encuentres la variante de juego correspondiente.',
+        'Trata bien a las demás personas y no pongas información sensible en tu apodo. Sobremesa está hecha para jugar y compartir un rato. Ofrece variantes de juegos de mesa y no está afiliada a las marcas de otros juegos. Algunos términos de búsqueda solo sirven para que encuentres la variante correspondiente.',
       ],
     },
   ],
@@ -113,7 +113,7 @@ const copy = {
     {
       heading: 'A few ground rules',
       paragraphs: [
-        'Treat other players kindly and keep sensitive information out of your nickname. Sobremesa is made for sharing a game and some time together. Its designs and rules are original; it is not affiliated with other game brands. Some search terms simply help you find the corresponding game variant.',
+        'Treat other players kindly and keep sensitive information out of your nickname. Sobremesa is made for sharing a game and some time together. It offers board game variants and is not affiliated with other game brands. Some search terms simply help you find the corresponding variant.',
       ],
     },
   ],
@@ -186,6 +186,13 @@ export function Privacy() {
             ? 'Borrar mis preferencias de este navegador'
             : 'Clear my browser preferences'}
         </button>
+        <p>
+          <a href="/third-party-notices.txt" target="_blank" rel="noopener noreferrer">
+            {locale === 'es'
+              ? 'Licencias del software de terceros'
+              : 'Third-party software licenses'}
+          </a>
+        </p>
       </main>
     </div>
   );

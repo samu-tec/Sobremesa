@@ -1,14 +1,25 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Server } from 'socket.io';
 import {
-  ColorClashEngine,
-  MonopolyEngine,
-  TicTacToeEngine,
-  Connect4Engine,
+  CambioDeColorEngine,
+  CiudadFortunaEngine,
+  TresEnRayaEngine,
+  CuatroEnLineaEngine,
   ReversiEngine,
-  PigEngine,
-  DEFAULT_MONOPOLY_RULES,
+  DadosAl100Engine,
+  RummyDeFichasEngine,
+  AjedrezEngine,
+  ImpostorEngine,
+  DominoEngine,
+  DamasEngine,
+  BackgammonEngine,
+  BatallaNavalEngine,
+  MancalaEngine,
+  DadosDeCombinacionesEngine,
+  DEFAULT_CIUDAD_FORTUNA_RULES,
   getGame,
+  defaultGameSettings,
+  validGameSetting,
   type GameType,
   type IGameEngine,
   type Player,
@@ -45,12 +56,21 @@ interface ActiveRoom {
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const AUCTION_BID_SECONDS = 15;
 const engineFactories = {
-  tictactoe: () => new TicTacToeEngine(),
-  colorclash: () => new ColorClashEngine(),
-  monopoly: () => new MonopolyEngine(),
-  connect4: () => new Connect4Engine(),
+  tictactoe: () => new TresEnRayaEngine(),
+  colorclash: () => new CambioDeColorEngine(),
+  monopoly: () => new CiudadFortunaEngine(),
+  connect4: () => new CuatroEnLineaEngine(),
   reversi: () => new ReversiEngine(),
-  pig: () => new PigEngine(),
+  pig: () => new DadosAl100Engine(),
+  rummy: () => new RummyDeFichasEngine(),
+  chess: () => new AjedrezEngine(),
+  impostor: () => new ImpostorEngine(),
+  dominoes: () => new DominoEngine(),
+  checkers: () => new DamasEngine(),
+  backgammon: () => new BackgammonEngine(),
+  battleship: () => new BatallaNavalEngine(),
+  mancala: () => new MancalaEngine(),
+  combinations: () => new DadosDeCombinacionesEngine(),
 };
 export class RoomManager {
   private rooms = new Map<string, ActiveRoom>();
@@ -101,10 +121,10 @@ export class RoomManager {
       lastActivity: Date.now(),
       customRules:
         gameType === 'monopoly'
-          ? { ...DEFAULT_MONOPOLY_RULES }
+          ? { ...DEFAULT_CIUDAD_FORTUNA_RULES }
           : gameType === 'colorclash'
             ? { startingCards: 7 }
-            : undefined,
+            : defaultGameSettings(gameType),
     };
     this.rooms.set(room.code, room);
     this.socketToRoom.set(socketId, room.code);
@@ -202,13 +222,16 @@ export class RoomManager {
             typeof value === 'boolean'))
       )
         next[key] = value;
+      else if (validGameSetting(room.gameType, key, value)) next[key] = value;
       else return { success: false, error: 'Opción de regla no permitida.' };
     }
+    if (!['monopoly', 'colorclash'].includes(room.gameType) && 'setRules' in room.engine)
+      room.engine.setRules?.(next);
     room.turnSeconds = seconds;
     room.customRules = next;
-    if (room.gameType === 'monopoly') (room.engine as MonopolyEngine).setRules(next);
+    if (room.gameType === 'monopoly') (room.engine as CiudadFortunaEngine).setRules(next);
     if (room.gameType === 'colorclash')
-      (room.engine as ColorClashEngine).setStartingCards(next.startingCards);
+      (room.engine as CambioDeColorEngine).setStartingCards(next.startingCards);
     room.lastActivity = Date.now();
     this.broadcastRoomUpdate(room);
     return { success: true };
@@ -264,7 +287,19 @@ export class RoomManager {
           ? kind === 'END_TURN' || kind === 'BID'
           : room.gameType === 'pig'
             ? kind === 'HOLD' || room.gameState.lastRoll === 1
-            : true;
+            : room.gameType === 'chess'
+              ? kind === 'MOVE'
+              : room.gameType === 'checkers'
+                ? room.gameState.forcedFrom === null
+                : room.gameType === 'battleship'
+                  ? kind === 'READY' || kind === 'FIRE'
+                  : room.gameType === 'combinations'
+                    ? kind === 'SCORE'
+                    : room.gameType === 'backgammon'
+                      ? false
+                      : room.gameType === 'dominoes'
+                        ? kind !== 'DRAW'
+                        : true;
     this.armTurnClock(room, completed || previousActor !== this.actor(room));
     if (Array.isArray(room.gameState.logs)) room.gameState.logs = room.gameState.logs.slice(0, 80);
     if (!room.players.find((p) => p.id === id)?.isBot) room.lastActivity = Date.now();
@@ -405,7 +440,7 @@ export class RoomManager {
       // Clearing first prevents a stale deadline from acting on a later turn.
       this.clearTurnClock(room);
       if (room.gameType === 'monopoly' && room.gameState.auction) {
-        room.gameState = (room.engine as MonopolyEngine).finishAuction(room.gameState);
+        room.gameState = (room.engine as CiudadFortunaEngine).finishAuction(room.gameState);
         this.finishIfNeeded(room);
       } else {
         for (let i = 0; i < 100 && room.status === 'in_game' && this.actor(room) === actor; i++) {
@@ -426,13 +461,28 @@ export class RoomManager {
                   };
           } else if (room.gameType === 'colorclash')
             action = { type: s.hasDrawnThisTurn ? 'PASS_TURN' : 'DRAW_CARD' };
+          else if (room.gameType === 'rummy') action = { type: s.pool.length ? 'DRAW' : 'PASS' };
           else if (room.gameType === 'pig') action = { type: s.turnTotal > 0 ? 'HOLD' : 'ROLL' };
           else action = room.engine.getBotAction(s, actor);
           if (!action || !room.engine.validateAction(s, actor, action)) break;
           room.gameState = room.engine.applyAction(s, actor, action);
           this.finishIfNeeded(room);
           if (room.gameType === 'monopoly' && action.type === 'END_TURN') break;
-          if (!['monopoly', 'colorclash', 'pig'].includes(room.gameType)) break;
+          if (
+            action.type === 'NEXT_ROUND' ||
+            ![
+              'monopoly',
+              'colorclash',
+              'pig',
+              'rummy',
+              'dominoes',
+              'backgammon',
+              'battleship',
+              'checkers',
+              'combinations',
+            ].includes(room.gameType)
+          )
+            break;
         }
       }
       if (Array.isArray(room.gameState.logs))

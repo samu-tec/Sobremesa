@@ -22,16 +22,16 @@ const brandCopy: Record<
   es: {
     title: 'Sobremesa · Juegos de mesa para compartir',
     description:
-      'Sobremesa reúne seis juegos de mesa para compartir con amigos. Juega en games.samuelciocan.com sin registro ni descargas.',
-    social: 'Seis juegos de mesa para compartir con amigos en games.samuelciocan.com.',
+      'Sobremesa reúne quince juegos de mesa para compartir con amigos. Juega en games.samuelciocan.com sin registro ni descargas.',
+    social: 'Quince juegos de mesa para compartir con amigos en games.samuelciocan.com.',
     ogLocale: 'es_ES',
     ogAlternateLocale: 'en_GB',
   },
   en: {
     title: 'Sobremesa · Board games to share',
     description:
-      'Sobremesa brings six board games together to play with friends. Visit games.samuelciocan.com, with no account or downloads.',
-    social: 'Six board games to share with friends at games.samuelciocan.com.',
+      'Sobremesa brings fifteen board games together to play with friends. Visit games.samuelciocan.com, with no account or downloads.',
+    social: 'Fifteen board games to share with friends at games.samuelciocan.com.',
     ogLocale: 'en_GB',
     ogAlternateLocale: 'es_ES',
   },
@@ -147,4 +147,39 @@ function localizeTerm(value: string): string {
     wild: 'Comodín',
   };
   return t(colours[value] ?? value);
+}
+
+export function quantity(value: number, unit: string): string {
+  const one = Math.abs(value) === 1,
+    values = { '0': value };
+  switch (unit) {
+    case 'puntos':
+      return t(one ? '{0} punto' : '{0} puntos', values);
+    case 'fichas':
+      return t(one ? '{0} ficha' : '{0} fichas', values);
+    case 'cartas':
+      return t(one ? '{0} carta' : '{0} cartas', values);
+    case 'semillas':
+      return t(one ? '{0} semilla' : '{0} semillas', values);
+    case 'rondas':
+      return t(one ? '{0} ronda' : '{0} rondas', values);
+    case 'vueltas':
+      return t(one ? '{0} vuelta' : '{0} vueltas', values);
+    case 'tiradas':
+      return t(one ? '{0} tirada' : '{0} tiradas', values);
+    case 'jugadas':
+      return t(one ? '{0} jugada' : '{0} jugadas', values);
+    case 'combinaciones':
+      return t(one ? '{0} combinación' : '{0} combinaciones', values);
+    default:
+      return `${value} ${t(unit)}`;
+  }
+}
+export function settingValue(
+  setting: import('sobremesa-logic').GameSetting,
+  value: number | boolean,
+): string {
+  if (typeof value === 'boolean') return t(value ? 'Sí' : 'No');
+  if (setting.labels) return t(setting.labels[setting.values!.indexOf(value)]);
+  return setting.unit ? quantity(value, setting.unit) : String(value);
 }

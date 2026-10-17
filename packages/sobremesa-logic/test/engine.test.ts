@@ -1,5 +1,5 @@
-import { TicTacToeEngine } from '../src/games/tictactoe/engine.js';
-import { ColorClashEngine } from '../src/games/colorclash/engine.js';
+import { TresEnRayaEngine } from '../src/games/tres-en-raya/engine.js';
+import { CambioDeColorEngine } from '../src/games/cambio-de-color/engine.js';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -8,8 +8,8 @@ function assert(condition: boolean, message: string) {
   console.log(`  ✓ ${message}`);
 }
 
-console.log('--- Testing TicTacToeEngine ---');
-const ttt = new TicTacToeEngine();
+console.log('--- Testing TresEnRayaEngine ---');
+const ttt = new TresEnRayaEngine();
 const tttState = ttt.initGame([
   { id: 'player1', isBot: false },
   { id: 'bot1', isBot: true },
@@ -46,8 +46,8 @@ assert(tttState1.board[botMove!.index] === null, 'Bot chosen cell is empty');
 const tttSanitized = ttt.getSanitizedState(tttState1, 'player1');
 assert(tttSanitized.board[0] === 'X', 'Sanitized state matches');
 
-console.log('\n--- Testing ColorClashEngine ---');
-const cc = new ColorClashEngine();
+console.log('\n--- Testing CambioDeColorEngine ---');
+const cc = new CambioDeColorEngine();
 const ccState = cc.initGame([
   { id: 'human1', isBot: false },
   { id: 'bot1', isBot: true },

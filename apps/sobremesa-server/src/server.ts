@@ -27,7 +27,8 @@ app.use((_req, res, next) => {
   res.set({
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
-    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Referrer-Policy': 'no-referrer',
+    'Cross-Origin-Resource-Policy': 'same-origin',
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
     'Content-Security-Policy':
       "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' wss://games.samuelciocan.com ws://localhost:3000 ws://127.0.0.1:3000; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
@@ -82,6 +83,11 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEve
     perMessageDeflate: false,
   },
 );
+// Polling responses contain private game state and must never be stored by a proxy.
+io.engine.on('headers', (headers) => {
+  headers['Cache-Control'] = 'no-store';
+  headers['X-Content-Type-Options'] = 'nosniff';
+});
 io.use((socket, next) => {
   const token: unknown = socket.handshake.auth?.sessionToken;
   if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) {

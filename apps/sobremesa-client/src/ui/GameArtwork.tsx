@@ -11,6 +11,15 @@ export function GameArtwork({ game, hero = false }: { game: GameType; hero?: boo
     reversi: ['#dce8ce', '#bacd9e'],
     tictactoe: ['#f4e5b9', '#e0ca8e'],
     pig: ['#e6ddf5', '#c9b3e2'],
+    rummy: ['#f2e4cc', '#dcc399'],
+    chess: ['#dbe6d5', '#acbea3'],
+    impostor: ['#e9def3', '#c9b1d9'],
+    dominoes: ['#e3d9c8', '#bcae92'],
+    checkers: ['#f1d6c4', '#d8ac8b'],
+    backgammon: ['#eaddc5', '#c5a071'],
+    battleship: ['#d5e9ed', '#9bbfc9'],
+    mancala: ['#e8e4cc', '#c4be91'],
+    combinations: ['#f0e2bc', '#dbc176'],
   };
   const [bg, shade] = palettes[game];
   return (
@@ -27,6 +36,280 @@ export function GameArtwork({ game, hero = false }: { game: GameType; hero?: boo
       {!hero && <rect width="360" height="200" fill={`url(#bg${uid})`} />}
       <circle cx="307" cy="19" r="88" fill="white" opacity=".13" />
       <circle cx="24" cy="182" r="65" fill="white" opacity=".13" />
+      {(game === 'chess' || game === 'checkers') && (
+        <g transform="translate(180 103) rotate(-10)" filter={`url(#shadow${uid})`}>
+          <rect x="-83" y="-75" width="166" height="150" rx="9" fill="#385342" />
+          {Array.from({ length: 64 }, (_, i) => (
+            <rect
+              key={i}
+              x={-75 + (i % 8) * 19}
+              y={-67 + Math.floor(i / 8) * 17}
+              width="19"
+              height="17"
+              fill={((i % 8) + Math.floor(i / 8)) % 2 ? '#7d9c7c' : '#f7e9c7'}
+            />
+          ))}
+          {game === 'chess' ? (
+            <>
+              <text x="-35" y="21" fontSize="85" fill="#fff9dc" stroke="#385342" strokeWidth="1">
+                ♔
+              </text>
+              <text x="18" y="52" fontSize="57" fill="#263e31">
+                ♞
+              </text>
+            </>
+          ) : (
+            <>
+              {[5, 12, 19, 26, 35, 42, 49, 56].map((i, n) => (
+                <g key={i}>
+                  <ellipse
+                    cx={-66 + (i % 8) * 19}
+                    cy={-57 + Math.floor(i / 8) * 17}
+                    rx="8"
+                    ry="7"
+                    fill={n < 4 ? '#f5deb3' : '#2d4335'}
+                    stroke="#68573a"
+                    strokeWidth="1"
+                  />
+                  {n === 4 && (
+                    <text
+                      x={-70 + (i % 8) * 19}
+                      y={-54 + Math.floor(i / 8) * 17}
+                      fontSize="10"
+                      fill="#efd69d"
+                    >
+                      ♛
+                    </text>
+                  )}
+                </g>
+              ))}
+            </>
+          )}
+        </g>
+      )}
+      {game === 'rummy' && (
+        <g filter={`url(#shadow${uid})`} transform="translate(180 102) rotate(-9)">
+          <rect x="-118" y="36" width="236" height="19" rx="5" fill="#a6814e" />
+          {[
+            ['#b44532', 4],
+            ['#b44532', 5],
+            ['#b44532', 6],
+            ['#2e60a4', 10],
+            ['#314333', 10],
+            ['#8c661b', 10],
+          ].map(([color, value], i) => (
+            <g key={i} transform={`translate(${-95 + i * 38} 8)`}>
+              <rect x="-16" y="-29" width="32" height="59" rx="5" fill="#fff9e5" stroke="#c5b18b" />
+              <text y="9" textAnchor="middle" fontSize="26" fontWeight="800" fill={String(color)}>
+                {value}
+              </text>
+              <circle cy="21" r="2" fill={String(color)} />
+            </g>
+          ))}
+          {[10, 11, 12].map((n, i) => (
+            <g key={n} transform={`translate(${-51 + i * 39} -57)`}>
+              <rect x="-16" y="-25" width="32" height="49" rx="5" fill="#fff9e5" stroke="#c5b18b" />
+              <text y="8" textAnchor="middle" fontSize="25" fontWeight="800" fill="#2e60a4">
+                {n}
+              </text>
+            </g>
+          ))}
+        </g>
+      )}
+      {game === 'impostor' && (
+        <g filter={`url(#shadow${uid})`}>
+          <path d="M103 53Q180 20 257 53L246 109Q180 164 114 109Z" fill="#67537c" />
+          <path
+            d="M122 72Q145 54 163 79Q143 99 122 79ZM196 79Q215 54 239 72L239 79Q215 99 196 79Z"
+            fill="#fff4dd"
+          />
+          <path
+            d="M164 120Q180 131 196 120"
+            fill="none"
+            stroke="#c8acd8"
+            strokeWidth="4"
+            strokeLinecap="round"
+          />
+          <rect
+            x="140"
+            y="139"
+            width="83"
+            height="39"
+            rx="10"
+            fill="#fff5df"
+            transform="rotate(-8 180 158)"
+          />
+          <text x="180" y="167" textAnchor="middle" fontSize="29" fill="#7c5d90" fontWeight="700">
+            ?
+          </text>
+          <circle cx="87" cy="123" r="9" fill="#f4deb0" />
+          <circle cx="271" cy="134" r="7" fill="#f4deb0" />
+        </g>
+      )}
+      {game === 'dominoes' && (
+        <g filter={`url(#shadow${uid})`}>
+          {[0, 1, 2].map((n) => (
+            <g
+              key={n}
+              transform={`translate(${118 + n * 62} ${95 + n * 10}) rotate(${n * 15 - 12})`}
+            >
+              <rect
+                x="-24"
+                y="-56"
+                width="48"
+                height="112"
+                rx="7"
+                fill="#fff9e6"
+                stroke="#b0a17e"
+              />
+              <path d="M-17 0H17" stroke="#a79b7c" />
+              {[-1, 1].map((half) => (
+                <g key={half}>
+                  {Array.from({ length: n + 2 }, (_, i) => (
+                    <circle
+                      key={i}
+                      cx={(i % 2 ? 1 : -1) * 10}
+                      cy={half * 27 + (Math.floor(i / 2) * 10 - 5)}
+                      r="4"
+                      fill="#354c3c"
+                    />
+                  ))}
+                </g>
+              ))}
+            </g>
+          ))}
+        </g>
+      )}
+      {game === 'backgammon' && (
+        <g transform="translate(180 100) rotate(-9)" filter={`url(#shadow${uid})`}>
+          <rect x="-103" y="-70" width="206" height="140" rx="8" fill="#84613e" />
+          <rect x="-94" y="-61" width="188" height="122" fill="#e8cca1" />
+          {Array.from({ length: 12 }, (_, i) => (
+            <g key={i}>
+              <path
+                d={`M${-92 + i * 15.5} -59h15L${-84 + i * 15.5} -6Z M${-92 + i * 15.5} 59h15L${-84 + i * 15.5} 6Z`}
+                fill={i % 2 ? '#ad6650' : '#b59b6d'}
+              />
+              {[0, 1, 2].map(
+                (n) =>
+                  (i % 3 === 0 || i % 5 === 0) && (
+                    <circle
+                      key={n}
+                      cx={-84 + i * 15.5}
+                      cy={(i % 2 ? 1 : -1) * (48 - n * 13)}
+                      r="6.5"
+                      fill={i % 2 ? '#2d4435' : '#fff3d6'}
+                      stroke="#907d55"
+                    />
+                  ),
+              )}
+            </g>
+          ))}
+          <rect x="-3" y="-61" width="6" height="122" fill="#84613e" />
+        </g>
+      )}
+      {game === 'battleship' && (
+        <g transform="translate(180 100) rotate(-9)" filter={`url(#shadow${uid})`}>
+          <rect x="-90" y="-69" width="180" height="138" rx="10" fill="#37657b" />
+          {Array.from({ length: 48 }, (_, i) => (
+            <rect
+              key={i}
+              x={-78 + (i % 8) * 20}
+              y={-56 + Math.floor(i / 8) * 19}
+              width="18"
+              height="17"
+              fill="#a5c9d1"
+            />
+          ))}
+          <rect x="-57" y="-16" width="76" height="14" rx="5" fill="#5c7b7b" />
+          <rect x="24" y="-36" width="14" height="69" rx="5" fill="#5c7b7b" />
+          {[9, 26, 42].map((i) => (
+            <circle
+              key={i}
+              cx={-69 + (i % 8) * 20}
+              cy={-48 + Math.floor(i / 8) * 19}
+              r="5"
+              fill="#d9775c"
+            />
+          ))}
+          <path
+            d="M-75 83q20-12 40 0t40 0t40 0t40 0"
+            stroke="#568aa1"
+            strokeWidth="4"
+            fill="none"
+          />
+        </g>
+      )}
+      {game === 'mancala' && (
+        <g transform="translate(180 100) rotate(-10)" filter={`url(#shadow${uid})`}>
+          <rect x="-120" y="-49" width="240" height="98" rx="45" fill="#af8c58" />
+          <ellipse cx="-97" cy="0" rx="14" ry="33" fill="#846d42" />
+          <ellipse cx="97" cy="0" rx="14" ry="33" fill="#72815a" />
+          {Array.from({ length: 12 }, (_, i) => (
+            <g key={i}>
+              <ellipse
+                cx={-65 + (i % 6) * 26}
+                cy={i < 6 ? -21 : 21}
+                rx="11"
+                ry="16"
+                fill="#8b7146"
+              />
+              {[0, 1, 2, 3].map((n) => (
+                <ellipse
+                  key={n}
+                  cx={-69 + (i % 6) * 26 + (n % 2) * 7}
+                  cy={(i < 6 ? -26 : 16) + Math.floor(n / 2) * 9}
+                  rx="3"
+                  ry="4"
+                  fill={n % 3 ? '#f0d791' : '#b9c29a'}
+                />
+              ))}
+            </g>
+          ))}
+        </g>
+      )}
+      {game === 'combinations' && (
+        <g filter={`url(#shadow${uid})`}>
+          <g transform="translate(230 98) rotate(11)">
+            <rect x="-48" y="-64" width="96" height="132" rx="5" fill="#fffaf0" />
+            {Array.from({ length: 8 }, (_, i) => (
+              <g key={i}>
+                <path d={`M-34 ${-39 + i * 12}h68`} stroke="#c2c7ab" />
+                <text x="17" y={-41 + i * 12} fontSize="10" fill="#5c785b">
+                  {[3, 6, 9, 12, 15, 18, 25, 50][i]}
+                </text>
+              </g>
+            ))}
+          </g>
+          {[
+            [121, 91, -14],
+            [160, 135, 12],
+          ].map(([x, y, a], i) => (
+            <g key={i} transform={`translate(${x} ${y}) rotate(${a})`}>
+              <rect
+                x="-29"
+                y="-29"
+                width="58"
+                height="58"
+                rx="12"
+                fill={i ? '#64856a' : '#fff9e8'}
+              />
+              {[-1, 1].flatMap((a) =>
+                [-1, 1].map((b) => (
+                  <circle
+                    key={`${a}${b}`}
+                    cx={a * 13}
+                    cy={b * 13}
+                    r="4"
+                    fill={i ? '#fff9e8' : '#9d7d46'}
+                  />
+                )),
+              )}
+              {!i && <circle r="4" fill="#9d7d46" />}
+            </g>
+          ))}
+        </g>
+      )}
       {game === 'monopoly' && (
         <g filter={`url(#shadow${uid})`}>
           <g transform="translate(180 108) rotate(-13)">

@@ -9,6 +9,7 @@ COPY apps/sobremesa-server/package.json ./apps/sobremesa-server/
 COPY apps/sobremesa-client/package.json ./apps/sobremesa-client/
 RUN pnpm install --frozen-lockfile
 COPY tsconfig.json ./
+COPY scripts ./scripts
 COPY packages/sobremesa-logic ./packages/sobremesa-logic
 COPY apps/sobremesa-server ./apps/sobremesa-server
 COPY apps/sobremesa-client ./apps/sobremesa-client

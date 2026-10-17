@@ -82,3 +82,78 @@ test('La limpieza por inactividad respeta la reserva después de desconectar', (
     context.mock.timers.reset();
   }
 });
+
+test('El reloj conserva el presupuesto del turno durante decisiones intermedias', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+  const io = { to: () => ({ emit: () => {} }), sockets: { sockets: new Map() } };
+  const manager = new RoomManager(io);
+  try {
+    for (const game of ['chess', 'battleship', 'combinations', 'checkers', 'backgammon']) {
+      const created = manager.createRoom('Ana', `a-${game}`, `socket-a-${game}`, game);
+      const code = created.room.code;
+      manager.joinRoom(code, 'Bruno', `b-${game}`, `socket-b-${game}`);
+      manager.updateRoomRules(code, `a-${game}`, { turnSeconds: 30 });
+      manager.startGame(code, `a-${game}`);
+      const room = manager.getRoomBySocket(`socket-a-${game}`),
+        deadline = room.turnDeadline;
+      context.mock.timers.tick(10000);
+      const actor = room.gameState.currentTurnPlayerId;
+      let action;
+      if (game === 'chess') action = { type: 'OFFER_DRAW' };
+      if (game === 'battleship') action = { type: 'RANDOMIZE' };
+      if (game === 'combinations') action = { type: 'ROLL', keep: [] };
+      if (game === 'backgammon') action = room.engine.getBotAction(room.gameState, actor);
+      if (game === 'checkers') {
+        room.gameState.board = Array(64).fill(null);
+        room.gameState.board[42] = { owner: actor, king: false };
+        room.gameState.board[35] = { owner: `b-${game}`, king: false };
+        room.gameState.board[21] = { owner: `b-${game}`, king: false };
+        room.gameState.board[55] = { owner: `b-${game}`, king: false };
+        action = { type: 'MOVE', from: 42, to: 28 };
+      }
+      assert.equal(manager.handleAction(code, actor, action).success, true);
+      assert.equal(room.turnDeadline, deadline, `${game}: reinició el reloj`);
+      context.mock.timers.tick(20000);
+      assert.notEqual(room.gameState.currentTurnPlayerId, actor, `${game}: turno bloqueado`);
+      assert.ok(room.turnDeadline > Date.now());
+      manager.leaveRoom(`socket-a-${game}`);
+      manager.leaveRoom(`socket-b-${game}`);
+    }
+  } finally {
+    manager.dispose();
+    context.mock.timers.reset();
+  }
+});
+
+test('La sala valida opciones, conserva las de otra sala y las bloquea al empezar', () => {
+  const io = { to: () => ({ emit: () => {} }), sockets: { sockets: new Map() } };
+  const manager = new RoomManager(io);
+  try {
+    const a = manager.createRoom('Ana', 'a', 'socket-a', 'rummy').room,
+      b = manager.createRoom('Bruno', 'b', 'socket-b', 'rummy').room;
+    manager.joinRoom(a.code, 'Clara', 'c', 'socket-c');
+    assert.throws(() => manager.updateRoomRules(a.code, 'c', { openingPoints: 50 }), /anfitrión/);
+    assert.equal(
+      manager.updateRoomRules(a.code, 'a', {
+        openingPoints: 50,
+        startingTiles: 10,
+        useJokers: false,
+      }).success,
+      true,
+    );
+    assert.equal(
+      manager.updateRoomRules(a.code, 'a', { openingPoints: 30, startingTiles: 100 }).success,
+      false,
+    );
+    assert.equal(manager.getRoomBySocket('socket-a').customRules.openingPoints, 50);
+    assert.equal(manager.getRoomBySocket('socket-b').customRules.openingPoints, 30);
+    manager.startGame(a.code, 'a');
+    const s = manager.getRoomBySocket('socket-a').gameState;
+    assert.equal(s.players[0].hand.length, 10);
+    assert.equal(s.rules.openingPoints, 50);
+    assert.equal(s.rules.useJokers, false);
+    assert.throws(() => manager.updateRoomRules(a.code, 'a', { openingPoints: 0 }), /momento/);
+  } finally {
+    manager.dispose();
+  }
+});

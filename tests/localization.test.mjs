@@ -5,6 +5,7 @@ import ts from 'typescript';
 import { en } from '../apps/sobremesa-client/src/i18n/en.ts';
 import {
   GAME_CATALOG,
+  GAME_SETTINGS,
   BOARD_TILES,
   CHANCE_CARDS,
   COMMUNITY_CHEST_CARDS,
@@ -64,4 +65,14 @@ test('Catálogo, reglas, consejos, cartas y casillas especiales están traducido
   }
   for (const card of [...CHANCE_CARDS, ...COMMUNITY_CHEST_CARDS]) translated(card.text);
   for (const tile of BOARD_TILES.filter((t) => t.type !== 'property')) translated(tile.name);
+});
+
+test('Las opciones de la sala y sus explicaciones tienen traducción', () => {
+  for (const settings of Object.values(GAME_SETTINGS))
+    for (const setting of settings) {
+      translated(setting.label);
+      translated(setting.description);
+      if (setting.unit) translated(setting.unit);
+      for (const label of setting.labels || []) translated(label);
+    }
 });

@@ -1,6 +1,6 @@
 # Sobremesa
 
-Juegos de mesa para compartir con amigos desde el navegador. Incluye Ciudad Fortuna, Cambio de Color, Cuatro en Línea, Reversi, Tres en Raya y Dados al 100. Puedes crear una sala, compartir su código o jugar contra un bot, sin registrarte. La interfaz, reglas y partidas están disponibles en español e inglés.
+Juegos de mesa para compartir con amigos desde el navegador. Incluye quince juegos: Ciudad Fortuna, Cambio de Color, Cuatro en Línea, Reversi, Tres en Raya, Dados al 100, Rummy de fichas, Ajedrez, Impostor, Dominó, Damas, Backgammon, Batalla naval, Mancala y Dados de combinaciones. Puedes crear una sala, compartir su código o jugar contra un bot, sin registrarte. La interfaz, reglas y partidas están disponibles en español e inglés.
 
 **Dirección pública prevista:** [games.samuelciocan.com](https://games.samuelciocan.com). El proyecto se llama **Sobremesa**; `games.samuelciocan.com` es su dirección web.
 
@@ -30,6 +30,24 @@ Para comprobar una partida entre dos personas en el mismo equipo, abre la web en
 
 La [guía de pruebas](docs/TESTING.md) explica qué revisar en cada juego, cómo comprobar la reconexión y cómo probar tamaños de móvil.
 
+## Juegos y variantes
+
+| Juego                  | Modalidad incluida                                                                                   |
+| ---------------------- | ---------------------------------------------------------------------------------------------------- |
+| Rummy de fichas        | 106 fichas, apertura de 30 puntos, grupos, escaleras, comodines y reorganización completa de la mesa |
+| Ajedrez                | Enroque, captura al paso, cuatro promociones, mate, tablas automáticas o pactadas y rendición        |
+| Impostor               | 3–10 personas, palabra privada, dos vueltas de pistas, voto secreto, desempate e intento final       |
+| Dominó                 | Doble seis individual con robo, apertura reglada, bloqueo y puntuación por rondas                    |
+| Damas                  | Damas inglesas, captura obligatoria, saltos encadenados, coronación y tablas                         |
+| Backgammon             | Partida individual sin cubo, barra, dobles, uso obligatorio de dados, salida y gammons               |
+| Batalla naval          | Colocación manual o aleatoria de cinco barcos, disparos, impactos y hundimientos                     |
+| Mancala                | Kalah de 48 semillas, capturas, turnos extra y recogida final                                        |
+| Dados de combinaciones | Trece categorías, tres tiradas, dados guardados, bonificación superior y comodín de cinco iguales    |
+
+La tabla describe los valores predeterminados. Antes de empezar, el anfitrión puede ajustar las variantes disponibles desde «Opciones de la partida»: apertura y reparto de rummy, objetivo del dominó, pistas del impostor, semillas de mancala y otras opciones. Las reglas de la sala muestran los valores elegidos.
+
+Todos tienen bots, salas, reloj, reconexión, reglas y controles en español e inglés. El modo contra bots añade las plazas mínimas necesarias (dos bots para Impostor). Al terminar puedes consultar la mesa y volver al resultado antes de la revancha. Los nombres descriptivos y las ilustraciones propias distinguen estas variantes; los alias ayudan a encontrarlas.
+
 ## Estructura
 
 ```text
@@ -37,12 +55,14 @@ apps/
   sobremesa-client/    Interfaz, idiomas, componentes y conexión con las salas
   sobremesa-server/    Servidor HTTP, sesiones y partidas multijugador
 packages/
-  sobremesa-logic/     Reglas, tipos y bots de los seis juegos
+  sobremesa-logic/     Reglas, tipos y bots de los quince juegos
     src/games/         Un directorio por juego
     test/              Pruebas de los motores
 tests/                Pruebas de integración y navegador
 docs/                 Decisiones, desarrollo, pruebas y despliegue
 ```
+
+En el cliente, `src/components/` reúne los tableros, `src/hooks/` los hooks comunes, `src/ui/` los elementos compartidos y `src/views/` las pantallas de entrada y sala. Las traducciones se mantienen por idioma y el catálogo de juegos se centraliza en `packages/sobremesa-logic/src/catalog.ts`. No se separan juegos ni recursos por fecha de incorporación.
 
 Los tres paquetes comparten tipos mediante pnpm workspaces. Las reglas se ejecutan en el servidor y la interfaz recibe el estado que corresponde a cada jugador.
 
@@ -79,6 +99,7 @@ Las pruebas de integración y navegador necesitan que hayas ejecutado `pnpm buil
 
 ## Desarrollo y alojamiento
 
+- [Revisión del juego y seguridad](docs/REVIEW.md): mejoras, validación y aspectos legales pendientes del despliegue.
 - [Decisiones del proyecto](docs/DECISIONS.md): arquitectura, estilo y reglas que conviene mantener.
 - [Guía de desarrollo](docs/CONTRIBUTING.md): dónde añadir un juego y cómo integrarlo con la interfaz.
 - [Pruebas](docs/TESTING.md): comprobaciones manuales y automáticas.

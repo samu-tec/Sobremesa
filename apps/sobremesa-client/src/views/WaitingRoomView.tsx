@@ -1,6 +1,11 @@
-import { getGame, t, LanguageSelector, formatMoney } from '../i18n';
+import { getGame, t, LanguageSelector, formatMoney, settingValue } from '../i18n';
 import { useEffect, useState } from 'react';
-import { type RoomInfo } from 'sobremesa-logic';
+import {
+  type RoomInfo,
+  GAME_SETTINGS,
+  defaultGameSettings,
+  DEFAULT_CIUDAD_FORTUNA_RULES,
+} from 'sobremesa-logic';
 import {
   ArrowLeft,
   ArrowRight,
@@ -83,8 +88,8 @@ export function WaitingRoomView({
       </header>
       <main className="waiting-content">
         <div className="waiting-intro">
-          <p className="eyebrow">{t('TODO LISTO PARA PASARLO BIEN')}</p>
-          <h1>{t('Ve haciendo sitio en la mesa.')}</h1>
+          <p className="eyebrow">{t('SALA DE ESPERA')}</p>
+          <h1>{t('Prepara la partida.')}</h1>
           <p>
             {t('Invita a tus amigos o añade un bot. La próxima partida está a punto de empezar.')}
           </p>
@@ -92,7 +97,7 @@ export function WaitingRoomView({
         <div className="waiting-grid">
           <section className="panel waiting-players">
             <div className="section-row">
-              <h2>{t('La mesa de juego')}</h2>
+              <h2>{t('Jugadores')}</h2>
               <span className="pill">
                 <Users size={15} /> {room.players.length}/{room.maxPlayers}
               </span>
@@ -227,7 +232,7 @@ export function WaitingRoomView({
             </section>
             <section className="panel room-settings" id="room-settings">
               <h3>
-                <Settings2 size={18} /> {t('Reglas de la mesa')}
+                <Settings2 size={18} /> {t('Opciones de la partida')}
               </h3>
               <label className="field-label" htmlFor="turn-seconds">
                 {t('Tiempo por turno')}
@@ -247,9 +252,67 @@ export function WaitingRoomView({
               </select>
               <p className="form-hint">
                 {t(
-                  'Al agotarse el tiempo de turno, se completa una jugada automática. Las subastas duran 15 segundos y cada nueva puja reinicia el contador.',
+                  room.gameType === 'rummy'
+                    ? 'Si se agota el tiempo, se cancela tu borrador y robas una ficha o pasas.'
+                    : 'Si se agota el tiempo, el juego completa tu turno automáticamente.',
                 )}
               </p>
+              <p className="settings-owner-note">
+                {host
+                  ? t(
+                      'Los cambios se aplican a toda la sala. Puedes ajustarlos hasta que empiece la partida.',
+                    )
+                  : t('El anfitrión puede cambiar estas opciones antes de empezar.')}
+              </p>
+              {(GAME_SETTINGS[room.gameType] || []).map((setting) => (
+                <div className="game-setting" key={setting.key}>
+                  {typeof setting.defaultValue === 'boolean' ? (
+                    <label className="toggle-row" htmlFor={`setting-${setting.key}`}>
+                      <span>{t(setting.label)}</span>
+                      <input
+                        id={`setting-${setting.key}`}
+                        aria-describedby={`setting-hint-${setting.key}`}
+                        type="checkbox"
+                        role="switch"
+                        disabled={!host || busy}
+                        checked={Boolean(settings[setting.key] ?? setting.defaultValue)}
+                        onChange={(e) => changeRules({ [setting.key]: e.target.checked })}
+                      />
+                    </label>
+                  ) : (
+                    <>
+                      <label className="field-label" htmlFor={`setting-${setting.key}`}>
+                        {t(setting.label)}
+                      </label>
+                      <select
+                        className="field"
+                        id={`setting-${setting.key}`}
+                        disabled={!host || busy}
+                        value={settings[setting.key] ?? setting.defaultValue}
+                        aria-describedby={`setting-hint-${setting.key}`}
+                        onChange={(e) => changeRules({ [setting.key]: Number(e.target.value) })}
+                      >
+                        {setting.values!.map((value, i) => (
+                          <option key={value} value={value}>
+                            {settingValue(setting, value)}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                  <p className="form-hint" id={`setting-hint-${setting.key}`}>
+                    {t(setting.description)}
+                  </p>
+                </div>
+              ))}
+              {!GAME_SETTINGS[room.gameType]?.length &&
+                !['monopoly', 'colorclash'].includes(room.gameType) && (
+                  <p className="form-hint">
+                    {t(
+                      'Este juego mantiene sus reglas clásicas. Puedes ajustar el tiempo por turno.',
+                    )}
+                  </p>
+                )}
               {room.gameType === 'colorclash' && (
                 <>
                   <label className="field-label" htmlFor="starting-cards">
@@ -270,11 +333,30 @@ export function WaitingRoomView({
                   </select>
                 </>
               )}
+              {host && (
+                <button
+                  className="button secondary full settings-reset"
+                  disabled={busy}
+                  onClick={() =>
+                    changeRules({
+                      ...defaultGameSettings(room.gameType),
+                      ...(room.gameType === 'monopoly'
+                        ? DEFAULT_CIUDAD_FORTUNA_RULES
+                        : room.gameType === 'colorclash'
+                          ? { startingCards: 7 }
+                          : {}),
+                      turnSeconds: 90,
+                    })
+                  }
+                >
+                  {t('Restablecer opciones')}
+                </button>
+              )}
             </section>
             {room.gameType === 'monopoly' && (
               <section className="panel room-settings">
                 <h3>
-                  <Settings2 size={18} /> {t('Reglas de la mesa')}{' '}
+                  <Settings2 size={18} /> {t('Opciones de la partida')}{' '}
                 </h3>
                 <p>
                   {host

@@ -1,5 +1,5 @@
-import { getGame, formatMoney, t } from '../i18n';
-import { type RoomInfo, type GameType } from 'sobremesa-logic';
+import { getGame, formatMoney, t, settingValue } from '../i18n';
+import { type RoomInfo, type GameType, GAME_SETTINGS } from 'sobremesa-logic';
 import { Lightbulb } from 'lucide-react';
 import { Modal } from './Modal';
 export function Rules({
@@ -23,6 +23,14 @@ export function Rules({
           <p>
             {t('Tiempo por turno')}: {room.turnSeconds} s
           </p>
+          {(GAME_SETTINGS[room.gameType] || []).map((setting) => {
+            const value = room.customRules?.[setting.key] ?? setting.defaultValue;
+            return (
+              <p key={setting.key}>
+                {t(setting.label)}: <strong>{settingValue(setting, value)}</strong>
+              </p>
+            );
+          })}
           {room.gameType === 'colorclash' && (
             <p>
               {t('Cartas iniciales')}: {room.customRules?.startingCards ?? 7}
@@ -60,9 +68,14 @@ export function Rules({
           </p>
           <p>
             {t(
-              'Al agotarse el tiempo de turno, se completa una jugada automática. Las subastas duran 15 segundos y cada nueva puja reinicia el contador.',
+              room.gameType === 'rummy'
+                ? 'Si se agota el tiempo, se cancela tu borrador y robas una ficha o pasas.'
+                : 'Si se agota el tiempo, el juego completa tu turno automáticamente.',
             )}
           </p>
+          {room.gameType === 'monopoly' && (
+            <p>{t('Las subastas duran 15 segundos. Cada nueva puja reinicia el contador.')}</p>
+          )}
         </section>
       )}
       <ol className="rules-list">

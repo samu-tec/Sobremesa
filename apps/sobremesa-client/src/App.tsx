@@ -1,18 +1,8 @@
+import { getGame as getDefinition } from 'sobremesa-logic';
 import { t, useLocale } from './i18n';
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { X, WifiOff } from 'lucide-react';
-import type {
-  GameType,
-  RoomInfo,
-  Result,
-  RoomResult,
-  MonopolyPublicState,
-  ColorClashPublicState,
-  TicTacToeState,
-  Connect4State,
-  ReversiState,
-  PigState,
-} from 'sobremesa-logic';
+import type { GameType, RoomInfo, Result, RoomResult, GamePublicState } from 'sobremesa-logic';
 import {
   findOtherSobremesaTab,
   socket,
@@ -26,22 +16,9 @@ import { Modal } from './ui/Modal';
 import { Privacy } from './ui/Privacy';
 import { WaitingRoomView } from './views/WaitingRoomView';
 import { GameLayout } from './ui/GameLayout';
-const MonopolyBoard = lazy(() =>
-  import('./components/MonopolyBoard').then((m) => ({ default: m.MonopolyBoard })),
-);
-const ColorClashBoard = lazy(() =>
-  import('./components/ColorClashBoard').then((m) => ({ default: m.ColorClashBoard })),
-);
-const TableBoards = lazy(() =>
-  import('./components/TableBoards').then((m) => ({ default: m.TableBoards })),
-);
-type PublicState =
-  | MonopolyPublicState
-  | ColorClashPublicState
-  | TicTacToeState
-  | Connect4State
-  | ReversiState
-  | PigState;
+import { useGameResults } from './hooks/useGameResults';
+import { GameBoard } from './components/GameBoard';
+type PublicState = GamePublicState;
 function inviteCodeFrom(search: string) {
   const value = new URLSearchParams(search).get('room');
   return value && /^[A-HJ-NP-Z2-9]{6}$/i.test(value) ? value.toUpperCase() : null;
@@ -82,6 +59,15 @@ export function App() {
   const pending = useRef(false),
     recovering = useRef(false);
   const [inviteCode, setInviteCode] = useState(() => inviteCodeFrom(location.search));
+  const pageKey =
+    location.pathname === '/privacy' ? 'privacy' : room ? `${room.code}:${room.status}` : 'lobby';
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [pageKey]);
+
   const clearRoom = useCallback((preserveInvite = false) => {
     const pendingInvite = preserveInvite ? inviteCodeFrom(location.search) : null;
     setRoom(null);
@@ -274,7 +260,9 @@ export function App() {
         setState(null);
       }
       if (quick) {
-        check(await request<Result>((done) => socket.emit('room:add_bot', done)));
+        for (let i = 1; i < getDefinition(gameType).minPlayers; i++) {
+          check(await request<Result>((done) => socket.emit('room:add_bot', done)));
+        }
       }
     });
   const join = (roomCode: string) =>
@@ -341,6 +329,7 @@ export function App() {
     run(async () => {
       check(await request<Result>((done) => socket.emit('room:update_rules', rules, done)));
     });
+  const gameResults = useGameResults(room, state);
   const turn = state
     ? 'currentTurn' in state
       ? state.currentTurn
@@ -375,6 +364,7 @@ export function App() {
         />
       ) : state ? (
         <GameLayout
+          {...gameResults}
           room={room}
           myPlayerId={playerId}
           currentTurn={turn}
@@ -387,31 +377,13 @@ export function App() {
           onError={setError}
         >
           <Suspense fallback={<Loading />}>
-            {room.gameType === 'monopoly' ? (
-              <MonopolyBoard
-                room={room}
-                state={state as MonopolyPublicState}
-                myPlayerId={playerId}
-                onAction={action}
-                busy={busy || !connected}
-              />
-            ) : room.gameType === 'colorclash' ? (
-              <ColorClashBoard
-                room={room}
-                state={state as ColorClashPublicState}
-                myPlayerId={playerId}
-                onAction={action}
-                busy={busy || !connected}
-              />
-            ) : (
-              <TableBoards
-                room={room}
-                state={state as TicTacToeState | Connect4State | ReversiState | PigState}
-                myPlayerId={playerId}
-                onAction={action}
-                busy={busy || !connected}
-              />
-            )}
+            <GameBoard
+              room={room}
+              state={state}
+              myPlayerId={playerId}
+              onAction={action}
+              busy={busy || !connected}
+            />
           </Suspense>
         </GameLayout>
       ) : (

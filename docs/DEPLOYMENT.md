@@ -4,7 +4,7 @@ La web y Socket.IO se sirven desde un único proceso en el puerto 3000. Cloudfla
 
 ## Configuración
 
-No se necesita un archivo `.env`. `config.ts` contiene los valores predeterminados; las variables de entorno del proceso permiten cambiarlos cuando haga falta. Docker Compose acepta ajustes opcionales del entorno o de su mecanismo de interpolación. Si no se pasan, la aplicación usa sus valores predeterminados.
+No se necesita un archivo `.env`. `.env.example` documenta los valores opcionales para Compose; Node no carga ese archivo automáticamente. `config.ts` contiene los valores predeterminados; las variables de entorno del proceso permiten cambiarlos cuando haga falta. Docker Compose acepta ajustes opcionales del entorno o de su mecanismo de interpolación. Si no se pasan, la aplicación usa sus valores predeterminados.
 
 En Node, el servidor escucha en `127.0.0.1:3000` por defecto. La imagen Docker usa `0.0.0.0` dentro del contenedor para que Cloudflared pueda llegar a ella. `ALLOWED_ORIGINS` incluye `https://games.samuelciocan.com` y los orígenes locales de desarrollo. Si se define manualmente, debe conservarse el dominio público.
 
@@ -41,3 +41,5 @@ La aplicación está pensada para una sola instancia, porque las salas se guarda
 ## Privacidad y operación
 
 La ruta `/privacy` está disponible en español e inglés. Los registros de Cloudflare y del alojamiento dependen de su configuración y plazos. Si se añaden analítica, monetización u otros servicios, habrá que revisar el aviso y el tratamiento de datos.
+
+La compilación genera los avisos de licencias del cliente en `/third-party-notices.txt`; el Dockerfile incluye el script que los genera. Revisa también los límites y dependencias operativas descritos en [REVIEW.md](REVIEW.md).

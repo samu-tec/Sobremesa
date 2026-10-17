@@ -101,7 +101,7 @@ export function LobbyView({
           <p className="eyebrow">
             <span /> {t('BIENVENIDO A LA MESA')}{' '}
           </p>
-          <h1>{t('Elige juego. Reúne a los tuyos.')}</h1>
+          <h1>{t('Elige un juego y reúne a tus amigos.')}</h1>
           <p>{t('Los clásicos que te gustan, a un clic de distancia.')}</p>
         </div>
         <span className="intro-stamp">
@@ -111,7 +111,7 @@ export function LobbyView({
       <section className="hero">
         <div className="hero-copy">
           <span className="hero-label">
-            <span /> {t('EL PLAN QUE NUNCA FALLA')}{' '}
+            <span /> {t('UN PLAN PARA COMPARTIR')}{' '}
           </span>
           <h2>
             {t('Una partida más.')} <br />
@@ -158,7 +158,7 @@ export function LobbyView({
           <div>
             <span className="eyebrow">{t('A QUÉ JUGAMOS HOY')}</span>
             <h2>
-              {view === 'favorites' ? t('Tus favoritos') : t('Una mesa para cada plan')}
+              {view === 'favorites' ? t('Tus favoritos') : t('Elige a qué jugar')}
               <span className="count-badge">{games.length}</span>
             </h2>
           </div>

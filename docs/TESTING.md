@@ -13,6 +13,8 @@ Abre **http://127.0.0.1:5173**. Cuando aparezca «Listo para jugar», la web est
 
 La configuración predeterminada utiliza el puerto 5173 para la web y el 3000 para el servidor. No necesitas `.env` para esta prueba. Si esos puertos están ocupados, cierra la otra aplicación que los esté usando antes de arrancar.
 
+El puerto 3000 sirve la última compilación del cliente, por lo que puede mostrar una versión anterior aunque `pnpm dev` esté funcionando. Para ver los cambios al guardar, usa el puerto 5173. Si quieres comprobarlos en el 3000, ejecuta `pnpm build` y recarga la página.
+
 ## Comprobación manual
 
 ### Catálogo, idioma y perfil
@@ -35,6 +37,22 @@ Abre un juego y elige jugar contra un bot, o pulsa el botón del robot de su fic
 | Reversi         | Solo se puede jugar sobre los puntos permitidos y las fichas encerradas cambian de color.                                                                                                                                                                                                                                                       |
 | Tres en Raya    | Alternar turnos, bloquear casillas ocupadas y mostrar victoria o empate al terminar.                                                                                                                                                                                                                                                            |
 | Dados al 100    | Sumar puntos temporales, guardarlos y perder solo los del turno cuando sale un uno.                                                                                                                                                                                                                                                             |
+
+Para los nueve juegos nuevos:
+
+| Juego                  | Comprobaciones                                                                                                                                           |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rummy de fichas        | Atril de catorce fichas, apertura de 30 puntos, grupos, escaleras, comodines, división y unión de combinaciones, borradores, deshacer, robo y puntuación |
+| Ajedrez                | Selección y destinos, enroque, jaque, promoción con cuatro opciones, tablas, historial y rendición                                                       |
+| Impostor               | Tres participantes mínimos, papel ocultable, dos vueltas de pistas, voto secreto, desempate y resultado con todos los ganadores                          |
+| Dominó                 | Apertura forzada, extremos orientados, pozo, pase obligatorio y suma de puntos                                                                           |
+| Damas                  | Captura obligatoria, misma ficha en saltos encadenados y coronación                                                                                      |
+| Backgammon             | Dirección propia, barra antes de mover, obligación de gastar dados, dobles y salida                                                                      |
+| Batalla naval          | Colocación manual y aleatoria, retirada, orientación, flota privada y disparos sin repetición                                                            |
+| Mancala                | Siembra, captura, turno adicional y suma final de 48 semillas                                                                                            |
+| Dados de combinaciones | Guardar/liberar dados, máximo tres tiradas, trece categorías y bonificaciones                                                                            |
+
+Revisa cada tablero a 320 px, cambia el idioma y recarga durante la partida. Al terminar, comprueba las puntuaciones y «Ver la mesa». En Impostor, asegúrate de que los votos y el secreto se revelan solo al terminar y de que el modal reconoce a todos los ganadores.
 
 El tablero no debe permitir jugar durante el turno del contrario. Al terminar, el anfitrión puede preparar la revancha.
 
@@ -84,7 +102,7 @@ pnpm test:integration
 pnpm test:e2e
 ```
 
-Las pruebas de motores incluyen diez partidas simuladas de cada juego, reglas configurables y privacidad de manos. Las de traducciones comprueban cobertura y parámetros. Las de integración incluyen sustitución autenticada de conexiones, varias salas independientes y agotamiento real de turnos de 30 segundos en los seis juegos (por eso tardan algo más de medio minuto). Las de navegador cubren ambos idiomas, primera visita, configuración con bots, visibilidad de controles, selector de color y caída de red. Las de integración arrancan un servidor temporal en el puerto 3190; las de navegador, otro en el 3187. No sustituyen al servidor de desarrollo del puerto 3000.
+Las pruebas de motores incluyen diez partidas simuladas de cada juego, reglas configurables y privacidad de manos. Las de traducciones comprueban cobertura y parámetros. Las de integración incluyen sustitución autenticada de conexiones, varias salas independientes y agotamiento real de turnos de 30 segundos en los quince juegos (por eso tardan algo más de medio minuto). Las de navegador cubren ambos idiomas, primera visita, configuración con bots, visibilidad de controles, selector de color y caída de red. Las de integración arrancan un servidor temporal en el puerto 3190; las de navegador, otro en el 3187. No sustituyen al servidor de desarrollo del puerto 3000.
 
 Los resultados, capturas y trazas quedan en `tests/.output/`, una carpeta generada que se puede borrar y está excluida de Git. Las trazas se guardan cuando falla una prueba.
 
@@ -102,3 +120,9 @@ Abre **http://127.0.0.1:3000** y repite una partida entre dos ventanas. **http:/
 Las pruebas de navegador emulan tamaños de móvil en Chrome. Antes de publicar conviene probar también los dispositivos y navegadores que vayan a usar tus amigos. No hay una prueba de carga que garantice una cifra de jugadores simultáneos.
 
 Para comprobar el reloj sin jugar, crea una sala de dos personas, configura 30 segundos y deja pasar el turno sin tocar nada: ambos navegadores deben recibir la misma jugada automática. Repite en dos salas distintas y comprueba que sus acciones no se mezclan.
+
+Ciudad Fortuna incluye regresiones de rutas de movimiento, cárcel, alquileres compartidos, cambios de hipoteca durante tratos y valoración de bots. El navegador comprueba seis fichas sin solaparse con nombres ni precios en las cuatro orientaciones, movimiento reducido y la apertura móvil ampliada. La vista completa puede requerir desplazamiento vertical: se prioriza conservar texto legible frente a reducir todo el tablero a la altura de la pantalla.
+
+`game-contract.test.ts` simula partidas completas y verifica inmutabilidad, conservación de cartas/fichas/semillas y abandono. Los casos especiales de cada juego están en `<juego>.test.ts`, siguiendo el patrón de las pruebas de Ciudad Fortuna. `settings.test.ts` comprueba las variantes configurables y su efecto real en los motores. Las pruebas de integración cubren salas independientes, proyecciones privadas, permisos, validación de opciones y agotamiento real de turnos de 30 segundos. `server.test.mjs` comprueba que las acciones parciales no reinicien el plazo.
+
+En navegador, `games.spec.ts` juega una acción real, recarga, cambia de idioma y revisa accesibilidad en cada uno de los nueve juegos añadidos a 1280 y 320 px. `settings-and-motion.spec.ts` comprueba opciones de la sala, restauración de valores predeterminados, movimientos de ajedrez, fichas de rummy, dados guardados, siembra de mancala y preferencia de movimiento reducido. `platform.spec.ts` conserva las pruebas de plataforma y los juegos anteriores. Las capturas móviles quedan en `tests/.output/screenshots/`.

@@ -75,7 +75,7 @@ export function Shell({
         </div>
         <div className="sidebar-bottom">
           <span className="sidebar-footnote">
-            {t('Sin registros. Sin descargas.')} <br />
+            {t('Sin registro. Sin descargas.')} <br />
             {t('Solo ganas de pasarlo bien.')}{' '}
           </span>
           <button className="profile-button" onClick={onProfile}>

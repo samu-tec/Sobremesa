@@ -19,7 +19,7 @@ Define primero sus jugadores, objetivo, jugadas legales, final, empate, informac
 3. Añade el identificador a `GameType` en `types/index.ts` y exporta el motor y sus tipos desde `src/index.ts`.
 4. Registra sus datos en `GAME_CATALOG`: nombre, categoría, jugadores, duración orientativa, descripción, reglas, consejo y alias de búsqueda.
 5. Registra la factoría en `engineFactories` de `RoomManager.ts`. Los límites de jugadores salen del catálogo.
-6. Añade el tablero en el cliente y su representación en `App.tsx`. Para un tablero independiente, usa una importación diferida. Los pequeños pueden seguir el patrón de `TableBoards.tsx`.
+6. Añade un archivo de tablero individual en `apps/sobremesa-client/src/components/`, con el nombre elegido para el juego (por ejemplo, `TresEnRayaBoard.tsx`). Regístralo mediante una importación diferida en `GameBoard.tsx`. Cada juego debe tener su propio componente y archivo; los elementos comunes se reutilizan desde `ui/` y `hooks/`.
 7. Añade su ilustración en `GameArtwork.tsx` y amplía las pruebas y la lista de juegos del README.
 
 La búsqueda, los favoritos, las invitaciones y las reglas utilizan el catálogo. No necesitan una pantalla nueva para cada juego.

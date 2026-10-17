@@ -1,6 +1,6 @@
 import { getGame, t, LanguageSelector } from '../i18n';
 import { TurnClock } from './TurnClock';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import { type RoomInfo } from 'sobremesa-logic';
 import {
   ArrowLeft,
@@ -29,6 +29,9 @@ export function GameLayout({
   currentTurn,
   isAuction = false,
   winner,
+  winnerIds,
+  resultNote,
+  resultRows,
   isDraw,
   busy,
   onRestart,
@@ -41,6 +44,9 @@ export function GameLayout({
   currentTurn: string;
   isAuction?: boolean;
   winner: string | null;
+  winnerIds?: string[];
+  resultNote?: string;
+  resultRows?: { label: string; value: string }[];
   isDraw?: boolean;
   busy: boolean;
   onRestart: () => void;
@@ -48,6 +54,7 @@ export function GameLayout({
   onError: (m: string) => void;
   children: ReactNode;
 }) {
+  const [showResult, setShowResult] = useState(true);
   const [rules, setRules] = useState(false),
     [confirmLeave, setConfirmLeave] = useState(false),
     [copied, setCopied] = useState(false),
@@ -57,6 +64,9 @@ export function GameLayout({
     turn = room.players.find((p) => p.id === currentTurn),
     finished = !!winner || !!isDraw,
     yourTurn = currentTurn === myPlayerId && !finished && !isAuction;
+  useEffect(() => {
+    if (!finished) setShowResult(true);
+  }, [finished]);
   useEffect(() => {
     if (finished) {
       previousTurn.current = null;
@@ -117,7 +127,7 @@ export function GameLayout({
       <main className={`game-content game-content-${room.gameType}`}>
         <div className="game-heading">
           <div>
-            <span className="eyebrow">{t('LA PARTIDA ESTÁ EN LA MESA')}</span>
+            <span className="eyebrow">{t('PARTIDA EN CURSO')}</span>
             <h1>
               {game.name}
               <span className="game-heading-dot">.</span>
@@ -143,7 +153,7 @@ export function GameLayout({
         {turnNotice && (
           <div className="turn-announcement" role="status" aria-live="assertive">
             <strong>{t('¡Te toca!')}</strong>
-            <span>{t('Tus opciones están listas en el tablero.')}</span>
+            <span>{t('Elige tu próxima jugada.')}</span>
           </div>
         )}
         {room.players.some((p) => !p.connected) && (
@@ -157,12 +167,17 @@ export function GameLayout({
             })}
           </div>
         )}
+        {finished && !showResult && (
+          <button className="button primary" onClick={() => setShowResult(true)}>
+            {t('Ver resultado')}
+          </button>
+        )}
         {children}
       </main>
       {rules && <Rules room={room} gameType={room.gameType} onClose={() => setRules(false)} />}
       {confirmLeave && (
-        <Modal title={t('¿Dejas tu sitio en la mesa?')} onClose={() => setConfirmLeave(false)}>
-          <p>{t('Si sales ahora, abandonarás esta partida. Tus amigos podrán seguir jugando.')}</p>
+        <Modal title={t('¿Quieres salir de la partida?')} onClose={() => setConfirmLeave(false)}>
+          <p>{t('Si sales, abandonarás esta partida y no podrás volver a entrar en ella.')}</p>
           <div className="choice-buttons">
             <button className="button primary full" onClick={() => setConfirmLeave(false)}>
               {t('Seguir jugando')}{' '}
@@ -173,14 +188,14 @@ export function GameLayout({
           </div>
         </Modal>
       )}
-      {finished && (
+      {finished && showResult && (
         <Modal
           title={
             isDraw
-              ? t('¡Una partida muy igualada!')
-              : winner === myPlayerId
-                ? t('¡La victoria es tuya!')
-                : t('¡Tenemos un ganador!')
+              ? t('¡Habéis empatado!')
+              : winnerIds?.includes(myPlayerId) || winner === myPlayerId
+                ? t('¡Has ganado!')
+                : t('Partida terminada')
           }
           onClose={() => {}}
           dismissable={false}
@@ -191,22 +206,43 @@ export function GameLayout({
             </span>
             <p>
               {isDraw ? (
-                t('Habéis empatado. Una buena excusa para volver a intentarlo.')
+                t('La partida ha terminado en empate. ¿Jugamos otra?')
+              ) : winnerIds && winnerIds.length > 1 ? (
+                t('Ganadores: {0}', {
+                  '0': winnerIds
+                    .map((id) => room.players.find((p) => p.id === id)?.name)
+                    .filter(Boolean)
+                    .join(', '),
+                })
               ) : (
                 <>
                   <strong>
                     {room.players.find((p) => p.id === winner)?.name || t('Tu rival')}
                   </strong>{' '}
-                  {t('se lleva esta partida. ¿Echamos otra?')}{' '}
+                  {t('ha ganado la partida.')}{' '}
                 </>
               )}
             </p>
+            {resultNote && <p>{resultNote}</p>}
+            {resultRows && (
+              <div className="result-scores">
+                {resultRows.map((row, i) => (
+                  <div key={i}>
+                    <span>{row.label}</span>
+                    <strong>{row.value}</strong>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button className="button secondary full" onClick={() => setShowResult(false)}>
+              {t('Ver la mesa')}
+            </button>
             {room.hostId === myPlayerId ? (
               <button className="button primary full" disabled={busy} onClick={onRestart}>
-                <RotateCcw size={17} /> {t('Preparar revancha')}{' '}
+                <RotateCcw size={17} /> {t('Preparar otra partida')}{' '}
               </button>
             ) : (
-              <p className="muted">{t('El anfitrión puede preparar la revancha.')}</p>
+              <p className="muted">{t('El anfitrión puede preparar otra partida.')}</p>
             )}
             <button className="button secondary full" disabled={busy} onClick={onLeave}>
               {t('Volver a los juegos')} <ArrowLeft size={17} />
@@ -273,7 +309,15 @@ export function GameTip({ text }: { text: string }) {
     </div>
   );
 }
-export function DiceFace({ value, large = false }: { value: number; large?: boolean }) {
+export function DiceFace({
+  value,
+  large = false,
+  kept = false,
+}: {
+  value: number;
+  large?: boolean;
+  kept?: boolean;
+}) {
   const positions: Record<number, number[]> = {
     1: [4],
     2: [0, 8],
@@ -284,6 +328,7 @@ export function DiceFace({ value, large = false }: { value: number; large?: bool
   };
   return (
     <span
+      data-kept={kept}
       className={`dice-face ${large ? 'large' : ''}`}
       role="img"
       aria-label={t('Dado: {0}', { '0': value })}
@@ -292,5 +337,58 @@ export function DiceFace({ value, large = false }: { value: number; large?: bool
         <i key={i} className={positions[value]?.includes(i) ? 'pip' : ''} />
       ))}
     </span>
+  );
+}
+
+export function BoardFrame({
+  room,
+  myPlayerId,
+  turn,
+  values,
+  children,
+  motionRef,
+}: {
+  room: RoomInfo;
+  myPlayerId: string;
+  turn: string;
+  values?: Record<string, string>;
+  children: ReactNode;
+  motionRef?: Ref<HTMLDivElement>;
+}) {
+  return (
+    <div className="table-layout extended-table" ref={motionRef}>
+      <section className={`panel extended-play extended-${room.gameType}`}>{children}</section>
+      <aside className="table-sidebar">
+        <PlayersPanel room={room} myPlayerId={myPlayerId} currentTurn={turn} values={values} />
+        <GameTip text={getGame(room.gameType).tip} />
+      </aside>
+    </div>
+  );
+}
+export function RoundNotice({
+  round,
+  winner,
+  room,
+  onNext,
+  disabled,
+}: {
+  round: number;
+  winner: string | null;
+  room: RoomInfo;
+  onNext: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="round-notice" role="status">
+      <h2>{t('Ronda {0} terminada', { '0': round })}</h2>
+      <p>
+        {winner
+          ? t('Gana la ronda: {0}', { '0': room.players.find((p) => p.id === winner)?.name })
+          : t('Ronda empatada. Nadie suma puntos.')}
+      </p>
+      <button className="button primary" disabled={disabled} onClick={onNext}>
+        {t('Siguiente ronda')}
+      </button>
+    </div>
   );
 }

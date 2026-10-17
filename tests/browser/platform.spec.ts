@@ -20,7 +20,7 @@ async function ready(page: import('@playwright/test').Page) {
 
 test('Catálogo, alias, categorías y favoritos', async ({ page }) => {
   await ready(page);
-  await expect(page.locator('.game-card')).toHaveCount(6);
+  await expect(page.locator('.game-card')).toHaveCount(15);
   const search = page.getByRole('searchbox', { name: 'Buscar juegos' });
   await search.fill('monopoly');
   await expect(page.locator('.game-card')).toHaveCount(1);
@@ -65,6 +65,34 @@ test('Nombre, diálogo por teclado y preferencias', async ({ page }) => {
   ).toBeFocused();
   await page.keyboard.press('Escape');
 });
+
+for (const viewport of [
+  { width: 1366, height: 768 },
+  { width: 390, height: 844 },
+])
+  test(`Cambiar de apartado empieza arriba (${viewport.width}px)`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await ready(page);
+    const play = page
+      .locator('.game-monopoly')
+      .getByRole('button', { name: 'Jugar con amigos', exact: true });
+    await play.scrollIntoViewIfNeeded();
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    await play.click();
+    await expect(page.locator('.waiting-intro h1')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+
+    const addBot = page.getByRole('button', { name: 'Añadir bot', exact: true });
+    await addBot.scrollIntoViewIfNeeded();
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    await addBot.click();
+    await expect(page.locator('.waiting-player:not(.empty-seat)')).toHaveCount(2);
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+    await page.getByRole('button', { name: 'Volver a los juegos', exact: true }).click();
+    await expect(page.locator('.game-card')).toHaveCount(15);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  });
 
 for (const name of games)
   test(`${name}: bot, tablero, reglas y retorno`, async ({ page }) => {
@@ -132,7 +160,7 @@ for (const name of games)
       .getByRole('dialog')
       .getByRole('button', { name: 'Salir de la partida', exact: true })
       .click();
-    await expect(page.locator('.game-card')).toHaveCount(6);
+    await expect(page.locator('.game-card')).toHaveCount(15);
   });
 
 test('Dos navegadores juegan, terminan y preparan revancha', async ({ page, browser }) => {
@@ -168,9 +196,9 @@ test('Dos navegadores juegan, terminan y preparan revancha', async ({ page, brow
       })
       .click();
   }
-  await expect(page.getByRole('dialog')).toContainText('¡La victoria es tuya!');
-  await expect(guest.getByRole('dialog')).toContainText('¡Tenemos un ganador!');
-  await page.getByRole('button', { name: 'Preparar revancha', exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText('¡Has ganado!');
+  await expect(guest.getByRole('dialog')).toContainText('Partida terminada');
+  await page.getByRole('button', { name: 'Preparar otra partida', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Empezar partida', exact: true })).toBeVisible();
   await expect(guest.getByText('El anfitrión iniciará la partida.', { exact: true })).toBeVisible();
   await context.close();
@@ -290,7 +318,7 @@ test('Primera visita: idioma, apodo aleatorio, persistencia y privacidad', async
   );
   await welcome.getByRole('textbox', { name: 'Your name', exact: true }).fill('Suerte');
   await welcome.getByRole('button', { name: 'Enter Sobremesa', exact: true }).click();
-  await expect(page.locator('.game-card')).toHaveCount(6);
+  await expect(page.locator('.game-card')).toHaveCount(15);
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.locator('.game-card h3').first()).toHaveText('Fortune City');
   await page.getByRole('searchbox', { name: 'Search games' }).fill('monopoly');
@@ -369,7 +397,7 @@ for (const [spanish, english] of [
       await expect(page.locator('.city-player').first()).toContainText('2000');
   });
 
-test('Ciudad Fortuna: tablero orientado, fichas y acciones accesibles sin desplazarse', async ({
+test('Ciudad Fortuna: tablero orientado, fichas separadas y controles accesibles', async ({
   page,
 }) => {
   await ready(page);
@@ -387,7 +415,7 @@ test('Ciudad Fortuna: tablero orientado, fichas y acciones accesibles sin despla
     .evaluate((node) => ({ row: node.style.gridRow, column: node.style.gridColumn }));
   expect(first).toEqual({ row: '1', column: '1' });
   expect(next).toEqual({ row: '1', column: '2' });
-  await expect(page.locator('.tile-tokens .player-piece')).toHaveCount(2);
+  await expect(page.locator('.city-token .player-piece')).toHaveCount(2);
   for (const [width, height] of [
     [1440, 900],
     [1280, 720],
@@ -401,8 +429,10 @@ test('Ciudad Fortuna: tablero orientado, fichas y acciones accesibles sin despla
     await expect(page.getByRole('button', { name: 'Tirar dados', exact: true })).toBeInViewport({
       ratio: 1,
     });
-    await expect(page.locator('.city-board')).toBeInViewport({ ratio: 1 });
-    await expect(page.locator('.city-event-banner')).toBeInViewport({ ratio: 1 });
+    await expect(page.locator('.city-board')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
+      true,
+    );
     if (width === 390 || width === 1440 || width === 844)
       await page.screenshot({
         path: `tests/.output/screenshots/city-${width}.png`,
@@ -555,7 +585,7 @@ test('Ciudad Fortuna: seis jugadores conservan fichas distintas y controles visi
   await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
   await page.setViewportSize({ width: 320, height: 568 });
   await expect(page.locator('.city-mobile-players > button')).toHaveCount(6);
-  await expect(page.locator('.tile-tokens .player-piece')).toHaveCount(6);
+  await expect(page.locator('.city-token .player-piece')).toHaveCount(6);
   await expect(page.getByRole('button', { name: 'Tirar dados', exact: true })).toBeInViewport({
     ratio: 1,
   });
@@ -566,4 +596,156 @@ test('Ciudad Fortuna: seis jugadores conservan fichas distintas y controles visi
     true,
   );
   await page.screenshot({ path: 'tests/.output/screenshots/city-six-players.png', fullPage: true });
+});
+
+test('Ciudad Fortuna: seis fichas no invaden nombres ni precios en ninguna orientación', async ({
+  page,
+}) => {
+  let update: (position: number) => void = () => {
+    throw new Error('Missing game state');
+  };
+  await page.routeWebSocket('**/socket.io/**', (route) => {
+    const server = route.connectToServer();
+    server.onMessage((message) => {
+      if (typeof message === 'string' && message.startsWith('42')) {
+        const packet = JSON.parse(message.slice(2));
+        if (packet[0] === 'game:started') {
+          const state = packet[1].publicState;
+          update = (position) => {
+            state.players.forEach((player: { position: number }) => {
+              player.position = position;
+            });
+            route.send(`42${JSON.stringify(['game:state_update', state])}`);
+          };
+        }
+      }
+      route.send(message);
+    });
+  });
+  await ready(page);
+  await page
+    .getByRole('button', { name: 'Jugar a Ciudad Fortuna contra un bot', exact: true })
+    .click();
+  for (let count = 3; count <= 6; count++) {
+    await page.getByRole('button', { name: 'Añadir bot', exact: true }).click();
+    await expect(page.locator('.waiting-player:not(.empty-seat)')).toHaveCount(count);
+  }
+  await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
+  await expect(page.locator('.city-token')).toHaveCount(6);
+  for (const width of [1366, 1024, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    if (width === 390)
+      await page.getByRole('button', { name: 'Ampliar tablero', exact: true }).click();
+    for (const position of [0, 1, 5, 10, 12, 15, 20, 23, 28, 30, 35, 39]) {
+      update(position);
+      await expect(page.locator(`.city-token[data-position="${position}"]`)).toHaveCount(6);
+      const issues = await page.evaluate((position) => {
+        const tile = document.querySelectorAll('.city-tile')[position];
+        const tokens = [...document.querySelectorAll('.city-token')].map((el) =>
+          el.getBoundingClientRect(),
+        );
+        const labels = [...tile.querySelectorAll('.tile-name, .tile-price')].map((el) =>
+          el.getBoundingClientRect(),
+        );
+        const overlaps = (a: DOMRect, b: DOMRect) =>
+          a.left < b.right - 1 &&
+          a.right > b.left + 1 &&
+          a.top < b.bottom - 1 &&
+          a.bottom > b.top + 1;
+        return {
+          labels: labels.some((label) => tokens.some((token) => overlaps(label, token))),
+          tokens: tokens.some((token, i) =>
+            tokens.slice(i + 1).some((other) => overlaps(token, other)),
+          ),
+          fontSize: parseFloat(getComputedStyle(tile.querySelector('.tile-name')!).fontSize),
+          clipped: [...tile.querySelectorAll('.tile-name')].some(
+            (el) => el.scrollWidth > el.clientWidth + 1,
+          ),
+        };
+      }, position);
+      expect(issues, `width ${width}, tile ${position}`).toMatchObject({
+        labels: false,
+        tokens: false,
+        clipped: false,
+      });
+      expect(issues.fontSize).toBeGreaterThanOrEqual(10);
+    }
+  }
+});
+
+test('Ciudad Fortuna: anima pasos reales, respeta movimiento reducido y no repite al recargar', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  let send: (id: number) => void = () => {
+    throw new Error('Missing game state');
+  };
+  await page.routeWebSocket('**/socket.io/**', (route) => {
+    const server = route.connectToServer();
+    server.onMessage((message) => {
+      if (typeof message === 'string' && message.startsWith('42')) {
+        const packet = JSON.parse(message.slice(2));
+        if (packet[0] === 'game:started') {
+          const state = packet[1].publicState;
+          send = (id) => {
+            state.players[0].position = 5;
+            state.lastMovement = {
+              id,
+              playerId: state.players[0].id,
+              from: 0,
+              dice: [2, 3],
+              path: [1, 2, 3, 4, 5].map((position) => ({ position, direct: false })),
+            };
+            route.send(`42${JSON.stringify(['game:state_update', state])}`);
+          };
+        }
+      }
+      route.send(message);
+    });
+  });
+  await ready(page);
+  await page
+    .getByRole('button', { name: 'Jugar a Ciudad Fortuna contra un bot', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
+  await expect(page.locator('.city-token')).toHaveCount(2);
+  send(1);
+  await expect(page.locator('.dice-rolling')).toBeVisible();
+  await expect(page.locator('.city-token').first()).toHaveAttribute('data-position', /[1-4]/);
+  await expect(page.locator('.city-token').first()).toHaveAttribute('data-position', '5');
+  await expect(page.locator('.tokens-moving')).toHaveCount(0);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  send(2);
+  await expect(page.locator('.city-token').first()).toHaveAttribute('data-position', '5');
+  await expect(page.locator('.tokens-moving, .dice-rolling')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('.city-token')).toHaveCount(2);
+  await expect(page.locator('.tokens-moving, .dice-rolling')).toHaveCount(0);
+});
+
+test('Ciudad Fortuna: móvil abre el tablero legible y conserva acciones al ampliar texto', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await ready(page);
+  await page
+    .getByRole('button', { name: 'Jugar a Ciudad Fortuna contra un bot', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
+  await expect(page.locator('.board-zoomed')).toBeVisible();
+  const fontSize = await page
+    .locator('.tile-name')
+    .nth(1)
+    .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  expect(fontSize).toBeGreaterThanOrEqual(10);
+  await expect(page.getByRole('button', { name: 'Tirar dados', exact: true })).toBeInViewport({
+    ratio: 1,
+  });
+  await page.locator('.city-tile').nth(1).click();
+  await expect(page.getByRole('dialog')).toContainText('Alquileres');
+  await page.keyboard.press('Escape');
+  await page.screenshot({
+    path: 'tests/.output/screenshots/city-mobile-readable.png',
+    fullPage: true,
+  });
 });
