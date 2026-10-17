@@ -1,4 +1,4 @@
-import type { GameType, RoomInfo } from '../types/index.js';
+import type { GameType, RoomInfo, GamePublicState } from '../types/index.js';
 export interface Result {
   success: boolean;
   error?: string;
@@ -6,15 +6,16 @@ export interface Result {
 }
 export interface RoomResult extends Result {
   room?: RoomInfo;
-  state?: unknown;
+  state?: GamePublicState | null;
 }
 export interface ServerToClientEvents {
+  'session:incompatible': (data: { protocolVersion: number }) => void;
   'session:replaced': () => void;
-  'session:ready': (data: { playerId: string }) => void;
+  'session:ready': (data: { playerId: string; protocolVersion: number }) => void;
   'room:updated': (room: RoomInfo) => void;
   'room:closed': (reason: string) => void;
-  'game:started': (data: { gameType: GameType; publicState: unknown }) => void;
-  'game:state_update': (publicState: unknown) => void;
+  'game:started': (data: { gameType: GameType; publicState: GamePublicState }) => void;
+  'game:state_update': (publicState: GamePublicState) => void;
   'game:ended': (data: { winnerId: string | null; winnerName: string; isDraw?: boolean }) => void;
   'game:error': (message: string) => void;
   'game:notification': (notification: {

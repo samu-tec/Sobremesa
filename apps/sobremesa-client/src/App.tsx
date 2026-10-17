@@ -1,4 +1,4 @@
-import { getGame as getDefinition } from 'sobremesa-logic';
+import { PROTOCOL_VERSION, PROTOCOL_MISMATCH, getGame as getDefinition } from 'sobremesa-logic';
 import { t, useLocale } from './i18n';
 import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { X, WifiOff } from 'lucide-react';
@@ -18,32 +18,19 @@ import { WaitingRoomView } from './views/WaitingRoomView';
 import { GameLayout } from './ui/GameLayout';
 import { useGameResults } from './hooks/useGameResults';
 import { GameBoard } from './components/GameBoard';
+import { requestOnConnection } from './services/request';
 type PublicState = GamePublicState;
 function inviteCodeFrom(search: string) {
   const value = new URLSearchParams(search).get('room');
   return value && /^[A-HJ-NP-Z2-9]{6}$/i.test(value) ? value.toUpperCase() : null;
 }
 function request<T>(send: (done: (result: T) => void) => void): Promise<T> {
-  return new Promise((resolve, reject) => {
-    if (!socket.connected) {
-      reject(new Error(t('No hay conexión. Espera a que volvamos a conectar.')));
-      return;
-    }
-    const timeout = setTimeout(
-      () =>
-        reject(
-          new Error(
-            t('El servidor tarda en responder. Comprueba tu conexión e inténtalo otra vez.'),
-          ),
-        ),
-      10000,
-    );
-    send((result) => {
-      clearTimeout(timeout);
-      resolve(result);
-    });
+  return requestOnConnection(socket, send, {
+    offline: t('No hay conexión. Espera a que volvamos a conectar.'),
+    timeout: t('El servidor tarda en responder. Comprueba tu conexión e inténtalo otra vez.'),
   });
 }
+
 export function App() {
   const { locale } = useLocale();
   const { confirmed, playerId, playerName, updateName, updatePlayerId } = useGuestProfile();
@@ -52,6 +39,7 @@ export function App() {
     [connected, setConnected] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null);
+  const [incompatible, setIncompatible] = useState(false);
   const [replaced, setReplaced] = useState(false);
   const [tabConflict, setTabConflict] = useState<{ sameSession: boolean } | null>(null);
   const [tabConflictDeferred, setTabConflictDeferred] = useState(false);
@@ -95,7 +83,8 @@ export function App() {
       let again = false;
       request<RoomResult>((done) => socket.emit('game:reconnect', { roomCode: code }, done))
         .then((result) => {
-          if (disposed) return;
+          if (disposed || replacement.current || sessionStore.get('sobremesa.room') !== code)
+            return;
           if (result.success && result.room) {
             saveRoom(result.room);
             setState((result.state as PublicState) || null);
@@ -122,7 +111,20 @@ export function App() {
           if (!disposed && again) retry = setTimeout(recover, 3000);
         });
     };
-    const ready = ({ playerId }: { playerId: string }) => {
+    const ready = ({
+      playerId,
+      protocolVersion,
+    }: {
+      playerId: string;
+      protocolVersion: number;
+    }) => {
+      if (protocolVersion !== PROTOCOL_VERSION) {
+        setIncompatible(true);
+        replacement.current = true;
+        socket.disconnect();
+        return;
+      }
+      setIncompatible(false);
       updatePlayerId(playerId);
       setConnected(true);
       setReplaced(false);
@@ -143,8 +145,18 @@ export function App() {
       setState(publicState as PublicState);
     const update = (publicState: unknown) => setState(publicState as PublicState);
     const disconnected = () => setConnected(false);
-    const connectError = () => {
+    const connectError = (error: Error & { data?: { code?: string } }) => {
       setConnected(false);
+      if (error.data?.code === PROTOCOL_MISMATCH) {
+        replacement.current = true;
+        setIncompatible(true);
+        socket.disconnect();
+      }
+    };
+    const incompatibleSession = () => {
+      replacement.current = true;
+      setIncompatible(true);
+      socket.disconnect();
     };
     const superseded = () => {
       replacement.current = true;
@@ -162,6 +174,7 @@ export function App() {
     window.addEventListener('online', wake);
     window.addEventListener('pageshow', wake);
     document.addEventListener('visibilitychange', wake);
+    socket.on('session:incompatible', incompatibleSession);
     socket.on('session:replaced', superseded);
     socket.on('session:ready', ready);
     socket.on('room:updated', updated);
@@ -201,6 +214,7 @@ export function App() {
       window.removeEventListener('online', wake);
       window.removeEventListener('pageshow', wake);
       document.removeEventListener('visibilitychange', wake);
+      socket.off('session:incompatible', incompatibleSession);
       socket.off('session:replaced', superseded);
       socket.off('session:ready', ready);
       socket.off('room:updated', updated);
@@ -212,7 +226,7 @@ export function App() {
       socket.off('game:error', setError);
       socket.disconnect();
     };
-  }, []);
+  }, [clearRoom, updatePlayerId]);
   useEffect(() => {
     if (!error) return;
     const t = setTimeout(() => setError(null), 8000);
@@ -433,7 +447,23 @@ export function App() {
           </div>
         </Modal>
       )}
-      {!connected && room && (
+      {incompatible && (
+        <Modal
+          title={t('Hay una nueva versión de Sobremesa')}
+          dismissable={false}
+          onClose={() => {}}
+        >
+          <p>
+            {t(
+              'Actualiza la página para volver a conectar. Conservaremos tu sesión para intentar recuperar tu sala.',
+            )}
+          </p>
+          <button className="button primary" onClick={() => location.reload()}>
+            {t('Recargar la página')}
+          </button>
+        </Modal>
+      )}
+      {!connected && room && !incompatible && (
         <div className="offline-banner" role="status">
           <WifiOff size={17} />{' '}
           {replaced

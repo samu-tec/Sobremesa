@@ -8,14 +8,12 @@ export interface GameDefinition {
   duration: string;
   minPlayers: number;
   maxPlayers: number;
-  aliases: string[];
   rules: string[];
   tip: string;
 }
 
-// Search aliases are discovery metadata, never titles or claims of affiliation.
-export const GAME_CATALOG: readonly GameDefinition[] = [
-  {
+export const GAME_DEFINITIONS = {
+  monopoly: {
     id: 'monopoly',
     name: 'Ciudad Fortuna',
     category: 'Estrategia',
@@ -23,7 +21,6 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     minPlayers: 2,
     maxPlayers: 6,
     description: 'Compra calles, negocia con tus amigos y construye tu pequeño gran imperio.',
-    aliases: ['monopoly', 'monopoli', 'capital clash', 'richup', 'inmobiliario', 'propiedades'],
     rules: [
       'Por defecto, empiezas con 1.500 €. Tira dos dados y avanza por las 40 casillas. Al pasar por Salida cobras 200 €.',
       'Compra una propiedad libre o déjala en subasta. Todos los jugadores solventes pueden pujar, incluido quien rechazó comprarla. Cada oferta debe superar la anterior en al menos 10 €. La puja más alta gana cuando termina el plazo; cada nueva puja válida reinicia los 15 segundos. Pasar te retira de esa subasta.',
@@ -36,7 +33,7 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     ],
     tip: 'Completa grupos de color y guarda efectivo para los alquileres.',
   },
-  {
+  colorclash: {
     id: 'colorclash',
     name: 'Cambio de Color',
     category: 'Cartas',
@@ -44,7 +41,6 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     minPlayers: 2,
     maxPlayers: 4,
     description: 'Un color, un número y el momento perfecto para cambiarlo todo.',
-    aliases: ['uno', 'color clash', 'cartas', 'colores'],
     rules: [
       'Cada jugador recibe siete cartas por defecto; el anfitrión puede elegir cinco o nueve. Gana quien se queda sin cartas primero.',
       'Juega una carta del mismo color o valor que la carta central, o un comodín y elige color.',
@@ -55,7 +51,7 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     ],
     tip: 'Reserva un comodín para cuando cambie el color de la mesa.',
   },
-  {
+  connect4: {
     id: 'connect4',
     name: 'Cuatro en Línea',
     category: 'Clásicos',
@@ -63,7 +59,6 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     minPlayers: 2,
     maxPlayers: 2,
     description: 'Deja caer tu ficha. Conecta cuatro. Haz que cada movimiento cuente.',
-    aliases: ['conecta 4', 'connect four', 'connect4', 'cuatro en raya', '4 en raya'],
     rules: [
       'Dos jugadores alternan turnos en un tablero de siete columnas y seis filas.',
       'Elige una columna con espacio. Tu ficha cae a la casilla libre más baja.',
@@ -72,7 +67,7 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     ],
     tip: 'Controla el centro y vigila las diagonales de tu rival.',
   },
-  {
+  reversi: {
     id: 'reversi',
     name: 'Reversi',
     category: 'Estrategia',
@@ -80,7 +75,6 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     minPlayers: 2,
     maxPlayers: 2,
     description: 'Dale la vuelta al tablero. Una sola ficha puede cambiar la partida.',
-    aliases: ['othello', 'reversi', 'fichas', 'voltear'],
     rules: [
       'El tablero empieza con cuatro fichas en el centro. Las oscuras juegan primero.',
       'Coloca una ficha de modo que encierres al menos una ficha rival entre la nueva y otra tuya, en línea recta en cualquiera de las ocho direcciones.',
@@ -89,7 +83,7 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     ],
     tip: 'Las esquinas son seguras: una vez conquistadas no se pueden voltear.',
   },
-  {
+  tictactoe: {
     id: 'tictactoe',
     name: 'Tres en Raya',
     category: 'Clásicos',
@@ -97,7 +91,6 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     minPlayers: 2,
     maxPlayers: 2,
     description: 'El clásico de siempre. Tres casillas para una pequeña gran victoria.',
-    aliases: ['tic tac toe', 'tictactoe', 'tres en linea', '3 en raya', 'equis', 'gato'],
     rules: [
       'Dos jugadores colocan X y O por turnos en una cuadrícula de 3 × 3.',
       'Gana quien completa una fila, columna o diagonal con sus tres símbolos.',
@@ -106,7 +99,7 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     ],
     tip: 'Empieza por el centro y bloquea las parejas de tu rival.',
   },
-  {
+  pig: {
     id: 'pig',
     name: 'Dados al 100',
     category: 'Dados',
@@ -114,7 +107,6 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     minPlayers: 2,
     maxPlayers: 4,
     description: 'Una tirada más… ¿o mejor guardar? La suerte también se decide.',
-    aliases: ['pig', 'dados', 'cien', '100', 'arriesgar'],
     rules: [
       'Por turnos, tira un dado tantas veces como quieras. Del 2 al 6 sumas puntos temporales.',
       'Puedes plantarte para guardar los puntos del turno en tu marcador y pasar el dado.',
@@ -124,22 +116,13 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     tip: 'Plantarte con unos 20 puntos suele ser una buena decisión.',
   },
 
-  {
+  rummy: {
     id: 'rummy',
     name: 'Rummy de fichas',
     category: 'Clásicos',
     duration: '15–40 min',
     minPlayers: 2,
     maxPlayers: 4,
-    aliases: [
-      'rummy',
-      'rummikub',
-      'rummycub',
-      'rummikub fichas',
-      'rumikub',
-      'rami',
-      'rummy de fichas',
-    ],
     description: 'Forma grupos y escaleras, reorganiza la mesa y coloca todas tus fichas.',
     rules: [
       'Por defecto hay 106 fichas: dos copias del 1 al 13 en cuatro colores y dos comodines. Cada persona recibe catorce. Puedes ajustar el reparto, la apertura y los comodines en la sala. El objetivo es vaciar el atril.',
@@ -153,14 +136,13 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     ],
     tip: 'Abre con 30 puntos y observa la mesa: separar una escalera puede liberar la ficha que necesitas.',
   },
-  {
+  chess: {
     id: 'chess',
     name: 'Ajedrez',
     category: 'Estrategia',
     duration: '10–60 min',
     minPlayers: 2,
     maxPlayers: 2,
-    aliases: ['chess', 'ajedrez', 'jaque', 'reyes'],
     description: 'Cada pieza cuenta. Prepara tu ataque y protege a tu rey.',
     rules: [
       'Las blancas mueven primero. Selecciona una pieza para ver sus destinos legales. Gana quien da jaque mate al rey rival.',
@@ -170,14 +152,13 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     ],
     tip: 'Desarrolla tus piezas y comprueba las amenazas antes de mover.',
   },
-  {
+  impostor: {
     id: 'impostor',
     name: 'Impostor',
     category: 'Clásicos',
     duration: '5–15 min',
     minPlayers: 3,
     maxPlayers: 10,
-    aliases: ['impostor', 'imposter', 'palabra secreta', 'espia', 'undercover', 'camaleon'],
     description:
       'Todos conocen la palabra… salvo el impostor. Da pistas y descubre quién disimula.',
     rules: [
@@ -189,14 +170,13 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     ],
     tip: 'Da una pista que entiendan los tuyos sin regalar la palabra al impostor.',
   },
-  {
+  dominoes: {
     id: 'dominoes',
     name: 'Dominó',
     category: 'Clásicos',
     duration: '15–30 min',
     minPlayers: 2,
     maxPlayers: 4,
-    aliases: ['domino', 'dominoes', 'doble seis', 'fichas'],
     description: 'Une los extremos, lee la mesa y encuentra el momento de cerrar.',
     rules: [
       'Dominó individual de doble seis, de dos a cuatro personas. Se reparten siete fichas por jugador; las restantes forman el pozo. Abre el doble más alto repartido, o la ficha de mayor suma si no hay dobles.',
@@ -207,14 +187,13 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     ],
     tip: 'Libera fichas altas y observa qué números no pueden jugar tus rivales.',
   },
-  {
+  checkers: {
     id: 'checkers',
     name: 'Damas',
     category: 'Estrategia',
     duration: '10–30 min',
     minPlayers: 2,
     maxPlayers: 2,
-    aliases: ['damas', 'checkers', 'draughts', 'damas inglesas'],
     description: 'Captura, encadena saltos y corona tus fichas.',
     rules: [
       'Variante de damas inglesas en tablero de 8 × 8, con doce fichas por bando. Las oscuras, situadas abajo, empiezan. Se juega sobre las casillas oscuras.',
@@ -225,14 +204,13 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     ],
     tip: 'No dejes capturas dobles y lleva tus fichas hacia la coronación.',
   },
-  {
+  backgammon: {
     id: 'backgammon',
     name: 'Backgammon',
     category: 'Estrategia',
     duration: '10–30 min',
     minPlayers: 2,
     maxPlayers: 2,
-    aliases: ['backgammon', 'tavla', 'tablas reales'],
     description: 'Corre con tus quince fichas, captura al rival y sácalas antes que nadie.',
     rules: [
       'Partida individual sin cubo de doblaje. Cada bando tiene quince fichas en la disposición clásica. Cada jugador tira un dado para abrir; el mayor empieza utilizando esos dos valores. Los empates de apertura se repiten.',
@@ -243,14 +221,13 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     ],
     tip: 'Forma puntos con dos fichas y evita dejar fichas solas al alcance del rival.',
   },
-  {
+  battleship: {
     id: 'battleship',
     name: 'Batalla naval',
     category: 'Estrategia',
     duration: '10–25 min',
     minPlayers: 2,
     maxPlayers: 2,
-    aliases: ['hundir la flota', 'batalla naval', 'battleship', 'barcos'],
     description: 'Oculta tu flota y encuentra los barcos rivales, coordenada a coordenada.',
     rules: [
       'Cada jugador coloca cinco barcos de longitudes 5, 4, 3, 3 y 2 en su cuadrícula de 10 × 10. Pueden tocarse, pero no solaparse ni salir del tablero.',
@@ -260,14 +237,13 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     ],
     tip: 'Después de un impacto, busca en las casillas vecinas para seguir el barco.',
   },
-  {
+  mancala: {
     id: 'mancala',
     name: 'Mancala',
     category: 'Estrategia',
     duration: '5–20 min',
     minPlayers: 2,
     maxPlayers: 2,
-    aliases: ['mancala', 'kalah', 'kalaha', 'semillas'],
     description: 'Siembra semillas, prepara capturas y llena tu almacén.',
     rules: [
       'Variante Kalah: seis hoyos por jugador y un almacén a cada lado. Por defecto hay cuatro semillas por hoyo; puedes elegir entre tres y seis antes de empezar. Tu fila aparece abajo y tu almacén a la derecha.',
@@ -277,14 +253,13 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     ],
     tip: 'Busca turnos extra y vigila los hoyos vacíos que pueden capturar.',
   },
-  {
+  combinations: {
     id: 'combinations',
     name: 'Dados de combinaciones',
     category: 'Dados',
     duration: '15–30 min',
     minPlayers: 2,
     maxPlayers: 6,
-    aliases: ['yahtzee', 'yatzy', 'generala', 'poker de dados', 'combinaciones'],
     description: 'Cinco dados, trece casillas y una última oportunidad para mejorar tu tirada.',
     rules: [
       'De dos a seis jugadores. Por defecto tienes hasta tres tiradas con cinco dados; puedes elegir una, dos o tres antes de empezar. Entre tiradas, toca los dados que quieras guardar. Después anota una categoría libre, aunque valga cero.',
@@ -295,10 +270,12 @@ export const GAME_CATALOG: readonly GameDefinition[] = [
     ],
     tip: 'Cuida la sección superior: la bonificación de 35 puede decidir la partida.',
   },
-];
+} satisfies { [K in GameType]: GameDefinition & { id: K } };
+
+export const GAME_CATALOG: readonly GameDefinition[] = Object.values(GAME_DEFINITIONS);
 
 export function getGame(id: GameType): GameDefinition {
-  const game = GAME_CATALOG.find((game) => game.id === id);
+  const game = Object.hasOwn(GAME_DEFINITIONS, id) ? GAME_DEFINITIONS[id] : undefined;
   if (!game) throw new Error('Juego desconocido');
   return game;
 }
@@ -312,9 +289,7 @@ export function normalizeSearch(value: string): string {
 }
 
 export function matchesGame(game: GameDefinition, query: string): boolean {
-  const haystack = normalizeSearch(
-    [game.name, game.description, game.category, ...game.aliases].join(' '),
-  );
+  const haystack = normalizeSearch([game.name, game.description, game.category].join(' '));
   return normalizeSearch(query)
     .split(/\s+/)
     .every((word) => haystack.includes(word));

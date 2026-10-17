@@ -90,6 +90,7 @@ export class BatallaNavalEngine implements IGameEngine<
     };
   }
   validateAction(s: BatallaNavalState, id: string, a: BatallaNavalAction): boolean {
+    if (!a || typeof a !== 'object' || Array.isArray(a)) return false;
     if (!a || !liveTurn(s, id)) return false;
     const p = s.players.find((p) => p.id === id)!;
     if (s.phase === 'placement') {
@@ -134,7 +135,7 @@ export class BatallaNavalEngine implements IGameEngine<
       r = s.players.find((p) => p.id !== id),
       shots = p?.shots || [];
     return {
-      players: s.players.map(({ ships, shots, ready, ...p }) => ({
+      players: s.players.map(({ ships, shots: _shots, ready, ...p }) => ({
         ...p,
         ready,
         shipCount: ships.length,

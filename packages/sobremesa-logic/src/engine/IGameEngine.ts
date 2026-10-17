@@ -4,7 +4,7 @@
  */
 export interface IGameEngine<GameState, PlayerAction, PublicState> {
   /** Optional pre-game settings, validated by the room manager. */
-  setRules?(rules: any): void;
+  setRules?(rules: Record<string, unknown>): void;
 
   /**
    * Initializes a brand new game state with the assigned players.

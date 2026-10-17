@@ -1,3 +1,4 @@
+import { parseAllowedOrigins } from './origins.js';
 import { parseTrustedCloudflareIps } from './clientIp.js';
 function integer(name: string, fallback: number, min: number, max: number): number {
   const value = Number(process.env[name] ?? fallback);
@@ -9,13 +10,10 @@ const PORT = integer('PORT', 3000, 1, 65535);
 export const CONFIG = {
   PORT,
   HOST: process.env.HOST || '127.0.0.1',
-  ALLOWED_ORIGINS: (
+  ALLOWED_ORIGINS: parseAllowedOrigins(
     process.env.ALLOWED_ORIGINS ||
-    `https://games.samuelciocan.com,http://localhost:5173,http://127.0.0.1:5173,http://localhost:${PORT},http://127.0.0.1:${PORT}`
-  )
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean),
+      `https://games.samuelciocan.com,http://localhost:5173,http://127.0.0.1:5173,http://localhost:${PORT},http://127.0.0.1:${PORT}`,
+  ),
   TRUSTED_CLOUDFLARE_IPS: parseTrustedCloudflareIps(process.env.TRUSTED_CLOUDFLARE_IPS),
   DISCONNECT_GRACE_PERIOD_MS: integer('DISCONNECT_GRACE_PERIOD_MS', 300000, 1000, 300000),
   BOT_THINKING_TIME_MS: integer('BOT_THINKING_TIME_MS', 650, 10, 10000),

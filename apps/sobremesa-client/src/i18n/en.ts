@@ -1,4 +1,11 @@
 export const en: Record<string, string> = {
+  'Hay una nueva versión de Sobremesa': 'A new version of Sobremesa is available',
+  'Actualiza la página para volver a conectar. Conservaremos tu sesión para intentar recuperar tu sala.':
+    'Refresh the page to reconnect. We will keep your session and try to recover your room.',
+  'No se ha podido cargar una parte de Sobremesa.': 'Part of Sobremesa could not be loaded.',
+  'Puede haber una actualización o un problema de conexión. Recarga cuando quieras; tu sesión se conserva.':
+    'There may be an update or a connection problem. Reload when you are ready; your session is preserved.',
+
   Ajedrez: 'Chess',
   'Cada pieza cuenta. Prepara tu ataque y protege a tu rey.':
     'Every piece matters. Prepare your attack and protect your king.',

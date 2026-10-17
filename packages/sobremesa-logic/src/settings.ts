@@ -23,7 +23,13 @@ const toggle = (
   defaultValue: boolean,
 ): GameSetting => ({ key, label, description, defaultValue });
 /** One schema for the lobby, server validation and the rules shown during play. */
-export const GAME_SETTINGS: Partial<Record<GameType, readonly GameSetting[]>> = {
+export const GAME_SETTINGS: Record<GameType, readonly GameSetting[]> = {
+  monopoly: [], // The legacy economic settings have their own typed schema and UI.
+  colorclash: [], // startingCards is configured by the existing card-game UI.
+  tictactoe: [],
+  connect4: [],
+  reversi: [],
+  backgammon: [],
   rummy: [
     number(
       'openingPoints',

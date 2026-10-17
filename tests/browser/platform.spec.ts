@@ -18,15 +18,17 @@ async function ready(page: import('@playwright/test').Page) {
   await expect(page.getByText('Listo para jugar', { exact: true })).toBeVisible();
 }
 
-test('Catálogo, alias, categorías y favoritos', async ({ page }) => {
+test('Catálogo, búsqueda por nombre, categorías y favoritos', async ({ page }) => {
   await ready(page);
   await expect(page.locator('.game-card')).toHaveCount(15);
   const search = page.getByRole('searchbox', { name: 'Buscar juegos' });
-  await search.fill('monopoly');
+  await search.fill('ciudad fortuna');
   await expect(page.locator('.game-card')).toHaveCount(1);
   await expect(page.locator('.game-card h3')).toHaveText('Ciudad Fortuna');
-  await search.fill('uno');
+  await search.fill('cambio de color');
   await expect(page.locator('.game-card h3')).toHaveText('Cambio de Color');
+  await search.fill('monopoly');
+  await expect(page.locator('.game-card')).toHaveCount(0);
   await search.fill('inexistente');
   await expect(page.getByText('No encontramos ese juego', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Ver todos los juegos', exact: true }).click();
@@ -177,7 +179,7 @@ test('Dos navegadores juegan, terminan y preparan revancha', async ({ page, brow
     localStorage.setItem('sobremesa.profileConfirmed', 'true');
     localStorage.setItem('sobremesa.name', 'Bruno');
   });
-  await guest.goto(`http://127.0.0.1:3187/?room=${code}`);
+  await guest.goto(`${new URL(page.url()).origin}/?room=${code}`);
   await guest.getByRole('button', { name: 'Unirme a la partida', exact: true }).click();
   await expect(page.locator('.waiting-player:not(.empty-seat)')).toHaveCount(2);
   await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
@@ -248,7 +250,7 @@ test('Un enlace a otra sala tiene prioridad sobre una sala guardada al reabrir l
 });
 
 test('Escritorio, tablet y móvil sin desbordamiento horizontal', async ({ page }) => {
-  for (const width of [1440, 1024, 768, 600, 390, 360, 320]) {
+  for (const width of [1440, 1280, 1024, 768, 600, 390, 375, 360, 320]) {
     await page.setViewportSize({ width, height: 900 });
     await ready(page);
     expect(
@@ -321,7 +323,7 @@ test('Primera visita: idioma, apodo aleatorio, persistencia y privacidad', async
   await expect(page.locator('.game-card')).toHaveCount(15);
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.locator('.game-card h3').first()).toHaveText('Fortune City');
-  await page.getByRole('searchbox', { name: 'Search games' }).fill('monopoly');
+  await page.getByRole('searchbox', { name: 'Search games' }).fill('fortune city');
   await expect(page.locator('.game-card')).toHaveCount(1);
   await page.reload();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -331,6 +333,11 @@ test('Primera visita: idioma, apodo aleatorio, persistencia y privacidad', async
     page.getByRole('heading', { name: 'Who is responsible and how to get in touch', exact: true }),
   ).toBeVisible();
   await expect(page.locator('main')).toContainText('contacto@samuelciocan.com');
+  await expect(page.locator('main')).toContainText('does not generate access logs');
+  await expect(page.getByRole('link', { name: 'Source code terms', exact: true })).toHaveAttribute(
+    'href',
+    '/license.txt',
+  );
 });
 
 for (const [spanish, english] of [

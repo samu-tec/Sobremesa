@@ -109,6 +109,7 @@ export class ImpostorEngine implements IGameEngine<
     };
   }
   validateAction(s: ImpostorState, id: string, a: ImpostorAction): boolean {
+    if (!a || typeof a !== 'object' || Array.isArray(a)) return false;
     if (!a || !liveTurn(s, id)) return false;
     if (s.phase === 'clue')
       return (

@@ -21,7 +21,7 @@ El puerto 3000 sirve la última compilación del cliente, por lo que puede mostr
 
 - En la primera visita, elige un apodo o genera uno aleatorio. Comprueba el selector Español/English.
 - Cambia tu nombre desde el perfil y recarga: debe conservarse.
-- Busca `monopoly`: debe aparecer Ciudad Fortuna. Busca `uno`: debe aparecer Cambio de Color.
+- Busca `ciudad fortuna` y `cambio de color`: deben aparecer los juegos correspondientes. La búsqueda utiliza los nombres, descripciones y categorías del catálogo.
 - Prueba categorías, una búsqueda sin resultados y el botón para limpiar la búsqueda.
 - Marca un favorito y entra en «Mis favoritos». Debe seguir guardado tras recargar.
 
@@ -85,7 +85,7 @@ Recorre los controles con `Tab`. Los diálogos deben mantener el foco y cerrarse
 pnpm check
 ```
 
-Comprueba el formato, compila el proyecto y ejecuta las pruebas de motores, idiomas, integración y navegador. Estas últimas usan Google Chrome instalado. Para utilizar Chromium:
+Comprueba formato y lint, compila y ejecuta motores, idiomas, cancelación de ACK, integración y navegador. Estas últimas usan Google Chrome instalado. Para utilizar Chromium:
 
 ```sh
 pnpm exec playwright install chromium
@@ -125,4 +125,41 @@ Ciudad Fortuna incluye regresiones de rutas de movimiento, cárcel, alquileres c
 
 `game-contract.test.ts` simula partidas completas y verifica inmutabilidad, conservación de cartas/fichas/semillas y abandono. Los casos especiales de cada juego están en `<juego>.test.ts`, siguiendo el patrón de las pruebas de Ciudad Fortuna. `settings.test.ts` comprueba las variantes configurables y su efecto real en los motores. Las pruebas de integración cubren salas independientes, proyecciones privadas, permisos, validación de opciones y agotamiento real de turnos de 30 segundos. `server.test.mjs` comprueba que las acciones parciales no reinicien el plazo.
 
-En navegador, `games.spec.ts` juega una acción real, recarga, cambia de idioma y revisa accesibilidad en cada uno de los nueve juegos añadidos a 1280 y 320 px. `settings-and-motion.spec.ts` comprueba opciones de la sala, restauración de valores predeterminados, movimientos de ajedrez, fichas de rummy, dados guardados, siembra de mancala y preferencia de movimiento reducido. `platform.spec.ts` conserva las pruebas de plataforma y los juegos anteriores. Las capturas móviles quedan en `tests/.output/screenshots/`.
+En navegador, `games.spec.ts` juega una acción real, recarga, cambia de idioma y revisa accesibilidad en cada uno de los tableros cubiertos por esa suite a 1280 y 320 px. `settings-and-motion.spec.ts` comprueba opciones de la sala, restauración de valores predeterminados, movimientos de ajedrez, fichas de rummy, dados guardados, siembra de mancala y preferencia de movimiento reducido. `platform.spec.ts` conserva las pruebas de plataforma y el resto de juegos. Las capturas móviles quedan en `tests/.output/screenshots/`.
+
+## Navegadores y pruebas de interacción
+
+```sh
+pnpm exec playwright install chromium firefox webkit
+PLAYWRIGHT_BROWSER=chromium pnpm check
+PLAYWRIGHT_BROWSER=firefox pnpm test:e2e
+PLAYWRIGHT_BROWSER=webkit pnpm test:e2e
+```
+
+Sin variable se usa Chrome instalado. Las carpetas de trazas se separan por navegador y destino bajo `tests/.output/results/`. Las capturas ilustrativas no son snapshots aprobados. `robustness.spec.ts` prueba foco e inert, recuperación de módulo 404 conservando sesión, reflujo en 320/375/390/768/1280 px y acción por teclado. La suite añade incompatibilidad de protocolo con recarga voluntaria y el snapshot de media query obsoleto de Ciudad Fortuna. En Dominó realiza una acción real de colocar o robar según la mano legal, sin asumir un reparto favorable. El código `WWWWWW` es un caso de layout deliberadamente ancho. Las pruebas no certifican WCAG ni Safari real.
+
+`tests/client.test.mjs` prueba que un ACK posterior a desconectar o caducar no restaure la sala anterior, y que fallos de envío liberen listeners. Las pruebas de registro comprueban motores separados, acciones inválidas inocuas y abandono; las de integración incluyen incompatibilidad y treinta handshakes concurrentes por IP. Los motores de dados y Ciudad Fortuna admiten aleatoriedad inyectable para reproducir secuencias sin reemplazar Math.random global; los demás conservan sus pruebas existentes.
+
+## Docker local aislado
+
+Con Docker Desktop disponible:
+
+```sh
+pnpm test:docker
+```
+
+El script usa el contexto local Unix, el Dockerfile real y una etiqueta y contenedor `sobremesa:local-test-<pid>` / `sobremesa-local-test-<pid>`. Publica solo `127.0.0.1:13000`, permite los dos orígenes locales correspondientes, usa el bridge ordinario y no monta archivos ni `.env`. Requiere el puerto libre: si está ocupado, termina sin parar el servicio existente. No usa Compose, Cloudflare ni un contexto Docker remoto.
+
+Comprueba frontend, JS/CSS, caché/CSP, health/stats, polling y WebSocket, dos jugadores, permisos, acciones, reconexión y bots. Después ejecuta la suite E2E completa contra ese contenedor, comprueba healthcheck, usuario no root, filesystem de solo lectura y límites de CPU, memoria y procesos. Al terminar, incluso si falla una prueba, detiene por id y elimina solo el contenedor y etiqueta creados. Comprueba que SIGTERM termina con código cero. El caché local de build puede permanecer; nunca usa prune.
+
+Para repetir navegador contra un servidor local ya preparado:
+
+```sh
+PLAYWRIGHT_BASE_URL=http://127.0.0.1:13000 PLAYWRIGHT_BROWSER=chromium pnpm test:e2e
+```
+
+Solo se admiten hostnames de loopback; con esa variable Playwright no inicia otro servidor. No apuntes estas pruebas al dominio público.
+
+## Alcance de las comprobaciones
+
+Las pruebas locales no acreditan capacidad para los límites máximos de salas/conexiones ni sustituyen la revisión de [ACCESSIBILITY.md](ACCESSIBILITY.md).

@@ -17,28 +17,26 @@ const players = [
   { id: 'a', isBot: true, name: 'Ana' },
   { id: 'b', isBot: true, name: 'Bruno' },
 ];
-test('Catálogo: quince juegos, alias y reglas propias', () => {
+test('Catálogo: quince juegos, búsqueda por nombres propios y reglas', () => {
   assert.equal(GAME_CATALOG.length, 15);
   assert.equal(new Set(GAME_CATALOG.map((g) => g.id)).size, 15);
-  assert.deepEqual(
-    GAME_CATALOG.filter((game) => matchesGame(game, 'uno')).map((game) => game.id),
-    ['colorclash'],
-  );
-  assert.deepEqual(
-    GAME_CATALOG.filter((game) => matchesGame(game, 'rummikub')).map((game) => game.id),
-    ['rummy'],
-  );
   for (const [query, id] of [
-    ['monopoly', 'monopoly'],
-    ['MONÓPOLI', 'monopoly'],
-    ['uno', 'colorclash'],
-    ['conecta 4', 'connect4'],
-    ['othello', 'reversi'],
+    ['ciudad fortuna', 'monopoly'],
+    ['CAMBIO DE COLOR', 'colorclash'],
+    ['cuatro en linea', 'connect4'],
+    ['rummy de fichas', 'rummy'],
+    ['reversi', 'reversi'],
   ])
     assert.ok(GAME_CATALOG.some((g) => g.id === id && matchesGame(g, query)));
+  for (const query of ['monopoly', 'monópoli', 'uno', 'rummikub', 'othello', 'yahtzee', 'richup'])
+    assert.equal(
+      GAME_CATALOG.some((g) => matchesGame(g, query)),
+      false,
+    );
   for (const game of GAME_CATALOG) {
     assert.ok(game.rules.length >= 4);
     assert.ok(!/monopoly|uno|richup/i.test(game.name));
+    assert.equal(Object.hasOwn(game, 'aliases'), false);
   }
 });
 test('Cuatro en Línea: gravedad, victorias, turnos y límites', () => {

@@ -43,6 +43,7 @@ export function CiudadFortunaBoard({
     const query = matchMedia('(max-width: 900px)');
     const change = () => setCompact(query.matches);
     query.addEventListener('change', change);
+    change(); // A resize between render and subscription must not leave the desktop controls on mobile.
     return () => query.removeEventListener('change', change);
   }, []);
   const [tab, setTab] = useState<'properties' | 'trade' | 'history'>('properties'),

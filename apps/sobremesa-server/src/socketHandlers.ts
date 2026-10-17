@@ -1,14 +1,28 @@
 import type { Server, Socket } from 'socket.io';
 import {
   GAME_CATALOG,
+  PROTOCOL_VERSION,
   type ClientToServerEvents,
   type ServerToClientEvents,
   type SocketData,
   type GameType,
+  type InterServerEvents,
+  type Result,
+  type RoomResult,
 } from 'sobremesa-logic';
 import type { RoomManager } from './RoomManager.js';
-type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, any, SocketData>;
-type TypedServer = Server<ClientToServerEvents, ServerToClientEvents, any, SocketData>;
+type TypedSocket = Socket<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  SocketData
+>;
+type TypedServer = Server<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  SocketData
+>;
 interface RoomCreationGuard {
   allowAttempt: () => boolean;
   canCreateGlobally: () => boolean;
@@ -34,15 +48,23 @@ export function registerSocketHandlers(
   manager: RoomManager,
   roomCreationGuard: RoomCreationGuard,
 ) {
-  socket.emit('session:ready', { playerId: socket.data.playerId });
+  socket.emit('session:ready', {
+    playerId: socket.data.playerId,
+    protocolVersion: PROTOCOL_VERSION,
+  });
   let tokens = 30,
     updated = Date.now(),
     rateLimitViolations = 0;
   // Runtime guards matter: network messages do not inherit TypeScript's guarantees.
-  const on = (event: string, handler: (...args: any[]) => unknown) => {
-    (socket.on as Function)(event, (...args: any[]) => {
-      const callback =
-        typeof args[args.length - 1] === 'function' ? args[args.length - 1] : undefined;
+  // Socket.IO's generic overloads describe trusted callers; this boundary validates unknown data.
+  const subscribe = socket.on.bind(socket) as (
+    event: keyof ClientToServerEvents,
+    listener: (...args: unknown[]) => void,
+  ) => void;
+  const on = (event: keyof ClientToServerEvents, handler: (...args: unknown[]) => Result) => {
+    subscribe(event, (...args: unknown[]) => {
+      const last = args.at(-1);
+      const callback = typeof last === 'function' ? last : undefined;
       const reply = (result: unknown) => callback?.(result);
       const now = Date.now();
       tokens = Math.min(30, tokens + (now - updated) / 200);
@@ -65,12 +87,12 @@ export function registerSocketHandlers(
       }
     });
   };
-  const roomAction = (operation: (roomCode: string, id: string) => unknown) => {
+  const roomAction = (operation: (roomCode: string, id: string) => Result) => {
     const room = manager.getRoomBySocket(socket.id);
     if (!room) return { success: false, error: 'No estás en una sala.' };
     return operation(room.code, socket.data.playerId);
   };
-  const enter = (result: any) => {
+  const enter = <T extends RoomResult>(result: T): T => {
     if (result.success && result.room) {
       socket.join(result.room.code);
       socket.data.roomCode = result.room.code;

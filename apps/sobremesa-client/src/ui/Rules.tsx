@@ -39,10 +39,12 @@ export function Rules({
           {room.gameType === 'monopoly' && (
             <>
               <p>
-                {t('Dinero inicial')}: {formatMoney(room.customRules.startingCash)} ·{' '}
-                {t('Salario al pasar por Salida')}: {formatMoney(room.customRules.salaryGO)} ·{' '}
-                {t('Límite de rondas')}:{' '}
-                {room.customRules.maxRounds == null ? t('Sin límite') : room.customRules.maxRounds}
+                {t('Dinero inicial')}: {formatMoney(room.customRules?.startingCash ?? 1500)} ·{' '}
+                {t('Salario al pasar por Salida')}: {formatMoney(room.customRules?.salaryGO ?? 200)}{' '}
+                · {t('Límite de rondas')}:{' '}
+                {room.customRules?.maxRounds == null
+                  ? t('Sin límite')
+                  : room.customRules?.maxRounds}
               </p>
               {[
                 ['auctionEnabled', 'Subastar propiedades rechazadas'],
@@ -52,12 +54,13 @@ export function Rules({
                 ['evenBuilding', 'Construcción equilibrada'],
               ].map(([key, label]) => (
                 <p key={key}>
-                  {t(label)}: {t(room.customRules[key] ? 'Sí' : 'No')}
+                  {t(label)}: {t(room.customRules?.[key] ? 'Sí' : 'No')}
                 </p>
               ))}
               <p>
-                {t('Multa para salir de la cárcel')}: {formatMoney(room.customRules.jailFine)} ·{' '}
-                {t('Intentos para salir con dobles')}: {room.customRules.maxJailTurns}
+                {t('Multa para salir de la cárcel')}:{' '}
+                {formatMoney(room.customRules?.jailFine ?? 50)} ·{' '}
+                {t('Intentos para salir con dobles')}: {room.customRules?.maxJailTurns}
               </p>
             </>
           )}

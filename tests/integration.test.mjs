@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { io } from 'socket.io-client';
+import { PROTOCOL_VERSION } from '../packages/sobremesa-logic/dist/index.js';
 const url = 'http://127.0.0.1:3190';
 let server;
 const clients = [];
@@ -46,7 +47,7 @@ const ack = (socket, event, ...data) =>
   });
 async function connect(token = secret(), extra = {}) {
   const socket = io(url, {
-    auth: { sessionToken: token },
+    auth: { sessionToken: token, protocolVersion: PROTOCOL_VERSION },
     transports: ['websocket'],
     reconnection: false,
     ...extra,
@@ -55,6 +56,13 @@ async function connect(token = secret(), extra = {}) {
   const { playerId } = await new Promise((resolve, reject) => {
     socket.once('session:ready', resolve);
     socket.once('connect_error', reject);
+    socket.once('session:incompatible', ({ protocolVersion }) =>
+      reject(
+        Object.assign(new Error('Protocol mismatch'), {
+          data: { code: 'PROTOCOL_MISMATCH', protocolVersion },
+        }),
+      ),
+    );
   });
   return { socket, playerId, token };
 }
@@ -84,6 +92,9 @@ test('HTTP: cabeceras, catálogo de quince juegos y rutas desconocidas', async (
   const notices = await fetch(url + '/third-party-notices.txt');
   assert.equal(notices.status, 200);
   assert.match(await notices.text(), /lucide-react[\s\S]*react-dom[\s\S]*socket.io-client/);
+  const license = await fetch(url + '/license.txt');
+  assert.equal(license.status, 200);
+  assert.match(await license.text(), /Samuel Ciocan[\s\S]*Todos los derechos reservados/);
 });
 test('Rechaza orígenes ajenos y secretos de sesión no válidos', async () => {
   await assert.rejects(connect('short'));
@@ -91,6 +102,15 @@ test('Rechaza orígenes ajenos y secretos de sesión no válidos', async () => {
   const a = await connect();
   assert.match(a.playerId, /^guest_[a-f0-9]{32}$/);
   a.socket.disconnect();
+});
+test('Un cliente de protocolo antiguo recibe un error explícito y conserva su secreto', async () => {
+  for (const protocolVersion of [undefined, 0, PROTOCOL_VERSION + 1, '1']) {
+    await assert.rejects(
+      connect(secret(), { auth: { sessionToken: secret(), protocolVersion } }),
+      (error) =>
+        error.data?.code === 'PROTOCOL_MISMATCH' && error.data.protocolVersion === PROTOCOL_VERSION,
+    );
+  }
 });
 test('Eventos malformados no tumban el servidor ni crean salas', async () => {
   const a = await connect();
@@ -500,3 +520,19 @@ test(
     }
   },
 );
+
+test('Los handshakes concurrentes no superan treinta sesiones por IP y liberan las plazas', async () => {
+  const attempts = await Promise.allSettled(Array.from({ length: 35 }, () => connect()));
+  const accepted = attempts
+    .filter((result) => result.status === 'fulfilled')
+    .map((result) => result.value);
+  try {
+    assert.equal(accepted.length, 30);
+    assert.equal(attempts.filter((result) => result.status === 'rejected').length, 5);
+  } finally {
+    for (const client of accepted) client.socket.disconnect();
+  }
+  await wait(100);
+  const next = await connect();
+  next.socket.disconnect();
+});

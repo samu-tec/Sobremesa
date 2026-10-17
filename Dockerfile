@@ -3,7 +3,7 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@12.10.1 --activate
 
 FROM base AS builder
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml LICENSE ./
 COPY packages/sobremesa-logic/package.json ./packages/sobremesa-logic/
 COPY apps/sobremesa-server/package.json ./apps/sobremesa-server/
 COPY apps/sobremesa-client/package.json ./apps/sobremesa-client/
@@ -19,6 +19,7 @@ RUN pnpm build \
 FROM node:22-alpine AS runner
 WORKDIR /app/apps/sobremesa-server
 ENV NODE_ENV=production HOST=0.0.0.0
+COPY --from=builder /app/LICENSE /app/LICENSE
 COPY --from=builder /prod/sobremesa-server ./
 COPY --from=builder /app/apps/sobremesa-client/dist ../sobremesa-client/dist
 USER node

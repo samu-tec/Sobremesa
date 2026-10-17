@@ -54,6 +54,7 @@ export class CuatroEnLineaEngine implements IGameEngine<
     };
   }
   validateAction(state: CuatroEnLineaState, id: string, action: CuatroEnLineaAction): boolean {
+    if (!action || typeof action !== 'object' || Array.isArray(action)) return false;
     return (
       !!action &&
       action.type === 'DROP' &&
@@ -71,6 +72,7 @@ export class CuatroEnLineaEngine implements IGameEngine<
     id: string,
     action: CuatroEnLineaAction,
   ): CuatroEnLineaState {
+    if (!this.validateAction(state, id, action)) return state;
     const board = [...state.board],
       index = landing(board, action.column);
     board[index] = id;
@@ -92,6 +94,7 @@ export class CuatroEnLineaEngine implements IGameEngine<
     return state.winner;
   }
   forfeitPlayer(state: CuatroEnLineaState, id: string): CuatroEnLineaState {
+    if (state.winner || state.isDraw || !state.players.some((p) => p.id === id)) return state;
     return { ...state, winner: state.players.find((p) => p.id !== id)!.id };
   }
   getBotAction(state: CuatroEnLineaState, id: string): CuatroEnLineaAction | null {

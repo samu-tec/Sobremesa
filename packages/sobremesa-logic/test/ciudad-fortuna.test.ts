@@ -1,5 +1,4 @@
 import { CiudadFortunaEngine } from '../src/games/ciudad-fortuna/engine.js';
-import { BOARD_TILES, PROPERTY_GROUPS } from '../src/games/ciudad-fortuna/boardData.js';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -68,7 +67,7 @@ const botRentState = {
 };
 
 // Force bot to land on tile 1
-const botTurn1 = engine.applyAction(
+engine.applyAction(
   {
     ...botRentState,
     lastDice: [1, 0] as [number, number],

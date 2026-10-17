@@ -4,7 +4,7 @@ Juegos de mesa para compartir con amigos desde el navegador. Incluye quince jueg
 
 **Dirección pública prevista:** [games.samuelciocan.com](https://games.samuelciocan.com). El proyecto se llama **Sobremesa**; `games.samuelciocan.com` es su dirección web.
 
-Sobremesa es un proyecto personal y su código fuente es público en [GitHub](https://github.com/samu-tec/Sobremesa).
+Sobremesa es un proyecto personal gratuito, sin anuncios ni pagos. Su código fuente se muestra con derechos reservados en [GitHub](https://github.com/samu-tec/Sobremesa).
 
 ## Probar la aplicación
 
@@ -46,7 +46,7 @@ La [guía de pruebas](docs/TESTING.md) explica qué revisar en cada juego, cómo
 
 La tabla describe los valores predeterminados. Antes de empezar, el anfitrión puede ajustar las variantes disponibles desde «Opciones de la partida»: apertura y reparto de rummy, objetivo del dominó, pistas del impostor, semillas de mancala y otras opciones. Las reglas de la sala muestran los valores elegidos.
 
-Todos tienen bots, salas, reloj, reconexión, reglas y controles en español e inglés. El modo contra bots añade las plazas mínimas necesarias (dos bots para Impostor). Al terminar puedes consultar la mesa y volver al resultado antes de la revancha. Los nombres descriptivos y las ilustraciones propias distinguen estas variantes; los alias ayudan a encontrarlas.
+Todos tienen bots, salas, reloj, reconexión, reglas y controles en español e inglés. El modo contra bots añade las plazas mínimas necesarias (dos bots para Impostor). Al terminar puedes consultar la mesa y volver al resultado antes de la revancha. Los nombres descriptivos y las ilustraciones propias distinguen estas variantes; la búsqueda utiliza sus nombres, descripciones y categorías.
 
 ## Estructura
 
@@ -83,26 +83,40 @@ Los archivos de configuración de la raíz tienen estas funciones:
 
 ## Comandos
 
-| Comando                 | Uso                                                      |
-| ----------------------- | -------------------------------------------------------- |
-| `pnpm dev`              | Desarrollar y probar en el puerto 5173                   |
-| `pnpm build`            | Compilar los tres paquetes                               |
-| `pnpm start`            | Servir la aplicación compilada en el puerto 3000         |
-| `pnpm test:i18n`        | Verificar traducciones y parámetros                      |
-| `pnpm test`             | Probar las reglas y los bots                             |
-| `pnpm test:integration` | Probar sesiones y permisos con un servidor temporal      |
-| `pnpm test:e2e`         | Probar la interfaz con un navegador                      |
-| `pnpm check`            | Comprobar formato, compilar y ejecutar todas las pruebas |
-| `pnpm format`           | Dar formato al código con Prettier                       |
+| Comando                 | Uso                                                             |
+| ----------------------- | --------------------------------------------------------------- |
+| `pnpm dev`              | Desarrollar y probar en el puerto 5173                          |
+| `pnpm build`            | Compilar los tres paquetes                                      |
+| `pnpm start`            | Servir la aplicación compilada en el puerto 3000                |
+| `pnpm test:i18n`        | Verificar traducciones y parámetros                             |
+| `pnpm test`             | Probar las reglas y los bots                                    |
+| `pnpm test:integration` | Probar sesiones y permisos con un servidor temporal             |
+| `pnpm test:e2e`         | Probar la interfaz con un navegador                             |
+| `pnpm lint`             | Comprobar TypeScript, Hooks y accesibilidad estática            |
+| `pnpm test:client`      | Probar cancelación de respuestas y limpieza de listeners        |
+| `pnpm test:docker`      | Construir y probar producción en Docker local aislado           |
+| `pnpm check`            | Comprobar formato y lint, compilar y ejecutar todas las pruebas |
+| `pnpm format`           | Dar formato al código con Prettier                              |
 
 Las pruebas de integración y navegador necesitan que hayas ejecutado `pnpm build`. Las de navegador usan Google Chrome instalado; hay una alternativa con Chromium en la [guía de pruebas](docs/TESTING.md).
 
 ## Desarrollo y alojamiento
 
-- [Revisión del juego y seguridad](docs/REVIEW.md): mejoras, validación y aspectos legales pendientes del despliegue.
-- [Decisiones del proyecto](docs/DECISIONS.md): arquitectura, estilo y reglas que conviene mantener.
+- [Reglas y variantes](docs/GAME_RULES.md): comportamiento de los motores y opciones disponibles.
+- [Arquitectura](docs/ARCHITECTURE.md) y [añadir un juego](docs/ADD_GAME.md): contratos, registros y responsabilidades.
+- [Sistema de diseño](docs/DESIGN_SYSTEM.md) y [accesibilidad](docs/ACCESSIBILITY.md): componentes, criterios y comprobaciones de accesibilidad.
+- [Uso del código y materiales](docs/LEGAL.md): derechos reservados, dependencias y privacidad.
 - [Guía de desarrollo](docs/CONTRIBUTING.md): dónde añadir un juego y cómo integrarlo con la interfaz.
 - [Pruebas](docs/TESTING.md): comprobaciones manuales y automáticas.
 - [Despliegue](docs/DEPLOYMENT.md): Node, Docker y Cloudflare Tunnel para `games.samuelciocan.com`.
 
 Las salas están en memoria: reiniciar el servidor termina las partidas. La reconexión permite recuperar la plaza durante cinco minutos por defecto mientras el servidor siga funcionando. Las invitaciones dejan de funcionar cuando se cierra o caduca la sala.
+
+## Licencia
+
+Copyright © 2026 Samuel Ciocan. Código propio con derechos reservados: puedes consultarlo y evaluarlo localmente sin modificarlo. Para modificarlo, reutilizarlo, redistribuirlo o explotarlo comercialmente necesitas autorización previa por escrito en contacto@samuelciocan.com. Se respetan los derechos de consulta y fork previstos por GitHub y las licencias de terceros. Consulta [LICENSE](LICENSE) y [la documentación de uso](docs/LEGAL.md).
+
+## Scripts de mantenimiento
+
+- `generate-notices.mjs` se ejecuta al compilar: conserva las licencias de las dependencias y publica las condiciones del código propio.
+- `test-docker.mjs` comprueba la imagen con un contenedor local temporal y elimina únicamente sus propios recursos.

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { sessionStore } from '../services/socket';
 export function useGuestProfile() {
   const [confirmed, setConfirmed] = useState(() => {
@@ -39,9 +39,9 @@ export function useGuestProfile() {
       /* Optional preference. */
     }
   };
-  const updatePlayerId = (id: string) => {
+  const updatePlayerId = useCallback((id: string) => {
     sessionStore.set('sobremesa.playerId', id);
     setId(id);
-  };
+  }, []);
   return { confirmed, playerId, playerName, updateName, updatePlayerId };
 }

@@ -2,6 +2,8 @@ import { resolveGameSettings } from '../../settings.js';
 import type { IGameEngine } from '../../engine/IGameEngine.js';
 import {
   participants,
+  systemRandom,
+  type RandomSource,
   liveTurn,
   nextPlayer,
   die,
@@ -88,6 +90,7 @@ export class DadosDeCombinacionesEngine implements IGameEngine<
   DadosDeCombinacionesAction,
   DadosDeCombinacionesPublicState
 > {
+  constructor(private random: RandomSource = systemRandom) {}
   private options = resolveGameSettings('combinations');
   setRules(rules: Record<string, unknown>) {
     this.options = resolveGameSettings('combinations', rules);
@@ -106,6 +109,7 @@ export class DadosDeCombinacionesEngine implements IGameEngine<
     };
   }
   validateAction(s: DadosDeCombinacionesState, id: string, a: DadosDeCombinacionesAction): boolean {
+    if (!a || typeof a !== 'object' || Array.isArray(a)) return false;
     if (!a || !liveTurn(s, id)) return false;
     if (a.type === 'ROLL')
       return (
@@ -127,7 +131,9 @@ export class DadosDeCombinacionesEngine implements IGameEngine<
     const n = structuredClone(s),
       p = n.players.find((p) => p.id === id)!;
     if (a.type === 'ROLL') {
-      n.dice = Array.from({ length: 5 }, (_, i) => (a.keep.includes(i) ? s.dice[i] : die()));
+      n.dice = Array.from({ length: 5 }, (_, i) =>
+        a.keep.includes(i) ? s.dice[i] : die(this.random),
+      );
       n.rolls++;
       return n;
     }

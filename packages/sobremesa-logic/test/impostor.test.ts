@@ -24,7 +24,7 @@ test('Impostor: palabra y voto privados, intento final y victoria de equipo', ()
   s = e.applyAction(s, 'p2', { type: 'VOTE', target: 'p1' });
   s = e.applyAction(s, 'p3', { type: 'VOTE', target: 'p2' });
   assert.equal(s.phase, 'guess');
-  let wrong = e.applyAction(s, 'p2', { type: 'GUESS', word: 'incorrecta' });
+  const wrong = e.applyAction(s, 'p2', { type: 'GUESS', word: 'incorrecta' });
   assert.deepEqual(wrong.winnerIds, ['p0', 'p1', 'p3']);
   assert.equal(e.getSanitizedState(wrong, 'p0').revealedImpostor, 'p2');
   s = e.applyAction(s, 'p2', { type: 'GUESS', word: s.secret.en });

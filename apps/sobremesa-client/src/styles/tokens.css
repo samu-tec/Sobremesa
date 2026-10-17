@@ -1,0 +1,42 @@
+:root {
+  font-family:
+    Inter,
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  color: var(--ink);
+  background: var(--background);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --background: #f7f8f4;
+  --text-on-primary: #fffdf4;
+  --focus: #9c4b17;
+  --focus-on-dark: #f7dfad;
+  --error: #9b3528;
+  --success: #2e654e;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --font-body: 14px;
+  --font-control: 12px;
+  --radius-control: 8px;
+  --radius-dialog: 17px;
+  --shadow-dialog: 0 24px 120px #122d3245;
+  --control-height: 44px;
+  --duration-fast: 0.18s;
+  --layer-notice: 70;
+  --layer-dialog: 80;
+  --ink: #243b32;
+  --muted: #626f5d;
+  --line: #e2e7df;
+  --green: #2e654e;
+  --mint: #d8eddf;
+  --paper: #fffefa;
+  --coral: #d47d62;
+}

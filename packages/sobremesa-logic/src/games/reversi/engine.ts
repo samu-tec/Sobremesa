@@ -59,6 +59,7 @@ export class ReversiEngine implements IGameEngine<ReversiState, ReversiAction, R
     };
   }
   validateAction(state: ReversiState, id: string, action: ReversiAction): boolean {
+    if (!action || typeof action !== 'object' || Array.isArray(action)) return false;
     return (
       !!action &&
       action.type === 'PLACE' &&
@@ -69,6 +70,7 @@ export class ReversiEngine implements IGameEngine<ReversiState, ReversiAction, R
     );
   }
   applyAction(state: ReversiState, id: string, action: ReversiAction): ReversiState {
+    if (!this.validateAction(state, id, action)) return state;
     const board = [...state.board];
     const flips = reversiFlips(board, id, action.index);
     for (const index of [...flips, action.index]) board[index] = id;
@@ -108,6 +110,7 @@ export class ReversiEngine implements IGameEngine<ReversiState, ReversiAction, R
     return state.winner;
   }
   forfeitPlayer(state: ReversiState, id: string): ReversiState {
+    if (state.winner || state.isDraw || !state.players.some((p) => p.id === id)) return state;
     return {
       ...state,
       winner: state.players.find((p) => p.id !== id)!.id,

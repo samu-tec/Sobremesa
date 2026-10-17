@@ -85,6 +85,7 @@ export class DamasEngine implements IGameEngine<DamasState, DamasAction, DamasPu
     return s;
   }
   validateAction(s: DamasState, id: string, a: DamasAction) {
+    if (!a || typeof a !== 'object' || Array.isArray(a)) return false;
     return (
       !!a &&
       a.type === 'MOVE' &&

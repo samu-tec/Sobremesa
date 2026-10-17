@@ -34,6 +34,7 @@ export class TresEnRayaEngine implements IGameEngine<
   }
 
   validateAction(state: TresEnRayaState, playerId: string, action: TresEnRayaAction): boolean {
+    if (!action || typeof action !== 'object' || Array.isArray(action)) return false;
     if (state.winner !== null || state.isDraw) {
       return false;
     }
@@ -55,6 +56,7 @@ export class TresEnRayaEngine implements IGameEngine<
   }
 
   applyAction(state: TresEnRayaState, playerId: string, action: TresEnRayaAction): TresEnRayaState {
+    if (!this.validateAction(state, playerId, action)) return state;
     const player = state.players.find((p) => p.id === playerId);
     if (!player) {
       throw new Error(`Player ${playerId} not found in game state`);
@@ -111,6 +113,7 @@ export class TresEnRayaEngine implements IGameEngine<
   }
 
   forfeitPlayer(state: TresEnRayaState, id: string): TresEnRayaState {
+    if (state.winner || state.isDraw || !state.players.some((p) => p.id === id)) return state;
     return { ...state, winner: state.players.find((p) => p.id !== id)!.id };
   }
 

@@ -1,3 +1,4 @@
+import { die, systemRandom, type RandomSource } from '../../engine/helpers.js';
 import { resolveGameSettings } from '../../settings.js';
 import { message as msg, type GameText } from '../../messages.js';
 import type { IGameEngine } from '../../engine/IGameEngine.js';
@@ -17,6 +18,7 @@ export class DadosAl100Engine implements IGameEngine<
   DadosAl100Action,
   DadosAl100State
 > {
+  constructor(private random: RandomSource = systemRandom) {}
   private options = resolveGameSettings('pig');
   setRules(rules: Record<string, unknown>) {
     this.options = resolveGameSettings('pig', rules);
@@ -36,6 +38,7 @@ export class DadosAl100Engine implements IGameEngine<
     };
   }
   validateAction(state: DadosAl100State, id: string, action: DadosAl100Action): boolean {
+    if (!action || typeof action !== 'object' || Array.isArray(action)) return false;
     return (
       !!action &&
       !state.winner &&
@@ -44,6 +47,7 @@ export class DadosAl100Engine implements IGameEngine<
     );
   }
   applyAction(state: DadosAl100State, id: string, action: DadosAl100Action): DadosAl100State {
+    if (!this.validateAction(state, id, action)) return state;
     const next = { ...state, players: state.players.map((p) => ({ ...p })) };
     const player = next.players.find((p) => p.id === id)!;
     const advance = () => {
@@ -60,7 +64,7 @@ export class DadosAl100Engine implements IGameEngine<
       } else advance();
     } else {
       next.rollCount++;
-      next.lastRoll = Math.floor(Math.random() * 6) + 1;
+      next.lastRoll = die(this.random);
       if (next.lastRoll === 1) {
         next.message = msg('¡Un 1! Se pierden los {0} puntos del turno.', next.turnTotal);
         advance();

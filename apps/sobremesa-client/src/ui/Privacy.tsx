@@ -5,7 +5,7 @@ const copy = {
     {
       heading: 'Privacidad y uso',
       paragraphs: [
-        'Puedes jugar sin crear una cuenta. El dinero de las partidas es ficticio: aquí no hay apuestas ni premios económicos. La aplicación no lleva publicidad ni analítica de terceros y no guarda un historial de las partidas terminadas.',
+        'Puedes jugar sin crear una cuenta. El dinero de las partidas es ficticio: aquí no hay apuestas ni premios económicos. El servicio es gratuito y no incluye pagos. La aplicación no lleva publicidad ni analítica de terceros, no genera registros de acceso y no guarda un historial de las partidas terminadas.',
       ],
     },
     {
@@ -27,7 +27,7 @@ const copy = {
       paragraphs: [
         'La aplicación no tiene cuentas, base de datos de perfiles ni historial de partidas. El estado de las salas y los datos de juego se mantienen en la memoria RAM mientras hacen falta; la aplicación no los escribe en sus propios archivos. Reiniciar el servidor borra ese estado temporal.',
         'Una sala se elimina cuando se va la última persona o tras seis horas sin actividad humana. Si se corta tu conexión, reservamos tu sitio durante cinco minutos por defecto; quien administra el servidor puede cambiar ese plazo.',
-        'Para limitar conexiones, la IP se mantiene mientras la conexión está activa y hasta que vence su ventana de control. Los contadores de creación de salas caducan al terminar su ventana —un minuto por defecto— y se purgan en un barrido periódico, como máximo en el siguiente barrido de un minuto. El alojamiento o Cloudflare pueden guardar registros técnicos por su cuenta; cuánto tiempo y qué datos depende de la configuración y de sus condiciones.',
+        'Para limitar conexiones, la IP se mantiene mientras la conexión está activa y hasta que vence su ventana de control. Los contadores de creación de salas caducan al terminar su ventana —un minuto por defecto— y se purgan en un barrido periódico, como máximo en el siguiente barrido de un minuto. La web funciona en un servidor propio, expuesto mediante Cloudflare Tunnel. Sobremesa no genera registros de acceso. Cloudflare puede tratar datos técnicos conforme a la configuración del servicio y sus condiciones.',
       ],
     },
     {
@@ -42,7 +42,7 @@ const copy = {
       heading: 'Quién puede ver la partida',
       paragraphs: [
         'Quienes tienen el código de la sala pueden ver tu apodo y el estado público de la partida. Las cartas privadas solo se envían a su dueño. No compartas el código con personas que no quieras invitar.',
-        'El alojamiento y Cloudflare también pueden tratar datos técnicos para conectar y proteger el servicio. La red de Cloudflare es global, así que algunos datos podrían tratarse fuera del Espacio Económico Europeo bajo las garantías que describe en sus condiciones. Sus registros y plazos dependen de la configuración y del servicio; abajo tienes sus avisos de privacidad y tratamiento de datos. Sobremesa no vende tus datos.',
+        'La web se aloja en un servidor propio y utiliza Cloudflare Tunnel para conectarlo a Internet. Cloudflare también puede tratar datos técnicos para conectar y proteger el servicio. La red de Cloudflare es global, así que algunos datos podrían tratarse fuera del Espacio Económico Europeo bajo las garantías que describe en sus condiciones. Sus registros y plazos dependen de la configuración y del servicio; abajo tienes sus avisos de privacidad y tratamiento de datos. Sobremesa no vende tus datos.',
       ],
     },
     {
@@ -53,9 +53,15 @@ const copy = {
       ],
     },
     {
+      heading: 'Código y recursos',
+      paragraphs: [
+        'El código propio de Sobremesa tiene derechos reservados. Modificarlo, reutilizarlo o redistribuirlo requiere autorización previa por escrito, salvo los derechos de la plataforma y los usos legalmente permitidos. Las dependencias de terceros conservan sus propias licencias. Jugar en esta web no concede derechos adicionales sobre el código o sus recursos.',
+      ],
+    },
+    {
       heading: 'Unas normas para jugar',
       paragraphs: [
-        'Trata bien a las demás personas y no pongas información sensible en tu apodo. Sobremesa está hecha para jugar y compartir un rato. Ofrece variantes de juegos de mesa y no está afiliada a las marcas de otros juegos. Algunos términos de búsqueda solo sirven para que encuentres la variante correspondiente.',
+        'Trata bien a las demás personas y no pongas información sensible en tu apodo. Sobremesa está hecha para jugar y compartir un rato. Ofrece variantes de juegos de mesa y no está afiliada a las marcas de otros juegos.',
       ],
     },
   ],
@@ -63,7 +69,7 @@ const copy = {
     {
       heading: 'Privacy and use',
       paragraphs: [
-        'You can play without creating an account. Game money is fictional, with no wagers or cash prizes. The app has no advertising or third-party analytics, and it does not keep a history of completed games.',
+        'You can play without creating an account. Game money is fictional, with no wagers or cash prizes. The service is free and includes no payments. The app has no advertising or third-party analytics, does not generate access logs and does not keep a history of completed games.',
       ],
     },
     {
@@ -85,7 +91,7 @@ const copy = {
       paragraphs: [
         'The app has no accounts, profile database or game history. Room state and game data stay in RAM while they are needed; the app does not write them to its own files. Restarting the server clears this temporary state.',
         'A room is deleted when the last person leaves or after six hours without human activity. If your connection drops, your seat is held for five minutes by default; the server administrator can change that period.',
-        'For connection limits, an IP entry remains while the connection is active and until its control window expires. Room-creation counters expire at the end of their window — one minute by default — and are cleared in a periodic sweep, no later than the next one-minute sweep. Your host or Cloudflare may keep separate technical logs; their contents and retention depend on service settings and terms.',
+        'For connection limits, an IP entry remains while the connection is active and until its control window expires. Room-creation counters expire at the end of their window — one minute by default — and are cleared in a periodic sweep, no later than the next one-minute sweep. The website runs on a self-hosted server exposed through Cloudflare Tunnel. Sobremesa does not generate access logs. Cloudflare may process technical data according to service settings and terms.',
       ],
     },
     {
@@ -100,7 +106,7 @@ const copy = {
       heading: 'Who can see the game',
       paragraphs: [
         'People with the room code can see your nickname and the public game state. Private cards are sent only to their owner. Do not share the code with anyone you do not want to invite.',
-        'Your host and Cloudflare may also process technical data to connect and protect the service. Cloudflare operates a global network, so some data may be processed outside the European Economic Area under the safeguards described in its terms. Its logs and retention depend on configuration and service terms; links to its privacy and data-processing terms are below. Sobremesa does not sell your data.',
+        'The website runs on a self-hosted server connected to the Internet through Cloudflare Tunnel. Cloudflare may also process technical data to connect and protect the service. Cloudflare operates a global network, so some data may be processed outside the European Economic Area under the safeguards described in its terms. Its logs and retention depend on configuration and service terms; links to its privacy and data-processing terms are below. Sobremesa does not sell your data.',
       ],
     },
     {
@@ -111,9 +117,15 @@ const copy = {
       ],
     },
     {
+      heading: 'Code and assets',
+      paragraphs: [
+        'Sobremesa’s own code is published with all rights reserved. Modification, reuse or redistribution requires prior written permission, subject to platform rights and uses permitted by law. Third-party dependencies retain their own licences. Playing on this website grants no additional rights to the code or its assets.',
+      ],
+    },
+    {
       heading: 'A few ground rules',
       paragraphs: [
-        'Treat other players kindly and keep sensitive information out of your nickname. Sobremesa is made for sharing a game and some time together. It offers board game variants and is not affiliated with other game brands. Some search terms simply help you find the corresponding variant.',
+        'Treat other players kindly and keep sensitive information out of your nickname. Sobremesa is made for sharing a game and some time together. It offers board game variants and is not affiliated with other game brands.',
       ],
     },
   ],
@@ -186,6 +198,11 @@ export function Privacy() {
             ? 'Borrar mis preferencias de este navegador'
             : 'Clear my browser preferences'}
         </button>
+        <p>
+          <a href="/license.txt" target="_blank" rel="noopener noreferrer">
+            {locale === 'es' ? 'Condiciones del código fuente' : 'Source code terms'}
+          </a>
+        </p>
         <p>
           <a href="/third-party-notices.txt" target="_blank" rel="noopener noreferrer">
             {locale === 'es'

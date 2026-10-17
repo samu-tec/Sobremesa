@@ -262,6 +262,7 @@ export class RummyDeFichasEngine implements IGameEngine<
     };
   }
   validateAction(s: RummyDeFichasState, id: string, a: RummyDeFichasAction): boolean {
+    if (!a || typeof a !== 'object' || Array.isArray(a)) return false;
     if (!a || !liveTurn(s, id)) return false;
     if (a.type === 'DRAW') return s.pool.length > 0;
     if (a.type === 'PASS') return s.pool.length === 0;
@@ -300,7 +301,7 @@ export class RummyDeFichasEngine implements IGameEngine<
         lookup = new Map([...n.table.flat(), ...p.hand].map((t) => [t.id, t]));
       n.table = a.sets.map((ids) =>
         analyzeRummyDeFichasSet(ids.map((id) => lookup.get(id)!))!.tiles.map(
-          ({ asValue, asColor, ...tile }) => tile,
+          ({ asValue: _asValue, asColor: _asColor, ...tile }) => tile,
         ),
       );
       p.hand = p.hand.filter((t) => !checked.playedIds.includes(t.id));
@@ -369,7 +370,7 @@ export class RummyDeFichasEngine implements IGameEngine<
       }
     };
     search(0, new Set(), [], 0);
-    let table = [...view.table.map((set) => set.map((t) => t.id)), ...best],
+    const table = [...view.table.map((set) => set.map((t) => t.id)), ...best],
       used = new Set(best.flat());
     if (p.opened) {
       const all = new Map([...view.table.flat(), ...view.hand].map((t) => [t.id, t]));

@@ -1,0 +1,1139 @@
+@media (min-width: 1500px) {
+  .lobby-main {
+    padding-top: 45px;
+  }
+  .hero {
+    min-height: 360px;
+  }
+  .hero-copy {
+    padding: 40px;
+  }
+  .hero h2 {
+    font-size: 53px;
+  }
+  .hero-copy > p {
+    font-size: 12px;
+  }
+  .hero-actions .button {
+    font-size: 12px;
+  }
+  .hero-label {
+    font-size: 8px;
+  }
+  .hero-note > span:last-child {
+    font-size: 8px;
+  }
+  .game-card-art {
+    height: 190px;
+  }
+  .game-title-row h3 {
+    font-size: 20px;
+  }
+  .game-description {
+    font-size: 11px;
+    min-height: 40px;
+  }
+  .game-meta {
+    font-size: 10px;
+  }
+  .play-friends {
+    font-size: 11px;
+  }
+  .game-category {
+    font-size: 8px;
+  }
+  .game-card-body {
+    padding: 20px;
+  }
+  .hero-join {
+    font-size: 11px;
+  }
+  .page-intro h1 {
+    font-size: 31px;
+  }
+  .page-intro p:last-child {
+    font-size: 13px;
+  }
+  .search-box input {
+    font-size: 11px;
+  }
+  .search-box {
+    height: 42px;
+  }
+  .category-tabs button {
+    font-size: 11px;
+  }
+  .catalog-heading h2 {
+    font-size: 25px;
+  }
+  .hero-orbit {
+    width: 320px;
+    height: 320px;
+  }
+  .hero-art {
+    transform: rotate(-5deg) scale(1.15);
+  }
+}
+@media (max-width: 1100px) {
+  .sidebar {
+    width: 190px;
+    flex-basis: 190px;
+    padding: 29px 15px 16px;
+  }
+  .workspace {
+    width: calc(100% - 190px);
+    margin-left: 190px;
+  }
+  .brand {
+    font-size: 21px;
+    gap: 8px;
+    margin: 0;
+  }
+  .brand-mark {
+    width: 32px;
+    height: 32px;
+  }
+  .brand small {
+    font-size: 6px;
+  }
+  .topbar {
+    padding: 0 25px;
+  }
+  .lobby-main {
+    padding: 29px 25px;
+  }
+  .page-intro h1 {
+    font-size: 23px;
+  }
+  .intro-stamp {
+    display: none;
+  }
+  .hero-copy {
+    padding: 28px 0 25px 26px;
+    flex-basis: 58%;
+  }
+  .hero h2 {
+    font-size: 37px;
+  }
+  .hero-actions {
+    gap: 12px;
+  }
+  .hero-floating-label {
+    font-size: 6px;
+    left: -5px;
+    top: 43px;
+  }
+  .hero-orbit {
+    width: 230px;
+    height: 230px;
+  }
+  .hero-bubble {
+    font-size: 7px;
+    right: 10px;
+    bottom: 30px;
+  }
+  .hero-bubble > span {
+    font-size: 14px;
+  }
+  .hero-art {
+    width: 135%;
+    transform: rotate(-5deg) scale(1.05);
+  }
+  .hero-join {
+    font-size: 8px;
+  }
+  .hero-actions .button {
+    font-size: 9px;
+    padding: 10px;
+  }
+  .games-grid {
+    gap: 15px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .game-card-art {
+    height: 170px;
+  }
+  .game-card-body {
+    padding: 17px;
+  }
+  .game-description {
+    font-size: 10px;
+    min-height: 36px;
+  }
+  .game-meta {
+    font-size: 9px;
+  }
+  .play-friends {
+    font-size: 10px;
+  }
+  .game-category {
+    font-size: 8px;
+  }
+  .catalog-heading h2 {
+    font-size: 20px;
+  }
+  .search-box {
+    min-width: 210px;
+  }
+  .catalog-count {
+    display: none;
+  }
+  .site-footer {
+    padding: 22px 25px;
+  }
+  .footer-caption {
+    display: none;
+  }
+  .table-layout {
+    grid-template-columns: minmax(0, 1fr) 250px;
+    gap: 17px;
+  }
+  .play-area {
+    padding: 24px;
+  }
+  .players-panel {
+    padding: 20px 16px;
+  }
+}
+@media (max-width: 800px) {
+  .sidebar {
+    width: 172px;
+    flex-basis: 172px;
+    padding: 27px 12px 15px;
+  }
+  .workspace {
+    width: calc(100% - 172px);
+    margin-left: 172px;
+  }
+  .brand {
+    font-size: 19px;
+    gap: 7px;
+  }
+  .brand-mark {
+    width: 29px;
+    height: 29px;
+    border-radius: 8px;
+  }
+  .brand-mark svg {
+    width: 21px;
+  }
+  .brand small {
+    font-size: 5px;
+    letter-spacing: 0.7px;
+  }
+  .sidebar-group {
+    margin-top: 40px;
+  }
+  .nav-item {
+    font-size: 10px;
+    padding: 10px 8px;
+    gap: 8px;
+  }
+  .nav-item > svg {
+    width: 16px;
+  }
+  .sidebar-invite {
+    padding: 15px 12px;
+    margin-top: 28px;
+  }
+  .sidebar-invite h3 {
+    font-size: 18px;
+  }
+  .sidebar-invite p {
+    font-size: 9px;
+  }
+  .sidebar-invite button {
+    font-size: 8px;
+    gap: 6px;
+  }
+  .topbar {
+    height: 64px;
+    padding: 0 22px;
+  }
+  .topbar-right {
+    gap: 12px;
+  }
+  .connection {
+    font-size: 8px;
+  }
+  .topbar-profile > span:last-child {
+    display: none;
+  }
+  .lobby-main {
+    padding: 27px 22px;
+  }
+  .page-intro {
+    margin-bottom: 22px;
+  }
+  .page-intro h1 {
+    font-size: 20px;
+  }
+  .page-intro p:last-child {
+    font-size: 10px;
+  }
+  .hero {
+    min-height: 300px;
+  }
+  .hero-copy {
+    flex-basis: 68%;
+    padding: 28px 0 25px 24px;
+  }
+  .hero h2 {
+    font-size: 34px;
+  }
+  .hero-copy > p {
+    font-size: 9px;
+  }
+  .hero-label {
+    font-size: 6px;
+  }
+  .hero-actions {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .hero-note {
+    margin-top: 15px;
+  }
+  .hero-visual {
+    position: absolute;
+    right: -65px;
+    bottom: 34px;
+    width: 260px;
+    opacity: 0.85;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .hero-orbit {
+    width: 205px;
+    height: 205px;
+  }
+  .hero-art {
+    transform: rotate(-5deg) scale(1);
+  }
+  .hero-floating-label,
+  .hero-bubble,
+  .hero-spark {
+    display: none;
+  }
+  .hero-note > span:last-child {
+    font-size: 6px;
+  }
+  .hero-copy > p {
+    max-width: 280px;
+  }
+  .catalog-heading {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .search-box {
+    width: 100%;
+    height: 40px;
+  }
+  .search-box input {
+    font-size: 11px;
+  }
+  .catalog-heading h2 {
+    font-size: 21px;
+  }
+  .category-tabs {
+    gap: 4px;
+  }
+  .category-tabs button {
+    padding: 7px 10px;
+    font-size: 9px;
+  }
+  .game-card-art {
+    height: 130px;
+  }
+  .game-title-row h3 {
+    font-size: 15px;
+  }
+  .game-card-body {
+    padding: 14px 12px;
+  }
+  .game-description {
+    font-size: 9px;
+    min-height: 48px;
+  }
+  .game-meta {
+    gap: 7px;
+    font-size: 8px;
+  }
+  .game-meta svg {
+    width: 12px;
+  }
+  .play-friends {
+    font-size: 8px;
+    padding: 8px;
+    min-height: 32px;
+  }
+  .play-bot {
+    width: 30px;
+    height: 32px;
+  }
+  .featured-tag {
+    font-size: 5px;
+    padding: 4px 5px;
+    left: 9px;
+  }
+  .game-category {
+    font-size: 7px;
+    left: 9px;
+    top: 10px;
+  }
+  .favorite-button {
+    width: 27px;
+    height: 27px;
+    top: 7px;
+    right: 7px;
+  }
+  .how-strip {
+    padding: 17px;
+    gap: 10px;
+  }
+  .how-strip h3 {
+    font-size: 11px;
+  }
+  .how-strip p {
+    font-size: 8px;
+  }
+  .how-strip > button {
+    font-size: 8px;
+    gap: 5px;
+  }
+  .how-strip-icon {
+    display: none;
+  }
+  .site-footer {
+    padding: 20px 22px;
+  }
+  .site-footer > span:last-child {
+    font-size: 7px;
+  }
+  .table-layout {
+    grid-template-columns: 1fr;
+  }
+  .table-sidebar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+  }
+  .game-mini-rules {
+    display: none;
+  }
+  .players-panel {
+    padding: 20px;
+  }
+  .play-area {
+    min-height: 480px;
+  }
+  .game-tip {
+    align-self: start;
+  }
+  .waiting-grid {
+    gap: 18px;
+  }
+  .waiting-players {
+    padding: 20px;
+  }
+  .room-code-text {
+    font-size: 25px;
+    letter-spacing: 5px;
+  }
+  .waiting-player {
+    gap: 9px;
+  }
+  .host-label {
+    font-size: 7px;
+  }
+}
+@media (max-width: 600px) {
+  .app-shell {
+    display: block;
+  }
+  .sidebar {
+    position: relative;
+    width: 100%;
+    height: auto;
+    padding: 17px 18px 0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 13px;
+    inset: auto;
+    background: #203c32;
+  }
+  .brand {
+    font-size: 24px;
+  }
+  .brand-mark {
+    width: 35px;
+    height: 35px;
+  }
+  .brand-mark svg {
+    width: 25px;
+  }
+  .brand small {
+    display: none;
+  }
+  .sidebar-group {
+    margin: 0;
+    width: 100%;
+    order: 3;
+  }
+  .nav-label {
+    display: none;
+  }
+  .sidebar-group nav {
+    display: flex;
+    gap: 6px;
+  }
+  .nav-item {
+    font-size: 10px;
+    width: auto;
+    padding: 10px 11px;
+    border-radius: 7px 7px 0 0;
+    margin-bottom: 0;
+    min-height: 41px;
+  }
+  .nav-item > span {
+    display: none;
+  }
+  .nav-item > svg {
+    width: 15px;
+    height: 15px;
+  }
+  .nav-item:last-child {
+    margin-left: auto;
+  }
+  .nav-item > svg:last-child:not(:first-child) {
+    display: none;
+  }
+  .sidebar-invite {
+    display: none;
+  }
+  .sidebar-bottom {
+    margin: 0;
+    padding: 0;
+  }
+  .sidebar-footnote {
+    display: none;
+  }
+  .profile-button {
+    border: 0;
+    padding: 0;
+    gap: 8px;
+  }
+  .profile-avatar {
+    height: 30px;
+    width: 30px;
+    font-size: 14px;
+  }
+  .profile-button strong {
+    font-size: 10px;
+    max-width: 90px;
+  }
+  .profile-button small,
+  .profile-button > svg {
+    display: none;
+  }
+  .workspace {
+    width: 100%;
+    margin: 0;
+  }
+  .topbar {
+    height: 44px;
+    padding: 0 18px;
+  }
+  .topbar-title {
+    font-size: 9px;
+  }
+  .topbar-right {
+    gap: 0;
+  }
+  .connection {
+    font-size: 8px;
+  }
+  .topbar-divider,
+  .topbar-profile {
+    display: none;
+  }
+  .lobby-main {
+    padding: 24px 18px;
+  }
+  .page-intro h1 {
+    font-size: 22px;
+    letter-spacing: -0.8px;
+  }
+  .page-intro .eyebrow {
+    font-size: 7px;
+  }
+  .page-intro p:last-child {
+    font-size: 11px;
+    line-height: 1.7;
+    margin-top: 7px;
+  }
+  .page-intro {
+    margin-bottom: 22px;
+  }
+  .hero {
+    min-height: 315px;
+    border-radius: 12px;
+  }
+  .hero-copy {
+    padding: 26px 22px;
+    flex: 1;
+  }
+  .hero h2 {
+    font-size: 37px;
+    line-height: 1.14;
+  }
+  .hero-label {
+    font-size: 6px;
+    letter-spacing: 1.1px;
+  }
+  .hero-copy > p {
+    font-size: 9px;
+    max-width: 250px;
+    margin-top: 13px;
+  }
+  .hero-actions {
+    margin-top: 19px;
+    gap: 2px;
+  }
+  .hero-actions .button {
+    font-size: 9px;
+    min-height: 37px;
+    padding: 10px 12px;
+  }
+  .hero-join {
+    font-size: 9px;
+    min-height: 35px;
+  }
+  .hero-note {
+    margin-top: 13px;
+    max-width: 210px;
+  }
+  .hero-note > span:last-child {
+    font-size: 6px;
+  }
+  .hero-visual {
+    width: 230px;
+    right: -68px;
+    bottom: -4px;
+    opacity: 0.95;
+  }
+  .hero-orbit {
+    width: 190px;
+    height: 190px;
+  }
+  .hero-art {
+    width: 130%;
+  }
+  .catalog {
+    margin-top: 28px;
+  }
+  .catalog-heading .eyebrow {
+    font-size: 7px;
+  }
+  .catalog-heading h2 {
+    font-size: 22px;
+  }
+  .catalog-heading {
+    gap: 15px;
+  }
+  .search-box {
+    height: 43px;
+  }
+  .filter-row {
+    margin-top: 16px;
+    margin-bottom: 17px;
+  }
+  .category-tabs {
+    gap: 2px;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .category-tabs button {
+    padding: 7px 9px;
+    font-size: 9px;
+    min-height: 35px;
+  }
+  .games-grid {
+    gap: 14px;
+  }
+  .game-card-art {
+    height: 126px;
+  }
+  .game-card-body {
+    padding: 14px 12px;
+  }
+  .game-title-row h3 {
+    font-size: 14px;
+    letter-spacing: -0.35px;
+  }
+  .rules-button {
+    padding: 3px;
+  }
+  .rules-button svg {
+    width: 14px;
+    height: 14px;
+  }
+  .game-description {
+    font-size: 9px;
+    line-height: 1.7;
+    min-height: 46px;
+    margin-top: 8px;
+    max-width: 100%;
+  }
+  .game-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+    font-size: 8px;
+    margin-top: 12px;
+  }
+  .game-meta svg {
+    width: 12px;
+    height: 12px;
+  }
+  .game-card-actions {
+    gap: 6px;
+    margin-top: 13px;
+    padding-top: 11px;
+  }
+  .play-friends {
+    font-size: 8px;
+    min-height: 35px;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 4px;
+  }
+  .play-friends svg {
+    width: 12px;
+  }
+  .play-bot {
+    width: 29px;
+    flex: 0 0 29px;
+    height: 35px;
+  }
+  .play-bot svg {
+    width: 16px;
+  }
+  .featured-tag {
+    font-size: 4.6px;
+    letter-spacing: 0.6px;
+    bottom: 7px;
+    left: 7px;
+  }
+  .game-category {
+    font-size: 6px;
+    padding: 4px 6px;
+    left: 8px;
+    top: 8px;
+  }
+  .favorite-button {
+    width: 28px;
+    height: 28px;
+    right: 6px;
+    top: 6px;
+  }
+  .favorite-button svg {
+    width: 15px;
+    height: 15px;
+  }
+  .how-strip {
+    margin-top: 23px;
+    padding: 16px 14px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .how-strip > div:nth-child(2) {
+    flex: 1;
+    min-width: 180px;
+  }
+  .how-strip h3 {
+    font-size: 12px;
+  }
+  .how-strip p {
+    font-size: 9px;
+  }
+  .how-strip > button {
+    font-size: 9px;
+    padding: 7px 0;
+  }
+  .site-footer {
+    padding: 20px 18px;
+    align-items: center;
+  }
+  .site-footer > span:last-child {
+    font-size: 6px;
+  }
+  .site-footer > span:first-child {
+    font-size: 12px;
+  }
+  .footer-flower {
+    font-size: 12px;
+    margin-left: 3px;
+  }
+  .modal-backdrop {
+    padding: 16px;
+  }
+  .modal {
+    padding: 23px 20px;
+    border-radius: 14px;
+    max-height: calc(100dvh - 32px);
+  }
+  .modal h2 {
+    font-size: 22px;
+  }
+  .modal-art {
+    height: 160px;
+  }
+  .modal > p {
+    font-size: 12px;
+  }
+  .code-field {
+    font-size: 28px;
+    letter-spacing: 7px;
+  }
+  .field {
+    font-size: 16px;
+  }
+  .game-header {
+    padding: 12px 16px;
+    gap: 8px;
+    min-height: 65px;
+  }
+  .game-header > .compact-brand {
+    font-size: 0;
+    gap: 0;
+  }
+  .compact-brand > svg {
+    width: 25px;
+  }
+  .back-link {
+    font-size: 10px;
+    gap: 5px;
+  }
+  .back-link > svg {
+    width: 16px;
+  }
+  .game-header .button.small {
+    padding: 8px;
+    min-height: 35px;
+    font-size: 9px;
+    gap: 5px;
+  }
+  .header-actions {
+    gap: 5px;
+  }
+  .header-actions .button svg {
+    width: 14px;
+    height: 14px;
+  }
+  .waiting-content {
+    padding: 26px 16px 40px;
+  }
+  .waiting-intro {
+    margin: 0 0 25px;
+  }
+  .waiting-intro .eyebrow {
+    font-size: 8px;
+  }
+  .waiting-intro h1 {
+    font-size: 28px;
+    line-height: 1.2;
+  }
+  .waiting-intro > p:last-child {
+    font-size: 11px;
+    line-height: 1.8;
+  }
+  .waiting-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .waiting-grid > aside {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .waiting-game {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    padding: 17px;
+    column-gap: 16px;
+  }
+  .waiting-game-art {
+    grid-row: 1/6;
+    margin: 0;
+    border-radius: 8px;
+    height: 100%;
+    min-height: 125px;
+  }
+  .waiting-game-art .game-art {
+    object-fit: cover;
+  }
+  .waiting-game > h2 {
+    font-size: 23px;
+  }
+  .waiting-game > .eyebrow {
+    font-size: 7px;
+  }
+  .waiting-game > p {
+    font-size: 10px;
+    line-height: 1.7;
+    margin-top: 5px;
+  }
+  .waiting-game > .game-meta {
+    font-size: 9px;
+    flex-direction: row;
+    gap: 8px;
+    margin: 12px 0 0;
+  }
+  .waiting-game .text-button {
+    justify-content: flex-start;
+    font-size: 10px;
+    margin-top: 7px;
+  }
+  .room-settings {
+    margin: 0;
+    padding: 20px;
+  }
+  .waiting-player > div > strong {
+    font-size: 12px;
+  }
+  .host-label {
+    font-size: 8px;
+  }
+  .waiting-player > div > span {
+    font-size: 10px;
+  }
+  .room-code-text {
+    font-size: 31px;
+    letter-spacing: 7px;
+  }
+  .game-content {
+    padding: 24px 16px 40px;
+  }
+  .game-heading {
+    margin-bottom: 21px;
+    gap: 12px;
+  }
+  .game-heading .eyebrow {
+    font-size: 7px;
+  }
+  .game-heading h1 {
+    font-size: 29px;
+  }
+  .turn-badge {
+    padding: 9px 10px;
+    font-size: 9px;
+    max-width: 45%;
+    line-height: 1.6;
+    gap: 6px;
+  }
+  .turn-badge > svg {
+    display: none;
+  }
+  .table-layout {
+    gap: 18px;
+  }
+  .table-sidebar {
+    grid-template-columns: 1fr;
+  }
+  .players-panel {
+    padding: 20px;
+  }
+  .table-player strong {
+    font-size: 12px;
+  }
+  .table-player small {
+    font-size: 10px;
+  }
+  .table-player > .player-value {
+    font-size: 12px;
+  }
+  .game-tip {
+    display: none;
+  }
+  .play-area {
+    padding: 24px 18px;
+    min-height: 440px;
+  }
+  .board-instruction {
+    font-size: 11px;
+  }
+  .board-caption {
+    font-size: 10px;
+    margin-top: 23px;
+  }
+  .ttt-board {
+    width: min(100%, 300px);
+    gap: 9px;
+  }
+  .ttt-board > button {
+    border-radius: 12px;
+  }
+  .connect-board {
+    gap: 6px;
+    padding: 11px;
+  }
+  .column-controls {
+    padding: 0 11px;
+  }
+  .column-controls button {
+    min-height: 43px;
+  }
+  .connect-hole.disc-0 > span,
+  .connect-hole.disc-1 > span {
+    box-shadow:
+      inset 0 -2px 0 #00000013,
+      inset 0 0 0 3px #ffffff1f;
+  }
+  .reversi-board {
+    padding: 6px;
+    gap: 2px;
+  }
+  .reversi-board > button {
+    padding: 4px;
+  }
+  .reversi-board button > i {
+    width: 7px;
+    height: 7px;
+  }
+  .play-pig {
+    padding-top: 28px;
+    min-height: 550px;
+  }
+  .pig-actions {
+    gap: 8px;
+  }
+  .pig-actions .button {
+    font-size: 11px;
+    padding: 11px 14px;
+  }
+  .score-tracks > div > div {
+    font-size: 11px;
+  }
+  .score-tracks strong {
+    font-size: 12px;
+  }
+  .color-table {
+    padding: 20px 16px;
+  }
+  .your-hand {
+    gap: 8px;
+    justify-content: flex-start;
+  }
+  .your-hand .playing-card {
+    width: 61px;
+    height: 91px;
+  }
+  .your-hand .card-center {
+    width: 38px;
+    height: 38px;
+    font-size: 24px;
+  }
+  .your-hand .card-wild .card-center {
+    font-size: 12px;
+  }
+  .your-hand .card-corner {
+    font-size: 7px;
+  }
+  .your-hand .card-color-name {
+    font-size: 5px;
+  }
+  .card-table-center {
+    padding-top: 30px;
+  }
+  .opponents-hands strong {
+    font-size: 10px;
+  }
+  .card-action-status {
+    font-size: 10px;
+  }
+  .game-heading .eyebrow {
+    letter-spacing: 1px;
+  }
+  .toast {
+    font-size: 11px;
+    bottom: 16px;
+    padding: 10px 10px 10px 15px;
+  }
+  .offline-banner {
+    font-size: 10px;
+    padding: 10px 13px;
+  }
+  .your-hand-heading > small {
+    font-size: 8px;
+  }
+}
+@media (max-width: 360px) {
+  .lobby-main {
+    padding: 22px 13px;
+  }
+  .hero-copy {
+    padding: 25px 18px;
+  }
+  .hero h2 {
+    font-size: 33px;
+  }
+  .hero-visual {
+    right: -85px;
+    bottom: 3px;
+  }
+  .hero-copy > p {
+    max-width: 220px;
+    font-size: 8px;
+  }
+  .page-intro h1 {
+    font-size: 20px;
+  }
+  .games-grid {
+    gap: 10px;
+  }
+  .game-card-body {
+    padding: 12px 10px;
+  }
+  .game-title-row h3 {
+    font-size: 13px;
+  }
+  .game-card-art {
+    height: 113px;
+  }
+  .play-friends svg {
+    display: none;
+  }
+  .game-card-actions {
+    gap: 5px;
+  }
+  .game-description {
+    font-size: 8px;
+    min-height: 43px;
+  }
+  .category-tabs button {
+    padding: 7px;
+    font-size: 8px;
+  }
+  .game-content {
+    padding: 21px 12px 35px;
+  }
+  .game-heading h1 {
+    font-size: 25px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *:before,
+  *:after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

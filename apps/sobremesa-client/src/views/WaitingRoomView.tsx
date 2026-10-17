@@ -2,6 +2,7 @@ import { getGame, t, LanguageSelector, formatMoney, settingValue } from '../i18n
 import { useEffect, useState } from 'react';
 import {
   type RoomInfo,
+  type RoomRules,
   GAME_SETTINGS,
   defaultGameSettings,
   DEFAULT_CIUDAD_FORTUNA_RULES,
@@ -45,7 +46,7 @@ export function WaitingRoomView({
   busy,
   onError,
 }: Props) {
-  const [settings, setSettings] = useState(() => ({
+  const [settings, setSettings] = useState<RoomRules & { turnSeconds: number }>(() => ({
     ...room.customRules,
     turnSeconds: room.turnSeconds,
   }));
@@ -53,7 +54,7 @@ export function WaitingRoomView({
     setSettings({ ...room.customRules, turnSeconds: room.turnSeconds });
   }, [room.code, room.customRules, room.turnSeconds]);
   const changeRules = async (patch: Record<string, number | boolean | null>) => {
-    setSettings((current: Record<string, number | boolean | null>) => ({ ...current, ...patch }));
+    setSettings((current) => ({ ...current, ...patch }));
     if (!(await onUpdateRules(patch)))
       setSettings({ ...room.customRules, turnSeconds: room.turnSeconds });
   };
@@ -288,11 +289,11 @@ export function WaitingRoomView({
                         className="field"
                         id={`setting-${setting.key}`}
                         disabled={!host || busy}
-                        value={settings[setting.key] ?? setting.defaultValue}
+                        value={Number(settings[setting.key] ?? setting.defaultValue)}
                         aria-describedby={`setting-hint-${setting.key}`}
                         onChange={(e) => changeRules({ [setting.key]: Number(e.target.value) })}
                       >
-                        {setting.values!.map((value, i) => (
+                        {setting.values!.map((value) => (
                           <option key={value} value={value}>
                             {settingValue(setting, value)}
                           </option>

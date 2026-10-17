@@ -62,8 +62,20 @@ for (const width of [1280, 320])
         await expect(page.locator('.number-tile-rack > button')).toHaveCount(15);
       }
       if (id === 'dominoes') {
-        await page.locator('.domino-hand > button:not([disabled])').first().click();
-        await page.locator('.board-actions .primary:not([disabled])').first().click();
+        const playable = page.locator('.domino-hand > button:not([disabled])');
+        const draw = page.getByRole('button', { name: 'Robar ficha', exact: true });
+        await expect
+          .poll(async () => (await playable.count()) > 0 || (await draw.isEnabled()))
+          .toBe(true);
+        if (await draw.isEnabled()) {
+          // A legal opening by the bot can leave our random hand without a matching number.
+          const count = await page.locator('.domino-hand > button').count();
+          await draw.click();
+          await expect(page.locator('.domino-hand > button')).toHaveCount(count + 1);
+        } else {
+          await playable.first().click();
+          await page.locator('.board-actions .primary:not([disabled])').first().click();
+        }
         await expect(page.locator('.domino-chain .domino-tile')).not.toHaveCount(0);
       }
       if (id === 'backgammon') {

@@ -24,15 +24,17 @@ export const nextPlayer = (s: Match) =>
   s.players[(s.players.findIndex((p) => p.id === s.currentTurnPlayerId) + 1) % s.players.length].id;
 export const integer = (n: unknown, min: number, max: number): n is number =>
   Number.isInteger(n) && (n as number) >= min && (n as number) <= max;
-export function shuffle<T>(items: T[]): T[] {
+export type RandomSource = () => number;
+export const systemRandom: RandomSource = () => Math.random();
+export function shuffle<T>(items: T[], random: RandomSource = systemRandom): T[] {
   const result = [...items];
   for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(random() * (i + 1));
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;
 }
-export const die = () => 1 + Math.floor(Math.random() * 6);
+export const die = (random: RandomSource = systemRandom) => 1 + Math.floor(random() * 6);
 export function forfeit<T extends Match>(s: T, id: string): T {
   if (s.winner || s.isDraw || !s.players.some((p) => p.id === id)) return s;
   return { ...structuredClone(s), winner: s.players.find((p) => p.id !== id)!.id };

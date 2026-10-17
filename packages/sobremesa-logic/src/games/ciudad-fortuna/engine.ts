@@ -1,3 +1,4 @@
+import { shuffle, die, systemRandom, type RandomSource } from '../../engine/helpers.js';
 import { message as msg, term } from '../../messages.js';
 import { IGameEngine } from '../../engine/IGameEngine.js';
 import { BOARD_TILES, CHANCE_CARDS, COMMUNITY_CHEST_CARDS, PROPERTY_GROUPS } from './boardData.js';
@@ -14,22 +15,16 @@ import {
 import { getBotCiudadFortunaAction } from './bot.js';
 import { getCiudadFortunaRent } from './economy.js';
 
-function shuffle<T>(arr: T[]): T[] {
-  const result = [...arr];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
-
 export class CiudadFortunaEngine implements IGameEngine<
   CiudadFortunaState,
   CiudadFortunaAction,
   CiudadFortunaPublicState
 > {
   private customRules: CiudadFortunaCustomRules;
-  constructor(rules: Partial<CiudadFortunaCustomRules> = {}) {
+  constructor(
+    rules: Partial<CiudadFortunaCustomRules> = {},
+    private random: RandomSource = systemRandom,
+  ) {
     this.customRules = { ...DEFAULT_CIUDAD_FORTUNA_RULES, ...rules };
   }
 
@@ -94,8 +89,8 @@ export class CiudadFortunaEngine implements IGameEngine<
       customRules: { ...this.customRules },
       activeTrade: null,
       auction: null,
-      chanceDeck: shuffle(CHANCE_CARDS),
-      communityDeck: shuffle(COMMUNITY_CHEST_CARDS),
+      chanceDeck: shuffle(CHANCE_CARDS, this.random),
+      communityDeck: shuffle(COMMUNITY_CHEST_CARDS, this.random),
     };
   }
 
@@ -104,6 +99,7 @@ export class CiudadFortunaEngine implements IGameEngine<
     playerId: string,
     action: CiudadFortunaAction,
   ): boolean {
+    if (!action || typeof action !== 'object' || Array.isArray(action)) return false;
     if (!action || typeof action !== 'object') return false;
     if (state.winner !== null || state.isDraw) return false;
     if (state.auction) {
@@ -446,8 +442,8 @@ export class CiudadFortunaEngine implements IGameEngine<
 
     // ROLL DICE
     if (action.type === 'ROLL_DICE') {
-      const d1 = Math.floor(Math.random() * 6) + 1;
-      const d2 = Math.floor(Math.random() * 6) + 1;
+      const d1 = die(this.random);
+      const d2 = die(this.random);
       const sum = d1 + d2;
       const isDouble = d1 === d2;
 
@@ -671,6 +667,12 @@ export class CiudadFortunaEngine implements IGameEngine<
 
   /** Remove a player who has left a running match without blocking turn progression. */
   forfeitPlayer(state: CiudadFortunaState, playerId: string): CiudadFortunaState {
+    if (
+      state.winner ||
+      state.isDraw ||
+      !state.players.some((p) => p.id === playerId && !p.isBankrupt)
+    )
+      return state;
     const next: CiudadFortunaState = {
       ...state,
       players: state.players.map((p) => ({ ...p })),

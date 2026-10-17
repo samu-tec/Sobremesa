@@ -1,5 +1,9 @@
 import { io, type Socket } from 'socket.io-client';
-import type { ClientToServerEvents, ServerToClientEvents } from 'sobremesa-logic';
+import {
+  PROTOCOL_VERSION,
+  type ClientToServerEvents,
+  type ServerToClientEvents,
+} from 'sobremesa-logic';
 export type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 const memory = new Map<string, string>();
 export const sessionStore = {
@@ -127,7 +131,7 @@ export function findOtherSobremesaTab(timeoutMs = 350): Promise<{ sameSession: b
 // Same origin in production and through the Vite proxy; no hard-coded public server.
 export const socket: GameSocket = io(import.meta.env.VITE_SERVER_URL || undefined, {
   autoConnect: false,
-  auth: { sessionToken: token },
+  auth: { sessionToken: token, protocolVersion: PROTOCOL_VERSION },
   reconnection: true,
   reconnectionAttempts: Infinity,
   reconnectionDelay: 1000,
@@ -139,6 +143,6 @@ export function startNewGuestSession() {
   sessionStore.set('sobremesa.session', token);
   sessionStore.remove('sobremesa.playerId');
   sessionStore.remove('sobremesa.room');
-  socket.auth = { sessionToken: token };
+  socket.auth = { sessionToken: token, protocolVersion: PROTOCOL_VERSION };
   fingerprint = fingerprintFor(token);
 }

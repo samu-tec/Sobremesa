@@ -1,0 +1,232 @@
+.app-shell {
+  display: flex;
+  min-height: 100dvh;
+}
+.sidebar {
+  --focus: var(--focus-on-dark);
+  width: 224px;
+  flex: 0 0 224px;
+  background: #203c32;
+  color: #d8e2d9;
+  position: fixed;
+  inset: 0 auto 0 0;
+  display: flex;
+  flex-direction: column;
+  padding: 35px 20px 16px;
+  z-index: 10;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #f6f7eb;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -1.2px;
+  margin: 0 3px;
+}
+.brand-mark {
+  background: #cce3b8;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  color: #294d37;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-9deg);
+}
+.brand small {
+  display: block;
+  letter-spacing: 0.9px;
+  font-size: 6.8px;
+  font-weight: 500;
+  margin-top: 7px;
+}
+.brand-dot {
+  color: #56654a;
+}
+.sidebar-group {
+  margin-top: 52px;
+}
+.nav-label {
+  font-size: 8px;
+  letter-spacing: 1.9px;
+  color: #57635c;
+  font-weight: 650;
+  margin: 0 13px 14px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  font-size: 11px;
+  min-height: 43px;
+  padding: 11px 12px;
+  margin-bottom: 5px;
+  border-radius: 7px;
+  color: #5a625c;
+  white-space: nowrap;
+}
+.nav-item.selected {
+  background: #365246;
+  color: #f4f5e8;
+}
+.nav-item:hover {
+  background: #304c3e;
+}
+.nav-item > span {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  background: #cadfba;
+  color: #315037;
+  width: 21px;
+  height: 20px;
+  border-radius: 5px;
+}
+.nav-item > svg:last-child:not(:first-child) {
+  margin-left: auto;
+}
+.sidebar-invite {
+  margin-top: 38px;
+  background: #2b493b;
+  border: 1px solid #49604b;
+  border-radius: 10px;
+  padding: 20px 15px;
+}
+.tiny-star {
+  font-size: 27px;
+  color: #5b644c;
+}
+.sidebar-invite h3 {
+  font-family: Georgia, serif;
+  font-size: 19px;
+  font-weight: 400;
+  line-height: 1.3;
+  margin-top: 10px;
+  color: #f4f1db;
+  letter-spacing: -0.4px;
+}
+.sidebar-invite p {
+  font-size: 10px;
+  line-height: 1.8;
+  margin-top: 9px;
+}
+.sidebar-invite button {
+  margin-top: 18px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 650;
+}
+.sidebar-bottom {
+  margin-top: auto;
+  padding-top: 35px;
+}
+.sidebar-footnote {
+  font-size: 9px;
+  line-height: 1.9;
+  display: block;
+  text-align: center;
+  margin-bottom: 23px;
+}
+.profile-button {
+  border-top: 1px solid #3a5443;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 17px 2px 0;
+  text-align: left;
+}
+.profile-avatar {
+  background: #d7dfbd;
+  color: #41563d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-family: Georgia, serif;
+  font-size: 16px;
+}
+.profile-button > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+.profile-button strong {
+  font-size: 10px;
+  font-weight: 600;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.profile-button small {
+  font-size: 8px;
+  display: block;
+  margin-top: 5px;
+}
+.profile-button > svg {
+  color: #5a6359;
+}
+.workspace {
+  width: calc(100% - 224px);
+  margin-left: 224px;
+}
+.topbar {
+  height: 73px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+  background: #fafbf7;
+}
+.topbar-title {
+  color: #59635b;
+}
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.connection {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #4b6752;
+}
+.connection.offline {
+  color: #81583e;
+}
+.topbar-divider {
+  height: 22px;
+  width: 1px;
+  background: var(--line);
+}
+.topbar-profile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mini-avatar {
+  border: 1px solid #d4ddcc;
+  background: #edf0e4;
+  width: 29px;
+  height: 29px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-family: Georgia, serif;
+}
+.mobile-logo {
+  display: none;
+}

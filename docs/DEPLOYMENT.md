@@ -1,6 +1,6 @@
 # Despliegue
 
-La web y Socket.IO se sirven desde un único proceso en el puerto 3000. Cloudflared se administra independientemente y no forma parte de este repositorio.
+Sobremesa se aloja en un servidor propio y se expone a Internet mediante Cloudflare Tunnel. La web y Socket.IO se sirven desde un único proceso en el puerto 3000. Cloudflared se administra independientemente y no forma parte de este repositorio.
 
 ## Configuración
 
@@ -40,6 +40,14 @@ La aplicación está pensada para una sola instancia, porque las salas se guarda
 
 ## Privacidad y operación
 
-La ruta `/privacy` está disponible en español e inglés. Los registros de Cloudflare y del alojamiento dependen de su configuración y plazos. Si se añaden analítica, monetización u otros servicios, habrá que revisar el aviso y el tratamiento de datos.
+La ruta `/privacy` está disponible en español e inglés. La aplicación no genera registros de acceso ni conserva un historial. El registro de arranque y los errores genéricos no incluyen apodos, secretos o IPs de visitantes. No habilites registros de solicitudes, exportación de tráfico o analítica innecesarios. Cloudflared y los sistemas del servidor se administran fuera del repositorio: comprueba sus niveles de registro y retención, además de las condiciones y ajustes de Cloudflare. No supongas que desactivar registros en Node elimina el tratamiento de datos en la red de Cloudflare. Si se añaden analítica, monetización u otros servicios, habrá que revisar el aviso y el tratamiento de datos.
 
-La compilación genera los avisos de licencias del cliente en `/third-party-notices.txt`; el Dockerfile incluye el script que los genera. Revisa también los límites y dependencias operativas descritos en [REVIEW.md](REVIEW.md).
+La compilación publica las condiciones del código propio en `/license.txt` y los avisos de dependencias en `/third-party-notices.txt`; el Dockerfile incluye el script que los genera. Consulta [ARCHITECTURE.md](ARCHITECTURE.md) para los límites del estado en memoria y las sesiones.
+
+## Comprobación de producción sin desplegar
+
+Usa `pnpm test:docker` para probar el Dockerfile real en Docker Desktop con puerto 13000 y recursos temporales aislados. No ejecutes este Compose de producción en el Mac ni crees una red llamada cloudflare para simularlo. [TESTING.md](TESTING.md) documenta alcance y limpieza.
+
+`ALLOWED_ORIGINS` es opcional y acepta orígenes HTTP/HTTPS exactos, sin rutas, credenciales, barras finales ni comodines. De ellos se derivan las fuentes de conexión HTTP/WebSocket de CSP; no se usa Host ni se amplía confianza de proxies. Los valores predeterminados mantienen el dominio y desarrollo locales. Una actualización incompatible del contrato de red requiere incrementar PROTOCOL_VERSION; el cliente informa y ofrece recarga voluntaria conservando el secreto de pestaña.
+
+Al reiniciar el proceso se pierden las salas: la recuperación de sesiones solo funciona mientras el estado siga disponible en memoria.

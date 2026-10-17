@@ -1,11 +1,91 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { GAME_CATALOG } from '../packages/sobremesa-logic/dist/index.js';
+import { gameFactories } from '../apps/sobremesa-server/dist/games/engines.js';
+import {
+  parseAllowedOrigins,
+  contentSecurityPolicy,
+} from '../apps/sobremesa-server/dist/origins.js';
 import { RoomManager } from '../apps/sobremesa-server/dist/RoomManager.js';
 import { RoomCreationLimiter } from '../apps/sobremesa-server/dist/RoomCreationLimiter.js';
 import {
   parseTrustedCloudflareIps,
   resolveClientIp,
 } from '../apps/sobremesa-server/dist/clientIp.js';
+
+test('Orígenes exactos y CSP derivada sin comodines ni interpolación de cabeceras', () => {
+  const origins = parseAllowedOrigins(
+    'http://127.0.0.1:13000, https://example.test,http://127.0.0.1:13000',
+  );
+  assert.deepEqual(origins, ['http://127.0.0.1:13000', 'https://example.test']);
+  const csp = contentSecurityPolicy(origins);
+  assert.match(csp, /ws:\/\/127\.0\.0\.1:13000/);
+  assert.match(csp, /wss:\/\/example\.test/);
+  assert.ok(!csp.includes('*'));
+  for (const origin of [
+    '',
+    '*',
+    'null',
+    'https://example.test/path',
+    'https://a.test; script-src *',
+    'https://user:pass@example.test',
+    'file:///tmp',
+    'http://example.test/',
+  ])
+    assert.throws(() => parseAllowedOrigins(origin));
+});
+
+for (const game of GAME_CATALOG) {
+  test(`${game.id}: registro completo, motor aislado, acciones inválidas inocuas y abandono idempotente`, () => {
+    const runtime = gameFactories[game.id]();
+    const other = gameFactories[game.id]();
+    assert.notEqual(runtime.engine, other.engine);
+    const players = Array.from({ length: game.minPlayers }, (_, i) => ({
+      id: `p${i}`,
+      isBot: false,
+    }));
+    const engine = runtime.engine;
+    const state = engine.initGame(players);
+    const actor = runtime.actor(state);
+    const before = structuredClone(state);
+    const action = engine.getBotAction(state, actor);
+    assert.ok(action);
+    assert.equal(engine.validateAction(state, actor, action), true);
+    assert.equal(engine.validateAction(state, 'outsider', action), false);
+    for (const invalid of [
+      null,
+      [],
+      {},
+      { type: 'UNKNOWN' },
+      { type: 'MOVE', from: Infinity, to: -1 },
+    ]) {
+      assert.equal(engine.validateAction(state, actor, invalid), false);
+      assert.equal(engine.applyAction(state, actor, invalid), state);
+    }
+    assert.deepEqual(state, before);
+    assert.equal(engine.forfeitPlayer(state, 'outsider'), state);
+    const ended = engine.forfeitPlayer(state, actor);
+    if (ended.winner || ended.isDraw) assert.equal(engine.forfeitPlayer(ended, actor), ended);
+
+    const match = runtime.createMatch();
+    const isolated = other.createMatch();
+    match.start(players);
+    isolated.start(players);
+    const untouched = structuredClone(isolated.state);
+    const matchActor = match.botId(players) || match.actor();
+    const matchBefore = structuredClone(match.state);
+    for (const invalid of [null, [], {}, { type: 'UNKNOWN' }]) {
+      assert.equal(match.act(matchActor, invalid), null);
+      assert.deepEqual(match.state, matchBefore);
+    }
+    assert.ok(match.act(matchActor, match.botAction(matchActor)));
+    assert.deepEqual(isolated.state, untouched, 'Otra partida conserva su estado');
+    match.reset();
+    assert.equal(match.publicState(matchActor), null);
+    assert.equal(match.timeoutStep(matchActor), null);
+    assert.equal(match.expire(), false);
+  });
+}
 
 test('CF-Connecting-IP solo se acepta desde direcciones proxy autorizadas y debe ser una IP válida', () => {
   const trusted = parseTrustedCloudflareIps('172.20.0.4, ::ffff:172.20.0.5');
@@ -97,24 +177,24 @@ test('El reloj conserva el presupuesto del turno durante decisiones intermedias'
       const room = manager.getRoomBySocket(`socket-a-${game}`),
         deadline = room.turnDeadline;
       context.mock.timers.tick(10000);
-      const actor = room.gameState.currentTurnPlayerId;
+      const actor = room.match.state.currentTurnPlayerId;
       let action;
       if (game === 'chess') action = { type: 'OFFER_DRAW' };
       if (game === 'battleship') action = { type: 'RANDOMIZE' };
       if (game === 'combinations') action = { type: 'ROLL', keep: [] };
-      if (game === 'backgammon') action = room.engine.getBotAction(room.gameState, actor);
+      if (game === 'backgammon') action = room.match.botAction(actor);
       if (game === 'checkers') {
-        room.gameState.board = Array(64).fill(null);
-        room.gameState.board[42] = { owner: actor, king: false };
-        room.gameState.board[35] = { owner: `b-${game}`, king: false };
-        room.gameState.board[21] = { owner: `b-${game}`, king: false };
-        room.gameState.board[55] = { owner: `b-${game}`, king: false };
+        room.match.state.board = Array(64).fill(null);
+        room.match.state.board[42] = { owner: actor, king: false };
+        room.match.state.board[35] = { owner: `b-${game}`, king: false };
+        room.match.state.board[21] = { owner: `b-${game}`, king: false };
+        room.match.state.board[55] = { owner: `b-${game}`, king: false };
         action = { type: 'MOVE', from: 42, to: 28 };
       }
       assert.equal(manager.handleAction(code, actor, action).success, true);
       assert.equal(room.turnDeadline, deadline, `${game}: reinició el reloj`);
       context.mock.timers.tick(20000);
-      assert.notEqual(room.gameState.currentTurnPlayerId, actor, `${game}: turno bloqueado`);
+      assert.notEqual(room.match.state.currentTurnPlayerId, actor, `${game}: turno bloqueado`);
       assert.ok(room.turnDeadline > Date.now());
       manager.leaveRoom(`socket-a-${game}`);
       manager.leaveRoom(`socket-b-${game}`);
@@ -148,7 +228,7 @@ test('La sala valida opciones, conserva las de otra sala y las bloquea al empeza
     assert.equal(manager.getRoomBySocket('socket-a').customRules.openingPoints, 50);
     assert.equal(manager.getRoomBySocket('socket-b').customRules.openingPoints, 30);
     manager.startGame(a.code, 'a');
-    const s = manager.getRoomBySocket('socket-a').gameState;
+    const s = manager.getRoomBySocket('socket-a').match.state;
     assert.equal(s.players[0].hand.length, 10);
     assert.equal(s.rules.openingPoints, 50);
     assert.equal(s.rules.useJokers, false);

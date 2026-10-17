@@ -191,6 +191,8 @@ export function useBoardMotion(revision: string | number, options: MotionOptions
           running.current.delete(animation);
         };
       }
+    // Only a server revision starts motion; UI-only option changes must not replay a move.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revision]);
   return root;
 }

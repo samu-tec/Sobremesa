@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { t, quantity } from '../i18n';
 import { BoardFrame, type BoardProps } from '../ui/GameLayout';
 import { useBoardMotion } from '../hooks/useBoardMotion';

@@ -46,6 +46,7 @@ export class AjedrezEngine implements IGameEngine<AjedrezState, AjedrezAction, A
     };
   }
   validateAction(s: AjedrezState, id: string, a: AjedrezAction): boolean {
+    if (!a || typeof a !== 'object' || Array.isArray(a)) return false;
     if (!a || s.winner || s.isDraw || !s.players.some((p) => p.id === id)) return false;
     if (a.type === 'RESIGN') return true;
     if (a.type === 'ACCEPT_DRAW') return !!s.drawOffer && s.drawOffer !== id;
@@ -166,10 +167,13 @@ export class AjedrezEngine implements IGameEngine<AjedrezState, AjedrezAction, A
       let value = evaluate();
       if (!c.isGameOver()) {
         let worst = Infinity;
-        for (const reply of c.moves()) {
+        for (const reply of c.moves({ verbose: true })) {
           c.move(reply);
           worst = Math.min(worst, evaluate());
           c.undo();
+          // This move cannot beat the incumbent, including ties (first wins).
+          // Remaining replies can only lower its score, so the choice is unchanged.
+          if (worst <= best) break;
         }
         value = worst;
       }

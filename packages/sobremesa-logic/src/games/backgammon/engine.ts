@@ -106,8 +106,8 @@ export class BackgammonEngine implements IGameEngine<
     points[11] = -5;
     points[16] = -3;
     points[18] = -5;
-    let a = die(),
-      b = die();
+    const a = die();
+    let b = die();
     while (a === b) b = die();
     return {
       players: ps,
@@ -126,6 +126,7 @@ export class BackgammonEngine implements IGameEngine<
     };
   }
   validateAction(s: BackgammonState, id: string, a: BackgammonAction): boolean {
+    if (!a || typeof a !== 'object' || Array.isArray(a)) return false;
     return (
       !!a &&
       liveTurn(s, id) &&

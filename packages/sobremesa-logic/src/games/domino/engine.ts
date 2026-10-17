@@ -104,6 +104,7 @@ export class DominoEngine implements IGameEngine<DominoState, DominoAction, Domi
     });
   }
   validateAction(s: DominoState, id: string, a: DominoAction) {
+    if (!a || typeof a !== 'object' || Array.isArray(a)) return false;
     return (
       !!a &&
       actions(s, id).some(

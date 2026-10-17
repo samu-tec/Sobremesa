@@ -39,3 +39,5 @@ export * from './games/mancala/engine.js';
 export * from './games/dados-de-combinaciones/engine.js';
 
 export * from './settings.js';
+
+export * from './events/protocol.js';

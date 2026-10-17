@@ -8,11 +8,14 @@ import cors from 'cors';
 import { Server } from 'socket.io';
 import {
   GAME_CATALOG,
+  PROTOCOL_VERSION,
+  PROTOCOL_MISMATCH,
   type ClientToServerEvents,
   type InterServerEvents,
   type ServerToClientEvents,
   type SocketData,
 } from 'sobremesa-logic';
+import { contentSecurityPolicy } from './origins.js';
 import { CONFIG } from './config.js';
 import { resolveClientIp } from './clientIp.js';
 import { RoomManager } from './RoomManager.js';
@@ -30,8 +33,7 @@ app.use((_req, res, next) => {
     'Referrer-Policy': 'no-referrer',
     'Cross-Origin-Resource-Policy': 'same-origin',
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-    'Content-Security-Policy':
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' wss://games.samuelciocan.com ws://localhost:3000 ws://127.0.0.1:3000; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
+    'Content-Security-Policy': contentSecurityPolicy(CONFIG.ALLOWED_ORIGINS),
   });
   if (process.env.NODE_ENV === 'production')
     res.setHeader('Strict-Transport-Security', 'max-age=31536000');
@@ -88,7 +90,16 @@ io.engine.on('headers', (headers) => {
   headers['Cache-Control'] = 'no-store';
   headers['X-Content-Type-Options'] = 'nosniff';
 });
+let activeSessions = 0;
 io.use((socket, next) => {
+  const clientVersion: unknown = socket.handshake.auth?.protocolVersion;
+  if (clientVersion !== undefined && clientVersion !== PROTOCOL_VERSION) {
+    const error = Object.assign(new Error('Actualiza Sobremesa para volver a conectar.'), {
+      data: { code: PROTOCOL_MISMATCH, protocolVersion: PROTOCOL_VERSION },
+    });
+    next(error);
+    return;
+  }
   const token: unknown = socket.handshake.auth?.sessionToken;
   if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) {
     next(new Error('Sesión no válida. Recarga la página.'));
@@ -96,22 +107,40 @@ io.use((socket, next) => {
   }
   // Public player IDs are derived from private, cryptographically random browser secrets.
   // A supplied playerId in an event cannot authorize any action.
+  // Reserve before next(): concurrent namespace handshakes must share the same limits.
+  const bucket = connections.get(ipFor(socket.request));
+  if (!bucket || bucket.active >= 30 || activeSessions >= CONFIG.MAX_CONNECTIONS) {
+    next(new Error('Servidor ocupado'));
+    return;
+  }
+  bucket.active++;
+  activeSessions++;
   socket.data.playerId = `guest_${createHash('sha256').update(token).digest('hex').slice(0, 32)}`;
   next();
 });
 const manager = new RoomManager(io);
 io.on('connection', (socket) => {
-  const ip = ipFor(socket.request),
-    bucket = connections.get(ip);
-  if (bucket) bucket.active++;
+  const ip = ipFor(socket.request);
+  socket.on('disconnect', () => {
+    activeSessions = Math.max(0, activeSessions - 1);
+    const entry = connections.get(ip);
+    if (entry) entry.active = Math.max(0, entry.active - 1);
+  });
+  if (socket.handshake.auth?.protocolVersion === undefined) {
+    // Browsers from before version negotiation already understand game:error.
+    // They must receive a useful message even though their connect_error UI is silent.
+    socket.emit(
+      'game:error',
+      'Recarga la página para volver a intentarlo. Si tu sala sigue activa, recuperaremos tu sitio.',
+    );
+    socket.emit('session:incompatible', { protocolVersion: PROTOCOL_VERSION });
+    socket.disconnect(true);
+    return;
+  }
   registerSocketHandlers(io, socket, manager, {
     allowAttempt: () => roomCreationLimiter.allowAttempt(ip),
     canCreateGlobally: () => roomCreationLimiter.canCreateGlobally(),
     recordCreated: () => roomCreationLimiter.recordCreated(),
-  });
-  socket.on('disconnect', () => {
-    const entry = connections.get(ip);
-    if (entry) entry.active = Math.max(0, entry.active - 1);
   });
 });
 const sweep = setInterval(() => {

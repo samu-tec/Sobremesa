@@ -23,7 +23,7 @@ export class CambioDeColorEngine implements IGameEngine<
       throw new Error('Cambio de Color requires between 2 and 4 players');
     }
 
-    let deck = shuffleDeck(createDeck());
+    const deck = shuffleDeck(createDeck());
     const playerHands: PlayerHand[] = [];
 
     // Deal 7 cards to each player
@@ -63,6 +63,7 @@ export class CambioDeColorEngine implements IGameEngine<
     playerId: string,
     action: CambioDeColorAction,
   ): boolean {
+    if (!action || typeof action !== 'object' || Array.isArray(action)) return false;
     if (state.winner !== null) {
       return false;
     }
@@ -117,6 +118,7 @@ export class CambioDeColorEngine implements IGameEngine<
     playerId: string,
     action: CambioDeColorAction,
   ): CambioDeColorState {
+    if (!this.validateAction(state, playerId, action)) return state;
     const newState: CambioDeColorState = {
       ...state,
       players: state.players.map((p) => ({ ...p, cards: [...p.cards] })),
@@ -270,6 +272,7 @@ export class CambioDeColorEngine implements IGameEngine<
   }
 
   forfeitPlayer(state: CambioDeColorState, id: string): CambioDeColorState {
+    if (state.winner || !state.players.some((p) => p.playerId === id)) return state;
     const departed = state.players.find((p) => p.playerId === id);
     const players = state.players
       .filter((p) => p.playerId !== id)

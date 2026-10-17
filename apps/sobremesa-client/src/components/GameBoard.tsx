@@ -1,6 +1,7 @@
-import { lazy } from 'react';
+import { lazy, type ReactNode } from 'react';
 import type { BoardProps } from '../ui/GameLayout';
 import type {
+  GameType,
   GamePublicState,
   GameAction,
   CiudadFortunaPublicState,
@@ -61,42 +62,36 @@ const DadosAl100Board = lazy(() =>
   import('./DadosAl100Board').then((m) => ({ default: m.DadosAl100Board })),
 );
 
+const boards = {
+  monopoly: (props) => (
+    <CiudadFortunaBoard {...props} state={props.state as CiudadFortunaPublicState} />
+  ),
+  colorclash: (props) => (
+    <CambioDeColorBoard {...props} state={props.state as CambioDeColorPublicState} />
+  ),
+  chess: (props) => <AjedrezBoard {...props} state={props.state as AjedrezPublicState} />,
+  checkers: (props) => <DamasBoard {...props} state={props.state as DamasPublicState} />,
+  mancala: (props) => <MancalaBoard {...props} state={props.state as MancalaState} />,
+  backgammon: (props) => (
+    <BackgammonBoard {...props} state={props.state as BackgammonPublicState} />
+  ),
+  rummy: (props) => (
+    <RummyDeFichasBoard {...props} state={props.state as RummyDeFichasPublicState} />
+  ),
+  dominoes: (props) => <DominoBoard {...props} state={props.state as DominoPublicState} />,
+  impostor: (props) => <ImpostorBoard {...props} state={props.state as ImpostorPublicState} />,
+  battleship: (props) => (
+    <BatallaNavalBoard {...props} state={props.state as BatallaNavalPublicState} />
+  ),
+  combinations: (props) => (
+    <DadosDeCombinacionesBoard {...props} state={props.state as DadosDeCombinacionesPublicState} />
+  ),
+  tictactoe: (props) => <TresEnRayaBoard {...props} state={props.state as TresEnRayaState} />,
+  connect4: (props) => <CuatroEnLineaBoard {...props} state={props.state as CuatroEnLineaState} />,
+  reversi: (props) => <ReversiBoard {...props} state={props.state as ReversiState} />,
+  pig: (props) => <DadosAl100Board {...props} state={props.state as DadosAl100State} />,
+} satisfies Record<GameType, (props: BoardProps<GamePublicState, GameAction>) => ReactNode>;
+
 export function GameBoard(props: BoardProps<GamePublicState, GameAction>) {
-  switch (props.room.gameType) {
-    case 'monopoly':
-      return <CiudadFortunaBoard {...props} state={props.state as CiudadFortunaPublicState} />;
-    case 'colorclash':
-      return <CambioDeColorBoard {...props} state={props.state as CambioDeColorPublicState} />;
-    case 'chess':
-      return <AjedrezBoard {...props} state={props.state as AjedrezPublicState} />;
-    case 'checkers':
-      return <DamasBoard {...props} state={props.state as DamasPublicState} />;
-    case 'mancala':
-      return <MancalaBoard {...props} state={props.state as MancalaState} />;
-    case 'backgammon':
-      return <BackgammonBoard {...props} state={props.state as BackgammonPublicState} />;
-    case 'rummy':
-      return <RummyDeFichasBoard {...props} state={props.state as RummyDeFichasPublicState} />;
-    case 'dominoes':
-      return <DominoBoard {...props} state={props.state as DominoPublicState} />;
-    case 'impostor':
-      return <ImpostorBoard {...props} state={props.state as ImpostorPublicState} />;
-    case 'battleship':
-      return <BatallaNavalBoard {...props} state={props.state as BatallaNavalPublicState} />;
-    case 'combinations':
-      return (
-        <DadosDeCombinacionesBoard
-          {...props}
-          state={props.state as DadosDeCombinacionesPublicState}
-        />
-      );
-    case 'tictactoe':
-      return <TresEnRayaBoard {...props} state={props.state as TresEnRayaState} />;
-    case 'connect4':
-      return <CuatroEnLineaBoard {...props} state={props.state as CuatroEnLineaState} />;
-    case 'reversi':
-      return <ReversiBoard {...props} state={props.state as ReversiState} />;
-    case 'pig':
-      return <DadosAl100Board {...props} state={props.state as DadosAl100State} />;
-  }
+  return boards[props.room.gameType](props);
 }

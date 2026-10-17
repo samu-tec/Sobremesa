@@ -41,6 +41,7 @@ export class MancalaEngine implements IGameEngine<MancalaState, MancalaAction, M
     };
   }
   validateAction(s: MancalaState, id: string, a: MancalaAction) {
+    if (!a || typeof a !== 'object' || Array.isArray(a)) return false;
     const side = s.players.findIndex((p) => p.id === id);
     return (
       !!a &&

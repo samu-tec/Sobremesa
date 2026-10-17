@@ -1,6 +1,7 @@
 import type {
   CiudadFortunaPublicState,
   CiudadFortunaAction,
+  CiudadFortunaCustomRules,
 } from '../games/ciudad-fortuna/types.js';
 import type {
   CambioDeColorPublicState,
@@ -45,6 +46,12 @@ export type GameType =
 
 export type RoomStatus = 'waiting' | 'in_game' | 'finished';
 
+/** Validated scalar options; economic and card options retain their specific types. */
+export type RoomRules = Partial<CiudadFortunaCustomRules> & {
+  startingCards?: number;
+  [key: string]: number | boolean | null | undefined;
+};
+
 export interface Player {
   id: string;
   name: string;
@@ -61,7 +68,7 @@ export interface RoomInfo {
   players: Player[];
   maxPlayers: number;
   minPlayers: number;
-  customRules?: any;
+  customRules?: RoomRules;
   turnSeconds: number;
   turnDeadline: number | null;
   serverNow: number;

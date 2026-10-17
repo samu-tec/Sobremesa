@@ -63,6 +63,7 @@ visit(join(root, 'apps/sobremesa-client/package.json'));
 visit(join(root, 'packages/sobremesa-logic/package.json'));
 const output = join(root, 'apps/sobremesa-client/public/third-party-notices.txt');
 mkdirSync(dirname(output), { recursive: true });
+writeFileSync(join(dirname(output), 'license.txt'), readFileSync(join(root, 'LICENSE'), 'utf8'));
 writeFileSync(
   output,
   'Sobremesa — third-party runtime software notices\nGenerated from installed packages; includes transitive dependencies.\n\n' +

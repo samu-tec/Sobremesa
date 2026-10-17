@@ -137,8 +137,8 @@ test('Rummy de fichas: reorganización, dividir escaleras, liberar comodín y pr
 
 test('Rummy de fichas: robo termina turno, pozo agotado, puntuación y abandono', () => {
   const e = new RummyDeFichasEngine();
-  let s = e.initGame(players.slice(0, 2)),
-    before = s.players[0].hand.length;
+  let s = e.initGame(players.slice(0, 2));
+  const before = s.players[0].hand.length;
   s = e.applyAction(s, 'p0', { type: 'DRAW' });
   assert.equal(s.players[0].hand.length, before + 1);
   assert.equal(s.currentTurnPlayerId, 'p1');

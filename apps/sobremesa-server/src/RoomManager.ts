@@ -1,36 +1,29 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Server } from 'socket.io';
 import {
-  CambioDeColorEngine,
-  CiudadFortunaEngine,
-  TresEnRayaEngine,
-  CuatroEnLineaEngine,
-  ReversiEngine,
-  DadosAl100Engine,
-  RummyDeFichasEngine,
-  AjedrezEngine,
-  ImpostorEngine,
-  DominoEngine,
-  DamasEngine,
-  BackgammonEngine,
-  BatallaNavalEngine,
-  MancalaEngine,
-  DadosDeCombinacionesEngine,
   DEFAULT_CIUDAD_FORTUNA_RULES,
   getGame,
   defaultGameSettings,
   validGameSetting,
   type GameType,
-  type IGameEngine,
+  type RoomRules,
   type Player,
   type RoomInfo,
   type RoomStatus,
   type ClientToServerEvents,
   type ServerToClientEvents,
   type SocketData,
+  type InterServerEvents,
 } from 'sobremesa-logic';
 import { CONFIG } from './config.js';
-type TypedServer = Server<ClientToServerEvents, ServerToClientEvents, any, SocketData>;
+import { gameFactories } from './games/engines.js';
+import type { GameMatch } from './games/match.js';
+type TypedServer = Server<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  SocketData
+>;
 interface RoomPlayer extends Player {
   socketId: string | null;
   disconnectTimeout?: NodeJS.Timeout;
@@ -43,35 +36,18 @@ interface ActiveRoom {
   players: RoomPlayer[];
   minPlayers: number;
   maxPlayers: number;
-  engine: IGameEngine<any, any, any>;
-  gameState: any;
+  match: GameMatch;
+  configureRules(rules: RoomRules): void;
   botLoopTimeout?: NodeJS.Timeout;
   turnSeconds: number;
   turnDeadline: number | null;
   turnActor?: string;
   turnTimeout?: NodeJS.Timeout;
   lastActivity: number;
-  customRules?: any;
+  customRules: RoomRules;
 }
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const AUCTION_BID_SECONDS = 15;
-const engineFactories = {
-  tictactoe: () => new TresEnRayaEngine(),
-  colorclash: () => new CambioDeColorEngine(),
-  monopoly: () => new CiudadFortunaEngine(),
-  connect4: () => new CuatroEnLineaEngine(),
-  reversi: () => new ReversiEngine(),
-  pig: () => new DadosAl100Engine(),
-  rummy: () => new RummyDeFichasEngine(),
-  chess: () => new AjedrezEngine(),
-  impostor: () => new ImpostorEngine(),
-  dominoes: () => new DominoEngine(),
-  checkers: () => new DamasEngine(),
-  backgammon: () => new BackgammonEngine(),
-  battleship: () => new BatallaNavalEngine(),
-  mancala: () => new MancalaEngine(),
-  combinations: () => new DadosDeCombinacionesEngine(),
-};
+
 export class RoomManager {
   private rooms = new Map<string, ActiveRoom>();
   private socketToRoom = new Map<string, string>();
@@ -106,6 +82,7 @@ export class RoomManager {
         error: 'Ya tienes una sala. Vuelve a conectarte a ella o espera a que caduque tu reserva.',
       };
     const definition = getGame(gameType);
+    const runtime = gameFactories[gameType]();
     const room: ActiveRoom = {
       code: this.generateRoomCode(),
       gameType,
@@ -114,8 +91,8 @@ export class RoomManager {
       players: [{ id, name, isBot: false, connected: true, isHost: true, socketId }],
       minPlayers: definition.minPlayers,
       maxPlayers: definition.maxPlayers,
-      engine: engineFactories[gameType](),
-      gameState: null,
+      match: runtime.createMatch(),
+      configureRules: runtime.configureRules,
       turnSeconds: 90,
       turnDeadline: null,
       lastActivity: Date.now(),
@@ -204,7 +181,7 @@ export class RoomManager {
         key === 'startingCards' &&
         [5, 7, 9].includes(value as number)
       )
-        next[key] = value;
+        next.startingCards = value as number;
       else if (
         room.gameType === 'monopoly' &&
         ((key === 'startingCash' && [1000, 1500, 2000, 2500].includes(value as number)) ||
@@ -221,17 +198,14 @@ export class RoomManager {
           ].includes(key) &&
             typeof value === 'boolean'))
       )
-        next[key] = value;
-      else if (validGameSetting(room.gameType, key, value)) next[key] = value;
+        next[key] = value as number | boolean | null;
+      else if (validGameSetting(room.gameType, key, value))
+        next[key] = value as number | boolean | null;
       else return { success: false, error: 'Opción de regla no permitida.' };
     }
-    if (!['monopoly', 'colorclash'].includes(room.gameType) && 'setRules' in room.engine)
-      room.engine.setRules?.(next);
+    room.configureRules(next);
     room.turnSeconds = seconds;
     room.customRules = next;
-    if (room.gameType === 'monopoly') (room.engine as CiudadFortunaEngine).setRules(next);
-    if (room.gameType === 'colorclash')
-      (room.engine as CambioDeColorEngine).setStartingCards(next.startingCards);
     room.lastActivity = Date.now();
     this.broadcastRoomUpdate(room);
     return { success: true };
@@ -240,9 +214,7 @@ export class RoomManager {
     const room = this.hostRoom(code, id, 'waiting');
     if (room.players.length < room.minPlayers || room.players.some((p) => !p.connected))
       return { success: false, error: 'Faltan jugadores. Invita a alguien o añade un bot.' };
-    room.gameState = room.engine.initGame(
-      room.players.map(({ id, isBot, name }) => ({ id, isBot, name })),
-    );
+    room.match.start(room.players.map(({ id, isBot, name }) => ({ id, isBot, name })));
     room.status = 'in_game';
     room.lastActivity = Date.now();
     this.armTurnClock(room, true);
@@ -257,7 +229,7 @@ export class RoomManager {
     room.botLoopTimeout = undefined;
     this.clearTurnClock(room);
     room.status = 'waiting';
-    room.gameState = null;
+    room.match.reset();
     room.lastActivity = Date.now();
     if (room.players.length > 1) room.players.push(room.players.shift()!);
     this.broadcastRoomUpdate(room);
@@ -274,34 +246,12 @@ export class RoomManager {
       typeof (action as { type?: unknown }).type !== 'string'
     )
       return { success: false, error: 'Acción no válida.' };
-    if (!room.engine.validateAction(room.gameState, id, action))
-      return { success: false, error: 'Ese movimiento no está permitido o no es tu turno.' };
     const previousActor = this.actor(room);
-    room.gameState = room.engine.applyAction(room.gameState, id, action);
-    // Several games can skip an opponent and give the same player a new turn.
-    const kind = (action as { type: string }).type;
-    const completed =
-      room.gameType === 'colorclash'
-        ? kind === 'PLAY_CARD' || kind === 'PASS_TURN' || !room.gameState.hasDrawnThisTurn
-        : room.gameType === 'monopoly'
-          ? kind === 'END_TURN' || kind === 'BID'
-          : room.gameType === 'pig'
-            ? kind === 'HOLD' || room.gameState.lastRoll === 1
-            : room.gameType === 'chess'
-              ? kind === 'MOVE'
-              : room.gameType === 'checkers'
-                ? room.gameState.forcedFrom === null
-                : room.gameType === 'battleship'
-                  ? kind === 'READY' || kind === 'FIRE'
-                  : room.gameType === 'combinations'
-                    ? kind === 'SCORE'
-                    : room.gameType === 'backgammon'
-                      ? false
-                      : room.gameType === 'dominoes'
-                        ? kind !== 'DRAW'
-                        : true;
-    this.armTurnClock(room, completed || previousActor !== this.actor(room));
-    if (Array.isArray(room.gameState.logs)) room.gameState.logs = room.gameState.logs.slice(0, 80);
+    const result = room.match.act(id, action);
+    if (!result)
+      return { success: false, error: 'Ese movimiento no está permitido o no es tu turno.' };
+    // The game policy decides whether a same-player action starts a new turn.
+    this.armTurnClock(room, result.completed || previousActor !== this.actor(room));
     if (!room.players.find((p) => p.id === id)?.isBot) room.lastActivity = Date.now();
     this.finishIfNeeded(room);
     this.broadcastRoomUpdate(room);
@@ -310,8 +260,7 @@ export class RoomManager {
     return { success: true };
   }
   private finishIfNeeded(room: ActiveRoom) {
-    const winnerId = room.engine.checkWinner(room.gameState),
-      isDraw = room.gameState.isDraw === true;
+    const { winnerId, isDraw } = room.match.result();
     if (!winnerId && !isDraw) return;
     room.status = 'finished';
     this.clearTurnClock(room);
@@ -361,7 +310,7 @@ export class RoomManager {
     return {
       success: true,
       room: this.getRoomInfo(room),
-      state: room.gameState ? room.engine.getSanitizedState(room.gameState, id) : null,
+      state: room.match.publicState(id),
     };
   }
   handleDisconnect(socketId: string) {
@@ -405,7 +354,7 @@ export class RoomManager {
     if (room.status === 'in_game') {
       clearTimeout(room.botLoopTimeout);
       room.botLoopTimeout = undefined;
-      room.gameState = room.engine.forfeitPlayer(room.gameState, id);
+      room.match.forfeit(id);
       this.finishIfNeeded(room);
       this.armTurnClock(room);
       this.broadcastGameState(room);
@@ -415,10 +364,9 @@ export class RoomManager {
     this.broadcastRoomUpdate(room);
   }
   private actor(room: ActiveRoom): string {
-    if (room.gameType === 'monopoly' && room.gameState?.auction)
-      return `auction:${room.gameState.auction.tileIndex}`;
-    return room.gameState?.currentTurn || room.gameState?.currentTurnPlayerId;
+    return room.match.actor();
   }
+
   private clearTurnClock(room: ActiveRoom) {
     clearTimeout(room.turnTimeout);
     room.turnTimeout = undefined;
@@ -431,7 +379,7 @@ export class RoomManager {
     if (!force && room.turnActor === actor && room.turnTimeout) return;
     this.clearTurnClock(room);
     room.turnActor = actor;
-    const duration = room.gameState?.auction ? AUCTION_BID_SECONDS : room.turnSeconds;
+    const duration = room.match.timeoutSeconds() ?? room.turnSeconds;
     room.turnDeadline = Date.now() + duration * 1000;
     const deadline = room.turnDeadline;
     room.turnTimeout = setTimeout(() => {
@@ -439,54 +387,16 @@ export class RoomManager {
       // Complete a legal, conservative turn, including unresolved purchase decisions.
       // Clearing first prevents a stale deadline from acting on a later turn.
       this.clearTurnClock(room);
-      if (room.gameType === 'monopoly' && room.gameState.auction) {
-        room.gameState = (room.engine as CiudadFortunaEngine).finishAuction(room.gameState);
+      if (room.match.expire()) {
         this.finishIfNeeded(room);
       } else {
         for (let i = 0; i < 100 && room.status === 'in_game' && this.actor(room) === actor; i++) {
-          const s = room.gameState;
-          let action: any;
-          if (room.gameType === 'monopoly') {
-            const p = s.players.find((p: any) => p.id === actor);
-            action =
-              p?.cash < 0
-                ? room.engine.getBotAction(s, actor)
-                : {
-                    type:
-                      s.turnPhase === 'roll'
-                        ? 'ROLL_DICE'
-                        : s.turnPhase === 'tile_action'
-                          ? 'PASS_PROPERTY'
-                          : 'END_TURN',
-                  };
-          } else if (room.gameType === 'colorclash')
-            action = { type: s.hasDrawnThisTurn ? 'PASS_TURN' : 'DRAW_CARD' };
-          else if (room.gameType === 'rummy') action = { type: s.pool.length ? 'DRAW' : 'PASS' };
-          else if (room.gameType === 'pig') action = { type: s.turnTotal > 0 ? 'HOLD' : 'ROLL' };
-          else action = room.engine.getBotAction(s, actor);
-          if (!action || !room.engine.validateAction(s, actor, action)) break;
-          room.gameState = room.engine.applyAction(s, actor, action);
+          const step = room.match.timeoutStep(actor);
+          if (!step) break;
           this.finishIfNeeded(room);
-          if (room.gameType === 'monopoly' && action.type === 'END_TURN') break;
-          if (
-            action.type === 'NEXT_ROUND' ||
-            ![
-              'monopoly',
-              'colorclash',
-              'pig',
-              'rummy',
-              'dominoes',
-              'backgammon',
-              'battleship',
-              'checkers',
-              'combinations',
-            ].includes(room.gameType)
-          )
-            break;
+          if (!step.continue) break;
         }
       }
-      if (Array.isArray(room.gameState.logs))
-        room.gameState.logs = room.gameState.logs.slice(0, 80);
       this.armTurnClock(room, true);
       this.broadcastRoomUpdate(room);
       this.broadcastGameState(room);
@@ -496,37 +406,15 @@ export class RoomManager {
   private checkAndTriggerBotTurn(room: ActiveRoom) {
     clearTimeout(room.botLoopTimeout);
     room.botLoopTimeout = undefined;
-    if (
-      room.status !== 'in_game' ||
-      !room.gameState ||
-      !room.players.some((p) => !p.isBot && p.connected)
-    )
-      return;
-    const state = room.gameState;
-    const auctionBot =
-      state.auction && room.gameType === 'monopoly'
-        ? room.players.find(
-            (player) =>
-              player.isBot &&
-              !state.auction.passedPlayerIds.includes(player.id) &&
-              state.auction.highestBidderId !== player.id &&
-              state.players.find(
-                (participant: any) => participant.id === player.id && !participant.isBankrupt,
-              ),
-          )
-        : undefined;
-    const targetId = state.activeTrade?.toPlayerId;
-    const target = room.players.find((p) => p.id === targetId && p.isBot);
-    const current = room.players.find(
-      (p) => p.id === (state.currentTurn || state.currentTurnPlayerId) && p.isBot,
-    );
-    const bot = state.auction ? auctionBot : target || current;
+    if (room.status !== 'in_game' || !room.players.some((p) => !p.isBot && p.connected)) return;
+    const botId = room.match.botId(room.players);
+    const bot = room.players.find((p) => p.id === botId);
     if (!bot) return;
     room.botLoopTimeout = setTimeout(() => {
       room.botLoopTimeout = undefined;
       if (!this.rooms.has(room.code) || room.status !== 'in_game') return;
       try {
-        const action = room.engine.getBotAction(room.gameState, bot.id);
+        const action = room.match.botAction(bot.id);
         if (action) this.handleAction(room.code, bot.id, action);
       } catch {
         console.error('No se pudo completar un turno de bot.');
@@ -549,10 +437,10 @@ export class RoomManager {
     this.rooms.delete(code);
   }
   broadcastGameState(room: ActiveRoom, isStart = false) {
-    if (!room.gameState) return;
     for (const player of room.players)
       if (player.socketId) {
-        const state = room.engine.getSanitizedState(room.gameState, player.id);
+        const state = room.match.publicState(player.id);
+        if (!state) continue;
         if (isStart)
           this.io
             .to(player.socketId)
