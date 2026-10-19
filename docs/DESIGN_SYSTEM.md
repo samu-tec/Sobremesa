@@ -8,6 +8,8 @@ Sobremesa usa salvia, crema, verdes oscuros, ilustraciones SVG y tipografía edi
 
 Reutiliza los tokens en superficies compartidas. Conserva el ámbito de las media queries y las alternativas sintácticas necesarias para los navegadores compatibles. No reordenes reglas solo porque comparten selector: podrían competir con variantes intermedias. Una ampliación debería integrarse en la sección correspondiente y evitar otra capa global de sobrescrituras.
 
+Las ilustraciones SVG están en `src/ui/artwork/`, agrupadas por juego; ajedrez y damas comparten la misma base. `GameArtwork.tsx` conserva el contenedor, las paletas y un registro exhaustivo de los quince juegos. Cada ilustración recibe el identificador único del contenedor para referenciar sus filtros sin colisiones entre tarjetas.
+
 ## Tokens utilizados
 
 | Propósito                         | Variable / valor                                                                                            |

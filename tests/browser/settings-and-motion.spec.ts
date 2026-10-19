@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
+import { accessibilityAudit } from './accessibility';
 async function ready(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem('sobremesa.locale', 'es');
@@ -65,9 +65,7 @@ for (const id of [
       await page.getByRole('switch', { name: 'Tablas automáticas', exact: true }).uncheck();
     await page.reload();
     await expect(page.getByRole('button', { name: 'Empezar partida', exact: true })).toBeVisible();
-    const a11y = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
-      .analyze();
+    const a11y = await accessibilityAudit(page).analyze();
     expect(a11y.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target) }))).toEqual(
       [],
     );

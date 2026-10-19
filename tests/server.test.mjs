@@ -237,3 +237,223 @@ test('La sala valida opciones, conserva las de otra sala y las bloquea al empeza
     manager.dispose();
   }
 });
+
+for (const failure of ['expire', 'timeoutStep', 'publicState', 'forfeit', 'botAction']) {
+  test(`Un fallo en ${failure} cierra solo su sala y cancela sus tareas automáticas`, (context) => {
+    context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+    const emitted = [];
+    const leaves = [];
+    const io = {
+      to: (code) => ({ emit: (event, payload) => emitted.push({ code, event, payload }) }),
+      sockets: {
+        sockets: new Map(
+          ['socket-a', 'socket-b'].map((id) => [
+            id,
+            { leave: (code) => leaves.push({ id, code }) },
+          ]),
+        ),
+      },
+    };
+    const logged = context.mock.method(console, 'error', () => {});
+    const manager = new RoomManager(io);
+    try {
+      const code = manager.createRoom('Ana', 'a', 'socket-a', 'tictactoe').room.code;
+      if (failure === 'botAction') manager.addBot(code, 'a');
+      else manager.joinRoom(code, 'Bruno', 'b', 'socket-b');
+      const other = manager.createRoom('Clara', 'c', 'socket-c', 'tictactoe').room.code;
+      manager.joinRoom(other, 'David', 'd', 'socket-d');
+      manager.updateRoomRules(code, 'a', { turnSeconds: 30 });
+      manager.updateRoomRules(other, 'c', { turnSeconds: 30 });
+      manager.startGame(code, 'a');
+      manager.startGame(other, 'c');
+      const room = manager.getRoomBySocket('socket-a');
+      const healthy = manager.getRoomBySocket('socket-c');
+      const healthyBefore = structuredClone(healthy.match.state);
+      if (failure === 'botAction') {
+        assert.equal(
+          manager.handleAction(code, 'a', { type: 'MAKE_MOVE', index: 0 }).success,
+          true,
+        );
+      }
+      room.match[failure] = () => {
+        throw new Error('mano-secreta-no-publicable');
+      };
+      if (failure === 'forfeit') manager.handleDisconnect('socket-b');
+      emitted.length = 0;
+      assert.doesNotThrow(() => context.mock.timers.tick(failure === 'forfeit' ? 300000 : 30000));
+      assert.equal(manager.getRoomsCount(), 1);
+      assert.equal(manager.getRoomBySocket('socket-a'), undefined);
+      assert.equal(manager.getRoomBySocket('socket-b'), undefined);
+      assert.equal(room.turnDeadline, null);
+      assert.equal(manager.getRoomBySocket('socket-c'), healthy);
+      assert.notDeepEqual(
+        healthy.match.state,
+        healthyBefore,
+        'El reloj de la otra sala sigue activo',
+      );
+      const closed = emitted.filter((e) => e.event === 'room:closed');
+      assert.equal(closed.length, 1);
+      assert.equal(closed[0].code, code);
+      assert.match(closed[0].payload, /error inesperado/);
+      assert.equal(
+        emitted.some((e) => e.code === code && e.event === 'game:state_update'),
+        false,
+      );
+      assert.ok(leaves.some((e) => e.id === 'socket-a' && e.code === code));
+      assert.equal(logged.mock.calls.length, 1);
+      assert.ok(!JSON.stringify([emitted, logged.mock.calls]).includes('mano-secreta'));
+      context.mock.timers.tick(300000);
+      assert.equal(emitted.filter((e) => e.event === 'room:closed').length, 1);
+      assert.equal(logged.mock.calls.length, 1, 'No se reintenta un motor averiado');
+    } finally {
+      manager.dispose();
+      context.mock.timers.reset();
+    }
+  });
+}
+
+test('Reconectar conserva el plazo y anula la reserva; una desconexión antigua no afecta al sustituto', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+  const io = { to: () => ({ emit: () => {} }), sockets: { sockets: new Map() } };
+  const manager = new RoomManager(io);
+  try {
+    const code = manager.createRoom('Ana', 'a', 'socket-a', 'tictactoe').room.code;
+    manager.joinRoom(code, 'Bruno', 'b', 'socket-b');
+    manager.updateRoomRules(code, 'a', { turnSeconds: 30 });
+    manager.startGame(code, 'a');
+    const room = manager.getRoomBySocket('socket-a');
+    const deadline = room.turnDeadline;
+    manager.handleDisconnect('socket-a');
+    context.mock.timers.tick(10000);
+    const restored = manager.reconnectPlayer(code, 'a', 'socket-new');
+    assert.equal(restored.success, true);
+    assert.deepEqual(restored.state, room.match.publicState('a'));
+    assert.equal(room.turnDeadline, deadline);
+    assert.equal(room.players[0].disconnectTimeout, undefined);
+    manager.handleDisconnect('socket-a');
+    assert.equal(room.players[0].connected, true);
+    context.mock.timers.tick(20000);
+    assert.equal(room.match.actor(), 'b', 'El reloj original vence durante la conexión nueva');
+    assert.equal(room.match.state.board.filter(Boolean).length, 1);
+    context.mock.timers.tick(300000);
+    assert.equal(manager.getRoomBySocket('socket-new'), room);
+    assert.equal(room.players.length, 2, 'La reserva cancelada no expulsa al jugador recuperado');
+  } finally {
+    manager.dispose();
+    context.mock.timers.reset();
+  }
+});
+
+test('Una partida terminada durante la desconexión se recupera sin rearmar relojes ni bots', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+  const io = { to: () => ({ emit: () => {} }), sockets: { sockets: new Map() } };
+  const manager = new RoomManager(io);
+  try {
+    const code = manager.createRoom('Ana', 'a', 'socket-a', 'tictactoe').room.code;
+    manager.joinRoom(code, 'Bruno', 'b', 'socket-b');
+    manager.startGame(code, 'a');
+    for (const [id, index] of [
+      ['a', 0],
+      ['b', 3],
+      ['a', 1],
+      ['b', 4],
+    ])
+      assert.equal(manager.handleAction(code, id, { type: 'MAKE_MOVE', index }).success, true);
+    manager.handleDisconnect('socket-b');
+    assert.equal(manager.handleAction(code, 'a', { type: 'MAKE_MOVE', index: 2 }).success, true);
+    const result = manager.reconnectPlayer(code, 'b', 'socket-new');
+    assert.equal(result.success, true);
+    assert.equal(result.room.status, 'finished');
+    assert.equal(result.state.winner, 'a');
+    const room = manager.getRoomBySocket('socket-new');
+    const finished = structuredClone(room.match.state);
+    assert.equal(room.turnTimeout, undefined);
+    assert.equal(room.botLoopTimeout, undefined);
+    context.mock.timers.tick(300000);
+    assert.deepEqual(room.match.state, finished);
+    assert.equal(room.players.length, 2);
+  } finally {
+    manager.dispose();
+    context.mock.timers.reset();
+  }
+});
+
+test('Salir con un bot pendiente y apagar liberan todas las tareas sin emitir estados tardíos', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+  const emitted = [];
+  const io = {
+    to: (code) => ({ emit: (event) => emitted.push({ code, event }) }),
+    sockets: { sockets: new Map() },
+  };
+  const manager = new RoomManager(io);
+  try {
+    for (const leave of [true, false]) {
+      const code = manager.createRoom('Ana', 'a', 'socket-a', 'tictactoe').room.code;
+      manager.addBot(code, 'a');
+      manager.startGame(code, 'a');
+      manager.handleAction(code, 'a', { type: 'MAKE_MOVE', index: 0 });
+      if (leave) manager.leaveRoom('socket-a');
+      else manager.dispose();
+      const count = emitted.length;
+      context.mock.timers.tick(7 * 60 * 60 * 1000);
+      assert.equal(manager.getRoomsCount(), 0);
+      assert.equal(manager.getRoomBySocket('socket-a'), undefined);
+      assert.equal(emitted.length, count);
+    }
+  } finally {
+    manager.dispose();
+    context.mock.timers.reset();
+  }
+});
+
+test('Ciudad Fortuna conserva la subasta y su plazo al reconectar, y adjudica una sola vez', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+  context.mock.method(Math, 'random', () => 0);
+  const emitted = [];
+  const io = {
+    to: (code) => ({ emit: (event, payload) => emitted.push({ code, event, payload }) }),
+    sockets: { sockets: new Map() },
+  };
+  const manager = new RoomManager(io);
+  try {
+    const code = manager.createRoom('Ana', 'a', 'socket-a', 'monopoly').room.code;
+    manager.joinRoom(code, 'Bruno', 'b', 'socket-b');
+    manager.startGame(code, 'a');
+    const room = manager.getRoomBySocket('socket-a');
+    room.match.state.players[0].position = 1;
+    assert.equal(manager.handleAction(code, 'a', { type: 'ROLL_DICE' }).success, true);
+    assert.equal(manager.handleAction(code, 'a', { type: 'PASS_PROPERTY' }).success, true);
+    const tile = room.match.state.auction.tileIndex;
+    assert.equal(tile, 3);
+    const initialDeadline = room.turnDeadline;
+    context.mock.timers.tick(5000);
+    assert.equal(manager.handleAction(code, 'b', { type: 'BID', amount: 10 }).success, true);
+    const deadline = room.turnDeadline;
+    assert.equal(deadline, initialDeadline + 5000);
+    const cash = room.match.state.players.find((p) => p.id === 'b').cash;
+    manager.handleDisconnect('socket-b');
+    context.mock.timers.tick(5000);
+    const result = manager.reconnectPlayer(code, 'b', 'socket-new');
+    assert.equal(result.success, true);
+    assert.equal(result.state.auction.highestBidderId, 'b');
+    assert.equal(result.room.turnDeadline, deadline);
+    for (const state of [
+      result.state,
+      ...emitted.filter((e) => e.event === 'game:state_update').map((e) => e.payload),
+    ]) {
+      assert.equal('chanceDeck' in state, false);
+      assert.equal('communityDeck' in state, false);
+    }
+    context.mock.timers.tick(10000);
+    assert.equal(room.match.state.auction, null);
+    assert.equal(room.match.state.properties[tile].ownerId, 'b');
+    assert.equal(room.match.state.players.find((p) => p.id === 'b').cash, cash - 10);
+    const restored = manager.reconnectPlayer(code, 'b', 'socket-again');
+    assert.equal(restored.state.auction, null);
+    assert.equal(restored.state.players.find((p) => p.id === 'b').cash, cash - 10);
+    assert.ok(room.turnDeadline > deadline);
+  } finally {
+    manager.dispose();
+    context.mock.timers.reset();
+  }
+});

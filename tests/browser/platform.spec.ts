@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
+import { accessibilityAudit } from './accessibility';
 const games = [
   'Ciudad Fortuna',
   'Cambio de Color',
@@ -149,9 +149,7 @@ for (const name of games)
           await page.locator('.color-choice-panel').getByRole('button', { name: /Rojo/ }).click();
       } else await page.getByRole('button', { name: /Robar una carta/ }).click();
     }
-    const a11y = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
-      .analyze();
+    const a11y = await accessibilityAudit(page).analyze();
     expect(a11y.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target) }))).toEqual(
       [],
     );
@@ -286,9 +284,7 @@ test('Escritorio, tablet y móvil sin desbordamiento horizontal', async ({ page 
 
 test('Accesibilidad del catálogo y el diálogo de reglas', async ({ page }) => {
   await ready(page);
-  const results = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
-    .analyze();
+  const results = await accessibilityAudit(page).analyze();
   expect(
     results.violations.map((v) => ({
       id: v.id,
@@ -297,9 +293,7 @@ test('Accesibilidad del catálogo y el diálogo de reglas', async ({ page }) => 
     })),
   ).toEqual([]);
   await page.getByRole('button', { name: 'Reglas de Ciudad Fortuna', exact: true }).click();
-  const rules = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
-    .analyze();
+  const rules = await accessibilityAudit(page).analyze();
   expect(rules.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target) }))).toEqual(
     [],
   );
@@ -546,9 +540,7 @@ test('Cambio de Color: el selector deja la mano visible y permite comparar color
   await expect(page.locator('.your-hand')).toBeInViewport();
   await expect(page.locator('.color-choices button')).toHaveCount(4);
   await expect(page.locator('.color-choices button').first()).toBeFocused();
-  const accessibility = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
-    .analyze();
+  const accessibility = await accessibilityAudit(page).analyze();
   expect(accessibility.violations.map((v) => v.id)).toEqual([]);
   await page.screenshot({
     path: 'tests/.output/screenshots/color-choice-mobile.png',

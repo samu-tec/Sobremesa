@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
+import { accessibilityAudit } from './accessibility';
 
 async function ready(page: Page) {
   await page.addInitScript(() => {
@@ -138,9 +138,7 @@ for (const width of [320, 375, 390, 768, 1280])
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
       true,
     );
-    const results = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
-      .analyze();
+    const results = await accessibilityAudit(page).analyze();
     expect(
       results.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target) })),
     ).toEqual([]);

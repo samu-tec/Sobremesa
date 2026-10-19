@@ -324,7 +324,7 @@ export class RoomManager {
     room.lastActivity = Date.now();
     clearTimeout(player.disconnectTimeout);
     player.disconnectTimeout = setTimeout(
-      () => this.removePlayer(room, player.id),
+      () => this.runAutomaticTask(room, 'reserva', () => this.removePlayer(room, player.id)),
       CONFIG.DISCONNECT_GRACE_PERIOD_MS,
     );
     this.broadcastRoomUpdate(room);
@@ -382,27 +382,48 @@ export class RoomManager {
     const duration = room.match.timeoutSeconds() ?? room.turnSeconds;
     room.turnDeadline = Date.now() + duration * 1000;
     const deadline = room.turnDeadline;
-    room.turnTimeout = setTimeout(() => {
-      if (room.status !== 'in_game' || room.turnDeadline !== deadline) return;
-      // Complete a legal, conservative turn, including unresolved purchase decisions.
-      // Clearing first prevents a stale deadline from acting on a later turn.
-      this.clearTurnClock(room);
-      if (room.match.expire()) {
-        this.finishIfNeeded(room);
-      } else {
-        for (let i = 0; i < 100 && room.status === 'in_game' && this.actor(room) === actor; i++) {
-          const step = room.match.timeoutStep(actor);
-          if (!step) break;
-          this.finishIfNeeded(room);
-          if (!step.continue) break;
-        }
-      }
-      this.armTurnClock(room, true);
-      this.broadcastRoomUpdate(room);
-      this.broadcastGameState(room);
-      this.checkAndTriggerBotTurn(room);
-    }, duration * 1000);
+    room.turnTimeout = setTimeout(
+      () => this.runAutomaticTask(room, 'reloj', () => this.expireTurn(room, actor, deadline)),
+      duration * 1000,
+    );
   }
+  private expireTurn(room: ActiveRoom, actor: string, deadline: number) {
+    if (room.status !== 'in_game' || room.turnDeadline !== deadline) return;
+    // Limpiar antes impide que un plazo antiguo actúe sobre el siguiente turno.
+    this.clearTurnClock(room);
+    if (room.match.expire()) {
+      this.finishIfNeeded(room);
+    } else {
+      for (let i = 0; i < 100 && room.status === 'in_game' && this.actor(room) === actor; i++) {
+        const step = room.match.timeoutStep(actor);
+        if (!step) break;
+        this.finishIfNeeded(room);
+        if (!step.continue) break;
+      }
+    }
+    this.armTurnClock(room, true);
+    this.broadcastRoomUpdate(room);
+    this.broadcastGameState(room);
+    this.checkAndTriggerBotTurn(room);
+  }
+  private runAutomaticTask(room: ActiveRoom, operation: string, task: () => void) {
+    if (this.rooms.get(room.code) !== room) return;
+    try {
+      task();
+    } catch {
+      // El motor podría haber mutado parcialmente el estado. No seguir ni publicarlo.
+      // No registrar errores arbitrarios: pueden contener cartas o secretos.
+      console.error('Fallo inesperado en una operación automática.', {
+        gameType: room.gameType,
+        operation,
+      });
+      this.destroyRoom(
+        room.code,
+        'La sala se ha cerrado por un error inesperado. Crea otra partida.',
+      );
+    }
+  }
+
   private checkAndTriggerBotTurn(room: ActiveRoom) {
     clearTimeout(room.botLoopTimeout);
     room.botLoopTimeout = undefined;
@@ -412,15 +433,14 @@ export class RoomManager {
     if (!bot) return;
     room.botLoopTimeout = setTimeout(() => {
       room.botLoopTimeout = undefined;
-      if (!this.rooms.has(room.code) || room.status !== 'in_game') return;
-      try {
+      this.runAutomaticTask(room, 'bot', () => {
+        if (room.status !== 'in_game') return;
         const action = room.match.botAction(bot.id);
         if (action) this.handleAction(room.code, bot.id, action);
-      } catch {
-        console.error('No se pudo completar un turno de bot.');
-      }
+      });
     }, CONFIG.BOT_THINKING_TIME_MS);
   }
+
   private destroyRoom(code: string, reason: string) {
     const room = this.rooms.get(code);
     if (!room) return;

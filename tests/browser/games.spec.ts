@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
+import { accessibilityAudit } from './accessibility';
 const games = [
   ['rummy', 'Rummy de fichas', 'Tile Rummy'],
   ['chess', 'Ajedrez', 'Chess'],
@@ -122,9 +122,7 @@ for (const width of [1280, 320])
       await page.getByRole('button', { name: 'Rules', exact: true }).click();
       await expect(page.getByRole('dialog')).toContainText(english);
       await page.keyboard.press('Escape');
-      const a11y = await new AxeBuilder({ page })
-        .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
-        .analyze();
+      const a11y = await accessibilityAudit(page).analyze();
       expect(
         a11y.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target) })),
       ).toEqual([]);

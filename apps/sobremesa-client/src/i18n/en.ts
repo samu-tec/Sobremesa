@@ -1222,6 +1222,8 @@ export const en: Record<string, string> = {
   'La sala ya no está disponible.': 'The room is no longer available.',
   'Esta sesión no pertenece a esa sala.': 'This session doesn’t belong to that room.',
   'Todos los jugadores han salido.': 'All players have left.',
+  'La sala se ha cerrado por un error inesperado. Crea otra partida.':
+    'The room was closed due to an unexpected error. Start another game.',
   'El servidor se está reiniciando.': 'The server is restarting.',
   'Demasiadas acciones. Espera un momento.': 'Too many actions. Please wait a moment.',
   'No se pudo completar la acción. Comprueba el estado de la sala.':

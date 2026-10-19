@@ -16,9 +16,5 @@ tests/.output/
 apps/sobremesa-client/public/third-party-notices.txt
 apps/sobremesa-client/public/license.txt
 
-# Local development instructions and reports
-AGENTS.md
-.agents/
-.codex/
 .local/
 .aws/

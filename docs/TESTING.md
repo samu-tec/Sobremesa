@@ -92,6 +92,14 @@ pnpm exec playwright install chromium
 PLAYWRIGHT_BROWSER=chromium pnpm check
 ```
 
+Para comprobaciones de desarrollo sin servidores HTTP, navegadores ni empaquetado de recursos:
+
+```sh
+pnpm check:quick
+```
+
+Comprueba formato, lint y tipos de las tres capas; compila lógica y servidor y ejecuta las pruebas de motores, idiomas, cliente y gestión de salas. No sustituye la comprobación completa tras cambios importantes.
+
 También puedes ejecutarlas por separado:
 
 ```sh
@@ -163,3 +171,9 @@ Solo se admiten hostnames de loopback; con esa variable Playwright no inicia otr
 ## Alcance de las comprobaciones
 
 Las pruebas locales no acreditan capacidad para los límites máximos de salas/conexiones ni sustituyen la revisión de [ACCESSIBILITY.md](ACCESSIBILITY.md).
+
+## Regresiones de tareas automáticas
+
+`tests/server.test.mjs` usa el reloj simulado de Node para comprobar excepciones al vencer turnos y reservas, generar acciones de bots y proyectar estados. Verifica que solo se cierre la sala averiada, no se publiquen detalles privados del error y la otra sala continúe. También cubre el plazo conservado al reconectar, desconexiones de sockets sustituidos, recuperación de una partida ya terminada, salida con un bot pendiente y liberación de tareas al apagar.
+
+Las suites de navegador comparten `accessibilityAudit` con criterios automatizables A y AA de WCAG 2.0, 2.1 y 2.2. Los recorridos existentes cubren los quince tableros; siguen pendientes las verificaciones manuales de zoom nativo, lectores de pantalla y dispositivos físicos descritas en [ACCESSIBILITY.md](ACCESSIBILITY.md).
