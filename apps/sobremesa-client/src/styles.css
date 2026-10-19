@@ -1,3 +1,12 @@
 @import './styles/tokens.css';
-@import './styles/platform.css';
+@import './styles/foundation.css';
+@import './styles/shell.css';
+@import './styles/catalog.css';
+@import './styles/dialogs.css';
+@import './styles/rooms.css';
+@import './styles/game-layout.css';
+@import './styles/classic-boards.css';
+@import './styles/motion.css';
+@import './styles/responsive.css';
+@import './styles/refinements.css';
 @import './styles/boards.css';

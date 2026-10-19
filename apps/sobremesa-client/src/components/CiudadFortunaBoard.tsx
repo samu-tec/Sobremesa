@@ -1,14 +1,28 @@
 import { t, gameText, formatMoney } from '../i18n';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   BOARD_TILES,
   getCiudadFortunaRent,
   PROPERTY_GROUPS,
   type BoardTile,
+  type PropertyGroup,
   type CiudadFortunaAction,
   type CiudadFortunaPublicState,
 } from 'sobremesa-logic';
 import {
+  Cat,
+  Rocket,
+  Leaf,
+  Crown,
+  Sailboat,
+  Gem,
+  CircleHelp,
+  Landmark,
+  LockKeyhole,
+  TrainFront,
+  TreePine,
+  Users,
+  Zap,
   ArrowRight,
   Building2,
   Check,
@@ -26,11 +40,8 @@ import {
 } from 'lucide-react';
 import { DiceFace, type BoardProps } from '../ui/GameLayout';
 import { Modal } from '../ui/Modal';
-import { BoardSurface, GROUP_COLORS } from './ciudad-fortuna/BoardSurface';
-import { PlayerPiece as Piece } from './ciudad-fortuna/PlayerPiece';
-import { useBoardMotion } from './ciudad-fortuna/useBoardMotion';
-import './ciudad-fortuna/management.css';
-import './ciudad-fortuna/ciudad-fortuna.css';
+import '../styles/ciudad-fortuna.css';
+
 const money = formatMoney;
 export function CiudadFortunaBoard({
   state,
@@ -336,7 +347,7 @@ export function CiudadFortunaBoard({
             className={`city-player ${p.id === state.currentTurnPlayerId ? 'active' : ''} ${p.isBankrupt ? 'bankrupt-player' : ''}`}
             key={p.id}
           >
-            <Piece index={i} active={p.id === state.currentTurnPlayerId} />
+            <PlayerPiece index={i} active={p.id === state.currentTurnPlayerId} />
             <div>
               <strong>
                 {p.name}
@@ -655,7 +666,7 @@ export function CiudadFortunaBoard({
                 onClick={() => setInspected(BOARD_TILES[positionOf(p)])}
                 aria-label={t('Ver la posición de {0}', { '0': p.name })}
               >
-                <Piece index={i} />
+                <PlayerPiece index={i} />
                 <span>
                   <strong>{p.name}</strong>
                   <small>
@@ -949,4 +960,281 @@ export function CiudadFortunaBoard({
       )}
     </div>
   );
+}
+
+const GROUP_COLORS: Record<PropertyGroup, string> = {
+  brown: '#ad7862',
+  light_blue: '#77b9c6',
+  pink: '#c17daa',
+  orange: '#dfa363',
+  red: '#d77875',
+  yellow: '#d9bd5c',
+  green: '#639d80',
+  dark_blue: '#667fb8',
+  station: '#778a88',
+  utility: '#929084',
+};
+function TileIcon({ tile }: { tile: BoardTile }) {
+  const Icon =
+    tile.type === 'station'
+      ? TrainFront
+      : tile.type === 'utility'
+        ? Zap
+        : tile.type === 'go'
+          ? ArrowRight
+          : tile.type === 'jail' || tile.type === 'go_to_jail'
+            ? LockKeyhole
+            : tile.type === 'free_parking'
+              ? TreePine
+              : tile.type === 'tax'
+                ? Landmark
+                : tile.type === 'community_chest'
+                  ? Users
+                  : tile.type === 'chance'
+                    ? CircleHelp
+                    : null;
+  return Icon && <Icon aria-hidden="true" />;
+}
+function tileLabel(tile: BoardTile) {
+  if (tile.type === 'community_chest') return t('Comunidad');
+  if (tile.type === 'tax') return tile.index === 4 ? t('Impuesto') : t('Tasa de Lujo');
+  if (tile.type === 'station')
+    return t(tile.name)
+      .replace(/^Estación (?:del? )?/, '')
+      .replace(/ Station$/, '');
+  if (tile.type === 'utility') return tile.index === 12 ? t('Electricidad') : t('Agua');
+  if (tile.type === 'go') return t('Salida');
+  if (tile.type === 'jail') return t('Cárcel / visita');
+  if (tile.type === 'free_parking') return t('Descanso');
+  return t(tile.name);
+}
+function BoardSurface({
+  state,
+  positionOf,
+  moving,
+  onInspect,
+  children,
+}: {
+  state: CiudadFortunaPublicState;
+  positionOf: (player: CiudadFortunaPublicState['players'][number]) => number;
+  moving: boolean;
+  onInspect: (tile: BoardTile) => void;
+  children: ReactNode;
+}) {
+  const current = state.players.find((p) => p.id === state.currentTurnPlayerId);
+  return (
+    <div className="city-board" role="group" aria-label={t('Tablero de Ciudad Fortuna')}>
+      <div className="city-center">{children}</div>
+      {BOARD_TILES.map((tile) => {
+        const prop = state.properties[tile.index];
+        const ownerIndex = state.players.findIndex((p) => p.id === prop?.ownerId);
+        const occupants = state.players.filter((p) => !p.isBankrupt && p.position === tile.index);
+        const description = [
+          t(tile.name),
+          tile.price ? formatMoney(tile.price) : '',
+          ownerIndex >= 0 ? t('Propiedad de {0}', { '0': state.players[ownerIndex].name }) : '',
+          prop?.isMortgaged ? t('Hipotecada') : '',
+          occupants.length ? t('Aquí: {0}', { '0': occupants.map((p) => p.name).join(', ') }) : '',
+          t('Ver detalles'),
+        ]
+          .filter(Boolean)
+          .join('. ');
+        return (
+          <button
+            key={tile.index}
+            className={`city-tile edge-${tileEdge(tile.index)} ${tile.index % 10 === 0 ? 'corner-tile' : ''} ${prop?.isMortgaged ? 'mortgaged-tile' : ''} ${current && positionOf(current) === tile.index ? 'current-tile' : ''}`}
+            style={
+              {
+                ...tilePosition(tile.index),
+                '--group-color': tile.group ? GROUP_COLORS[tile.group] : '#dce5d3',
+                '--owner-color': ownerIndex >= 0 ? PLAYER_COLORS[ownerIndex] : 'transparent',
+              } as CSSProperties
+            }
+            onClick={() => onInspect(tile)}
+            aria-label={description}
+            title={description}
+          >
+            <span className="tile-stripe" aria-hidden="true">
+              {prop?.houses > 0 && (
+                <span className="tile-houses">
+                  {prop.houses === 5 ? (
+                    <Building2 />
+                  ) : (
+                    Array.from({ length: prop.houses }, (_, i) => <Home key={i} />)
+                  )}
+                </span>
+              )}
+            </span>
+            <span className="tile-body">
+              <TileIcon tile={tile} />
+              <span className="tile-name">{tileLabel(tile)}</span>
+              {tile.price && <small className="tile-price">{formatMoney(tile.price)}</small>}
+              {tile.taxAmount && (
+                <small className="tile-price">−{formatMoney(tile.taxAmount)}</small>
+              )}
+              {prop?.isMortgaged && (
+                <LockKeyhole className="tile-mortgaged" aria-label={t('Hipotecada')} />
+              )}
+            </span>
+            <span className="tile-lane" aria-hidden="true" />
+            {ownerIndex >= 0 && <span className="tile-owner" aria-hidden="true" />}
+          </button>
+        );
+      })}
+      <div className={`city-token-layer ${moving ? 'tokens-moving' : ''}`} aria-hidden="true">
+        {state.players.map(
+          (player, seat) =>
+            !player.isBankrupt && (
+              <span
+                key={player.id}
+                className="city-token"
+                data-player={player.id}
+                data-position={positionOf(player)}
+                style={piecePosition(positionOf(player), seat)}
+              >
+                <PlayerPiece index={seat} active={player.id === state.currentTurnPlayerId} />
+              </span>
+            ),
+        )}
+      </div>
+    </div>
+  );
+}
+
+const PLAYER_COLORS = ['#ad452b', '#315e9c', '#37713b', '#80519b', '#92690e', '#167572'];
+const PIECES = [Cat, Rocket, Leaf, Crown, Sailboat, Gem];
+function PlayerPiece({ index, active = false }: { index: number; active?: boolean }) {
+  const Icon = PIECES[index % PIECES.length];
+  return (
+    <span
+      className={`player-piece ${active ? 'piece-active' : ''}`}
+      style={{ '--piece-color': PLAYER_COLORS[index % PLAYER_COLORS.length] } as CSSProperties}
+    >
+      <Icon size={18} strokeWidth={2.5} aria-hidden="true" />
+    </span>
+  );
+}
+
+// The CSS grid uses 2-unit corners and nine 1-unit streets per edge.
+const CORNER = 2;
+const SIZE = CORNER * 2 + 9;
+function tilePosition(index: number) {
+  if (index <= 10) return { gridRow: 1, gridColumn: index + 1 };
+  if (index <= 20) return { gridRow: index - 9, gridColumn: 11 };
+  if (index <= 30) return { gridRow: 11, gridColumn: 31 - index };
+  return { gridRow: 41 - index, gridColumn: 1 };
+}
+function tileEdge(index: number) {
+  if (index <= 10) return 'top';
+  if (index < 20) return 'right';
+  if (index <= 30) return 'bottom';
+  return 'left';
+}
+function axis(cell: number) {
+  return cell === 1 ? 0 : CORNER + cell - 2;
+}
+/** Six stable slots in an inner lane, physically separate from the property text. */
+function piecePosition(index: number, seat: number) {
+  const { gridRow, gridColumn } = tilePosition(index);
+  const x = axis(gridColumn),
+    y = axis(gridRow);
+  const corner = index % 10 === 0;
+  const width = gridColumn === 1 || gridColumn === 11 ? CORNER : 1;
+  const height = gridRow === 1 || gridRow === 11 ? CORNER : 1;
+  const edge = tileEdge(index);
+  let px: number, py: number;
+  if (corner || edge === 'top' || edge === 'bottom') {
+    px = x + width / 2 + ((seat % 3) - 1) * 0.28;
+    py =
+      edge === 'bottom'
+        ? y + 0.14 + Math.floor(seat / 3) * 0.27
+        : y + height - 0.42 + Math.floor(seat / 3) * 0.27;
+  } else {
+    px = edge === 'right' ? x + 0.14 + (seat % 2) * 0.27 : x + width - 0.42 + (seat % 2) * 0.27;
+    py = y + height / 2 + (Math.floor(seat / 2) - 1) * 0.28;
+  }
+  return { left: `${(px / SIZE) * 100}%`, top: `${(py / SIZE) * 100}%` };
+}
+
+function useBoardMotion(state: CiudadFortunaPublicState) {
+  const latest = useRef(state);
+  latest.current = state;
+  const seen = useRef(state.lastMovement?.id ?? 0);
+  const [motion, setMotion] = useState<{
+    playerId: string;
+    position: number;
+    rolling: boolean;
+    direct: boolean;
+  } | null>(null);
+  const movementId = state.lastMovement?.id ?? 0;
+  const finished = !!state.winner || state.isDraw;
+
+  useEffect(() => {
+    const movement = latest.current.lastMovement;
+    // Mount/reconnect displays the authoritative position without replaying old rolls.
+    if (!movement || movement.id === seen.current || finished) {
+      if (finished) setMotion(null);
+      return;
+    }
+    seen.current = movement.id;
+    const query = matchMedia('(prefers-reduced-motion: reduce)');
+    if (query.matches || document.hidden) {
+      setMotion(null);
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout>;
+    let stopped = false;
+    let step = 0;
+    const stop = () => {
+      stopped = true;
+      clearTimeout(timer);
+      setMotion(null);
+    };
+    const onVisibility = () => {
+      if (document.hidden) stop();
+    };
+    const onPreference = () => {
+      if (query.matches) stop();
+    };
+    const advance = () => {
+      if (stopped) return;
+      const waypoint = movement.path[step++];
+      if (!waypoint) {
+        setMotion(null);
+        return;
+      }
+      setMotion({
+        playerId: movement.playerId,
+        position: waypoint.position,
+        rolling: false,
+        direct: waypoint.direct,
+      });
+      timer = setTimeout(
+        advance,
+        waypoint.direct ? 260 : Math.max(45, Math.min(120, 1400 / movement.path.length)),
+      );
+    };
+    setMotion({
+      playerId: movement.playerId,
+      position: movement.from,
+      rolling: true,
+      direct: false,
+    });
+    timer = setTimeout(advance, 420);
+    document.addEventListener('visibilitychange', onVisibility);
+    query.addEventListener('change', onPreference);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+      query.removeEventListener('change', onPreference);
+    };
+  }, [movementId, finished]);
+  return {
+    motion,
+    rolling: motion?.rolling ?? false,
+    moving: !!motion,
+    positionOf: (player: CiudadFortunaPublicState['players'][number]) =>
+      motion?.playerId === player.id ? motion.position : player.position,
+  };
 }

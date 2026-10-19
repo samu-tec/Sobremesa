@@ -18,8 +18,7 @@ import {
   type RoomRules,
 } from 'sobremesa-logic';
 
-import { defineGame } from './runtime.js';
-import type { GameMatch } from './match.js';
+import { defineGame, type GameMatch } from './runtime.js';
 
 export const gameFactories = {
   tictactoe: () => defineGame(new TresEnRayaEngine()),

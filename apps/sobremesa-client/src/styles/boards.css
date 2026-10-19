@@ -246,9 +246,10 @@
   border: 9px solid #74563b;
   border-radius: 9px;
   background: #ecd6ae;
-  overflow: hidden;
+  overflow-x: auto;
 }
 .bg-row {
+  min-width: 288px;
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
 }
@@ -321,6 +322,7 @@
   transform: rotate(180deg);
 }
 .bg-bar {
+  min-width: 288px;
   display: flex;
   justify-content: space-around;
   gap: 6px;

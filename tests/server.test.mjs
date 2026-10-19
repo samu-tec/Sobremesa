@@ -426,8 +426,15 @@ test('Ciudad Fortuna conserva la subasta y su plazo al reconectar, y adjudica un
     const tile = room.match.state.auction.tileIndex;
     assert.equal(tile, 3);
     const initialDeadline = room.turnDeadline;
+    assert.equal(manager.handleAction(code, 'a', { type: 'BID', amount: 10 }).success, true);
+    assert.equal(
+      room.turnDeadline,
+      initialDeadline,
+      'Una puja en el mismo milisegundo conserva la marca',
+    );
+    assert.equal(room.turnDeadline, Date.now() + 15000);
     context.mock.timers.tick(5000);
-    assert.equal(manager.handleAction(code, 'b', { type: 'BID', amount: 10 }).success, true);
+    assert.equal(manager.handleAction(code, 'b', { type: 'BID', amount: 20 }).success, true);
     const deadline = room.turnDeadline;
     assert.equal(deadline, initialDeadline + 5000);
     const cash = room.match.state.players.find((p) => p.id === 'b').cash;
@@ -447,10 +454,10 @@ test('Ciudad Fortuna conserva la subasta y su plazo al reconectar, y adjudica un
     context.mock.timers.tick(10000);
     assert.equal(room.match.state.auction, null);
     assert.equal(room.match.state.properties[tile].ownerId, 'b');
-    assert.equal(room.match.state.players.find((p) => p.id === 'b').cash, cash - 10);
+    assert.equal(room.match.state.players.find((p) => p.id === 'b').cash, cash - 20);
     const restored = manager.reconnectPlayer(code, 'b', 'socket-again');
     assert.equal(restored.state.auction, null);
-    assert.equal(restored.state.players.find((p) => p.id === 'b').cash, cash - 10);
+    assert.equal(restored.state.players.find((p) => p.id === 'b').cash, cash - 20);
     assert.ok(room.turnDeadline > deadline);
   } finally {
     manager.dispose();

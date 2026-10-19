@@ -176,4 +176,6 @@ Las pruebas locales no acreditan capacidad para los límites máximos de salas/c
 
 `tests/server.test.mjs` usa el reloj simulado de Node para comprobar excepciones al vencer turnos y reservas, generar acciones de bots y proyectar estados. Verifica que solo se cierre la sala averiada, no se publiquen detalles privados del error y la otra sala continúe. También cubre el plazo conservado al reconectar, desconexiones de sockets sustituidos, recuperación de una partida ya terminada, salida con un bot pendiente y liberación de tareas al apagar.
 
+La renovación de subastas se comprueba con tiempo simulado, incluyendo pujas en el mismo milisegundo y cinco segundos después. La integración comprueba la ventana de 15 segundos sin exigir que dos eventos inmediatos tengan marcas distintas; sus conexiones se liberan después de cada prueba, también si falla.
+
 Las suites de navegador comparten `accessibilityAudit` con criterios automatizables A y AA de WCAG 2.0, 2.1 y 2.2. Los recorridos existentes cubren los quince tableros; siguen pendientes las verificaciones manuales de zoom nativo, lectores de pantalla y dispositivos físicos descritas en [ACCESSIBILITY.md](ACCESSIBILITY.md).

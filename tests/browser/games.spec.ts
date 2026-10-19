@@ -79,6 +79,13 @@ for (const width of [1280, 320])
         await expect(page.locator('.domino-chain .domino-tile')).not.toHaveCount(0);
       }
       if (id === 'backgammon') {
+        if (width === 320) {
+          const widths = await page
+            .locator('.bg-point')
+            .evaluateAll((points) => points.map((point) => point.getBoundingClientRect().width));
+          expect(widths).toHaveLength(24);
+          expect(Math.min(...widths)).toBeGreaterThanOrEqual(24);
+        }
         const roll = page.getByRole('button', { name: 'Tirar dados', exact: true });
         if (await roll.isVisible()) await roll.click();
         await page.locator('.bg-moves button').filter({ hasText: '→' }).first().click();

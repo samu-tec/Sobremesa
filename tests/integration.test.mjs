@@ -1,4 +1,4 @@
-import test, { before, after } from 'node:test';
+import test, { before, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -38,6 +38,9 @@ before(async () => {
 after(async () => {
   for (const s of clients) s.disconnect();
   server?.kill('SIGTERM');
+});
+afterEach(() => {
+  for (const socket of clients.splice(0)) socket.disconnect();
 });
 const ack = (socket, event, ...data) =>
   new Promise((resolve, reject) => {
@@ -328,14 +331,17 @@ test('Ciudad Fortuna: todos pueden pujar y una oferta renueva la ventana de 15 s
   state = await act(host, { type: 'BID', amount: 10 });
   assert.equal(state.auction.highestBidderId, host.playerId);
   let afterBidRoom = await getRoom();
-  assert.ok(afterBidRoom.turnDeadline > initialRoom.turnDeadline);
+  // Dos eventos pueden compartir milisegundo: renovar no implica aumentar siempre la marca.
+  assert.ok(afterBidRoom.turnDeadline >= initialRoom.turnDeadline);
+  assert.ok(afterBidRoom.turnDeadline - afterBidRoom.serverNow <= 15000);
   assert.ok(afterBidRoom.turnDeadline - afterBidRoom.serverNow > 14000);
 
-  await wait(20);
   state = await act(guest, { type: 'BID', amount: 20 });
   assert.equal(state.auction.highestBidderId, guest.playerId);
   const secondBidRoom = await getRoom();
-  assert.ok(secondBidRoom.turnDeadline > afterBidRoom.turnDeadline);
+  assert.ok(secondBidRoom.turnDeadline >= afterBidRoom.turnDeadline);
+  assert.ok(secondBidRoom.turnDeadline - secondBidRoom.serverNow <= 15000);
+  assert.ok(secondBidRoom.turnDeadline - secondBidRoom.serverNow > 14000);
 
   state = await act(host, { type: 'BID', amount: 30 });
   assert.equal(state.auction.highestBidderId, host.playerId);

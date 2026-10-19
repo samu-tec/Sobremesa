@@ -17,7 +17,7 @@ import {
 } from 'sobremesa-logic';
 import { CONFIG } from './config.js';
 import { gameFactories } from './games/engines.js';
-import type { GameMatch } from './games/match.js';
+import type { GameMatch } from './games/runtime.js';
 type TypedServer = Server<
   ClientToServerEvents,
   ServerToClientEvents,
