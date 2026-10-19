@@ -16,7 +16,7 @@ async function run(command, args, capture = false, env = process.env) {
     let output = '';
     child.stdout?.on('data', (chunk) => (output += chunk));
     child.once('error', reject);
-    child.once('exit', (code) =>
+    child.once('close', (code) =>
       code === 0
         ? resolve(output.trim())
         : reject(new Error(`${command} terminó con código ${code}`)),
@@ -25,21 +25,37 @@ async function run(command, args, capture = false, env = process.env) {
 }
 const docker = (...args) => run('docker', args, true);
 async function cleanup() {
+  const errors = [];
   if (container) {
     const id = container;
-    container = undefined;
-    await docker('stop', '--time', '10', id);
-    const stopped = JSON.parse(await docker('inspect', id))[0];
-    assert.equal(stopped.State.ExitCode, 0, 'Apagado limpio con SIGTERM');
-    await docker('rm', id);
-    console.log(`Contenedor temporal eliminado: ${name}`);
+    try {
+      await docker('stop', '--time', '10', id);
+      const stopped = JSON.parse(await docker('inspect', id))[0];
+      assert.equal(stopped.State.ExitCode, 0, 'Apagado limpio con SIGTERM');
+    } catch (error) {
+      errors.push(error);
+    }
+    try {
+      await docker('rm', '--force', id);
+      container = undefined;
+      console.log(`Contenedor temporal eliminado: ${name}`);
+    } catch (error) {
+      errors.push(error);
+    }
   }
   if (built) {
-    built = false;
-    await docker('image', 'rm', image);
-    console.log(`Etiqueta temporal eliminada: ${image}`);
+    try {
+      await docker('image', 'rm', image);
+      built = false;
+      console.log(`Etiqueta temporal eliminada: ${image}`);
+    } catch (error) {
+      errors.push(error);
+    }
   }
+  if (errors.length)
+    throw new AggregateError(errors, 'Fallaron comprobaciones de apagado o limpieza local.');
 }
+let failure;
 try {
   assert.ok(
     !process.env.DOCKER_HOST || process.env.DOCKER_HOST.startsWith('unix://'),
@@ -54,8 +70,7 @@ try {
   await run('docker', ['build', '-t', image, '.']);
   built = true;
   container = await docker(
-    'run',
-    '--detach',
+    'create',
     '--name',
     name,
     '--label',
@@ -86,6 +101,7 @@ try {
     'ROOM_CREATE_LIMIT_GLOBAL=500',
     image,
   );
+  await docker('start', container);
   let ready = false;
   for (let attempt = 0; attempt < 100; attempt++) {
     try {
@@ -114,8 +130,16 @@ try {
   console.log('Healthcheck, usuario, filesystem y restricciones de recursos: OK');
 } catch (error) {
   if (container) console.error(await docker('logs', container).catch(() => 'Sin logs'));
-  console.error(error);
-  process.exitCode = 1;
+  failure = error;
 } finally {
-  await cleanup();
+  try {
+    await cleanup();
+  } catch (error) {
+    if (failure) console.error('También falló la limpieza o la comprobación de apagado:', error);
+    else failure = error;
+  }
+}
+if (failure) {
+  console.error(failure);
+  process.exitCode = 1;
 }

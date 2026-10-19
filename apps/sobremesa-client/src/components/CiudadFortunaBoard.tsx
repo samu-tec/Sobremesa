@@ -68,7 +68,7 @@ export function CiudadFortunaBoard({
     [offered, setOffered] = useState<number[]>([]),
     [requested, setRequested] = useState<number[]>([]),
     [bid, setBid] = useState(10);
-  const { rolling, moving, positionOf } = useBoardMotion(state);
+  const { rolling, moving, positionOf } = useCiudadFortunaMotion(state);
   const boardScroll = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!zoomed || moving) return;
@@ -1156,7 +1156,7 @@ function piecePosition(index: number, seat: number) {
   return { left: `${(px / SIZE) * 100}%`, top: `${(py / SIZE) * 100}%` };
 }
 
-function useBoardMotion(state: CiudadFortunaPublicState) {
+function useCiudadFortunaMotion(state: CiudadFortunaPublicState) {
   const latest = useRef(state);
   latest.current = state;
   const seen = useRef(state.lastMovement?.id ?? 0);

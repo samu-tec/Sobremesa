@@ -246,18 +246,26 @@ export class RoomManager {
       typeof (action as { type?: unknown }).type !== 'string'
     )
       return { success: false, error: 'Acción no válida.' };
-    const previousActor = this.actor(room);
-    const result = room.match.act(id, action);
-    if (!result)
-      return { success: false, error: 'Ese movimiento no está permitido o no es tu turno.' };
-    // The game policy decides whether a same-player action starts a new turn.
-    this.armTurnClock(room, result.completed || previousActor !== this.actor(room));
-    if (!room.players.find((p) => p.id === id)?.isBot) room.lastActivity = Date.now();
-    this.finishIfNeeded(room);
-    this.broadcastRoomUpdate(room);
-    this.broadcastGameState(room);
-    this.checkAndTriggerBotTurn(room);
-    return { success: true };
+    try {
+      const previousActor = this.actor(room);
+      const result = room.match.act(id, action);
+      if (!result)
+        return { success: false, error: 'Ese movimiento no está permitido o no es tu turno.' };
+      // The game policy decides whether a same-player action starts a new turn.
+      this.armTurnClock(room, result.completed || previousActor !== this.actor(room));
+      if (!room.players.find((p) => p.id === id)?.isBot) room.lastActivity = Date.now();
+      this.finishIfNeeded(room);
+      this.broadcastRoomUpdate(room);
+      this.broadcastGameState(room);
+      this.checkAndTriggerBotTurn(room);
+      return { success: true };
+    } catch {
+      this.closeFailedRoom(room, 'acción');
+      return {
+        success: false,
+        error: 'No se pudo completar la acción. Comprueba el estado de la sala.',
+      };
+    }
   }
   private finishIfNeeded(room: ActiveRoom) {
     const { winnerId, isDraw } = room.match.result();
@@ -411,17 +419,21 @@ export class RoomManager {
     try {
       task();
     } catch {
-      // El motor podría haber mutado parcialmente el estado. No seguir ni publicarlo.
-      // No registrar errores arbitrarios: pueden contener cartas o secretos.
-      console.error('Fallo inesperado en una operación automática.', {
-        gameType: room.gameType,
-        operation,
-      });
-      this.destroyRoom(
-        room.code,
-        'La sala se ha cerrado por un error inesperado. Crea otra partida.',
-      );
+      this.closeFailedRoom(room, operation);
     }
+  }
+
+  private closeFailedRoom(room: ActiveRoom, operation: string) {
+    // El motor podría haber mutado parcialmente el estado. No seguir ni publicarlo.
+    // No registrar errores arbitrarios: pueden contener cartas o secretos.
+    console.error('Fallo inesperado en una operación de partida.', {
+      gameType: room.gameType,
+      operation,
+    });
+    this.destroyRoom(
+      room.code,
+      'La sala se ha cerrado por un error inesperado. Crea otra partida.',
+    );
   }
 
   private checkAndTriggerBotTurn(room: ActiveRoom) {

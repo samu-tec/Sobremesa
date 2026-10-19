@@ -158,7 +158,7 @@ pnpm test:docker
 
 El script usa el contexto local Unix, el Dockerfile real y una etiqueta y contenedor `sobremesa:local-test-<pid>` / `sobremesa-local-test-<pid>`. Publica solo `127.0.0.1:13000`, permite los dos orígenes locales correspondientes, usa el bridge ordinario y no monta archivos ni `.env`. Requiere el puerto libre: si está ocupado, termina sin parar el servicio existente. No usa Compose, Cloudflare ni un contexto Docker remoto.
 
-Comprueba frontend, JS/CSS, caché/CSP, health/stats, polling y WebSocket, dos jugadores, permisos, acciones, reconexión y bots. Después ejecuta la suite E2E completa contra ese contenedor, comprueba healthcheck, usuario no root, filesystem de solo lectura y límites de CPU, memoria y procesos. Al terminar, incluso si falla una prueba, detiene por id y elimina solo el contenedor y etiqueta creados. Comprueba que SIGTERM termina con código cero. El caché local de build puede permanecer; nunca usa prune.
+Comprueba frontend, JS/CSS, caché/CSP, health/stats, polling y WebSocket, dos jugadores, permisos, acciones, reconexión y bots. Después ejecuta la suite E2E completa contra ese contenedor, comprueba healthcheck, usuario no root, filesystem de solo lectura y límites de CPU, memoria y procesos. Al terminar, incluso si falla una prueba, intenta detener y eliminar por id solo el contenedor creado y después su etiqueta. Conserva el error original y comunica también los fallos de apagado o limpieza, sin dejar de intentar las operaciones restantes. El contenedor se crea antes de arrancarlo para poder limpiarlo también si falla el arranque. Comprueba que SIGTERM termina con código cero. El caché local de build puede permanecer; nunca usa prune.
 
 Para repetir navegador contra un servidor local ya preparado:
 
@@ -172,9 +172,11 @@ Solo se admiten hostnames de loopback; con esa variable Playwright no inicia otr
 
 Las pruebas locales no acreditan capacidad para los límites máximos de salas/conexiones ni sustituyen la revisión de [ACCESSIBILITY.md](ACCESSIBILITY.md).
 
-## Regresiones de tareas automáticas
+## Regresiones de errores y tareas de sala
 
-`tests/server.test.mjs` usa el reloj simulado de Node para comprobar excepciones al vencer turnos y reservas, generar acciones de bots y proyectar estados. Verifica que solo se cierre la sala averiada, no se publiquen detalles privados del error y la otra sala continúe. También cubre el plazo conservado al reconectar, desconexiones de sockets sustituidos, recuperación de una partida ya terminada, salida con un bot pendiente y liberación de tareas al apagar.
+`tests/scripts.test.mjs` simula comandos en un proceso aislado, sin Docker ni HTTP reales, para comprobar la limpieza ante fallos de pruebas, arranque, healthcheck, inspección, apagado y eliminación, conservando el error original.
+
+`tests/server.test.mjs` comprueba a través del manejador Socket.IO que una acción manual cuyo motor muta el estado y lanza una excepción cierra únicamente su sala, responde sin secretos y conserva el rechazo normal de acciones inválidas. También usa el reloj simulado de Node para comprobar excepciones al vencer turnos y reservas, generar acciones de bots y proyectar estados. Verifica que solo se cierre la sala averiada, no se publiquen detalles privados del error y la otra sala continúe. También cubre el plazo conservado al reconectar, desconexiones de sockets sustituidos, recuperación de una partida ya terminada, salida con un bot pendiente y liberación de tareas al apagar.
 
 La renovación de subastas se comprueba con tiempo simulado, incluyendo pujas en el mismo milisegundo y cinco segundos después. La integración comprueba la ventana de 15 segundos sin exigir que dos eventos inmediatos tengan marcas distintas; sus conexiones se liberan después de cada prueba, también si falla.
 

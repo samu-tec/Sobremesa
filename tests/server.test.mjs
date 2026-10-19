@@ -7,6 +7,7 @@ import {
   contentSecurityPolicy,
 } from '../apps/sobremesa-server/dist/origins.js';
 import { RoomManager } from '../apps/sobremesa-server/dist/RoomManager.js';
+import { registerSocketHandlers } from '../apps/sobremesa-server/dist/socketHandlers.js';
 import { RoomCreationLimiter } from '../apps/sobremesa-server/dist/RoomCreationLimiter.js';
 import {
   parseTrustedCloudflareIps,
@@ -459,6 +460,92 @@ test('Ciudad Fortuna conserva la subasta y su plazo al reconectar, y adjudica un
     assert.equal(restored.state.auction, null);
     assert.equal(restored.state.players.find((p) => p.id === 'b').cash, cash - 20);
     assert.ok(room.turnDeadline > deadline);
+  } finally {
+    manager.dispose();
+    context.mock.timers.reset();
+  }
+});
+
+test('Una excepción del motor en una acción manual cierra solo su sala y responde sin secretos', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+  const emitted = [];
+  const handlers = new Map();
+  const io = {
+    to: (code) => ({ emit: (event, payload) => emitted.push({ code, event, payload }) }),
+    sockets: { sockets: new Map() },
+  };
+  const logged = context.mock.method(console, 'error', () => {});
+  const factory = gameFactories.tictactoe;
+  const runtimes = [];
+  context.mock.method(gameFactories, 'tictactoe', () => {
+    const runtime = factory();
+    runtimes.push(runtime);
+    return runtime;
+  });
+  const manager = new RoomManager(io);
+  try {
+    const code = manager.createRoom('Ana', 'a', 'socket-a', 'tictactoe').room.code;
+    manager.joinRoom(code, 'Bruno', 'b', 'socket-b');
+    const other = manager.createRoom('Clara', 'c', 'socket-c', 'tictactoe').room.code;
+    manager.joinRoom(other, 'David', 'd', 'socket-d');
+    manager.startGame(code, 'a');
+    manager.startGame(other, 'c');
+    const room = manager.getRoomBySocket('socket-a');
+    const healthy = manager.getRoomBySocket('socket-c');
+    const before = structuredClone(healthy.match.state);
+    registerSocketHandlers(
+      io,
+      {
+        id: 'socket-a',
+        data: { playerId: 'a' },
+        emit: (event, payload) => emitted.push({ code: 'socket-a', event, payload }),
+        on: (event, handler) => handlers.set(event, handler),
+      },
+      manager,
+      {},
+    );
+    const results = [];
+    const act = (action) => handlers.get('game:action')(action, (result) => results.push(result));
+    act({ type: 'MAKE_MOVE', index: -1 });
+    assert.deepEqual(results.pop(), {
+      success: false,
+      error: 'Ese movimiento no está permitido o no es tu turno.',
+    });
+    assert.equal(manager.getRoomsCount(), 2, 'Las acciones inválidas conservan la sala');
+    context.mock.method(runtimes[0].engine, 'applyAction', (state) => {
+      state.board[0] = 'X';
+      throw new Error('mano-privada-no-publicable');
+    });
+    emitted.length = 0;
+    assert.doesNotThrow(() => act({ type: 'MAKE_MOVE', index: 0 }));
+    assert.equal(room.match.state.board[0], 'X', 'El motor alcanzó a mutar su estado');
+    assert.deepEqual(results, [
+      {
+        success: false,
+        error: 'No se pudo completar la acción. Comprueba el estado de la sala.',
+      },
+    ]);
+    assert.equal(manager.getRoomsCount(), 1);
+    assert.equal(manager.getRoomBySocket('socket-a'), undefined);
+    assert.equal(manager.getRoomBySocket('socket-b'), undefined);
+    assert.equal(room.turnTimeout, undefined);
+    assert.equal(room.turnDeadline, null);
+    assert.equal(manager.reconnectPlayer(code, 'a', 'socket-new').success, false);
+    assert.equal(
+      emitted.filter((event) => event.code === code && event.event === 'room:closed').length,
+      1,
+    );
+    assert.equal(
+      emitted.some((event) => event.event === 'game:state_update'),
+      false,
+    );
+    assert.equal(logged.mock.calls.length, 1);
+    assert.ok(!JSON.stringify([results, emitted, logged.mock.calls]).includes('mano-privada'));
+    assert.deepEqual(healthy.match.state, before);
+    assert.equal(manager.handleAction(other, 'c', { type: 'MAKE_MOVE', index: 0 }).success, true);
+    context.mock.timers.tick(300000);
+    assert.equal(manager.getRoomBySocket('socket-c'), healthy);
+    assert.equal(logged.mock.calls.length, 1);
   } finally {
     manager.dispose();
     context.mock.timers.reset();
