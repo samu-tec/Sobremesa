@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { io } from 'socket.io-client';
-import { PROTOCOL_VERSION } from '../packages/sobremesa-logic/dist/index.js';
+import { PROTOCOL_VERSION, getGame } from '../packages/sobremesa-logic/dist/index.js';
 const url = 'http://127.0.0.1:3190';
 let server;
+let serverStartedAt = 0;
 const clients = [];
 const secret = () => randomBytes(32).toString('hex');
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -29,7 +30,10 @@ before(async () => {
   server.stderr.on('data', (d) => (logs += d));
   for (let i = 0; i < 100; i++) {
     try {
-      if ((await fetch(url + '/health')).ok) return;
+      if ((await fetch(url + '/health')).ok) {
+        serverStartedAt = Date.now();
+        return;
+      }
     } catch {}
     await wait(50);
   }
@@ -75,7 +79,7 @@ async function create(client, gameType = 'tictactoe') {
   return result.room;
 }
 
-test('HTTP: cabeceras, catálogo de quince juegos y rutas desconocidas', async () => {
+test('HTTP: cabeceras, catálogo de treinta juegos y rutas desconocidas', async () => {
   const res = await fetch(url);
   assert.equal(res.status, 200);
   assert.equal(res.headers.get('x-powered-by'), null);
@@ -86,7 +90,7 @@ test('HTTP: cabeceras, catálogo de quince juegos y rutas desconocidas', async (
   assert.match(res.headers.get('content-security-policy'), /wss:\/\/games\.samuelciocan\.com/);
   assert.ok(!(await res.text()).includes('fonts.googleapis'));
   const stats = await fetch(url + '/api/stats');
-  assert.equal((await stats.json()).supportedGames.length, 15);
+  assert.equal((await stats.json()).supportedGames.length, 30);
   assert.equal(stats.headers.get('cache-control'), 'no-store');
   assert.equal((await fetch(url + '/api/unknown')).status, 404);
   assert.equal((await fetch(url + '/missing.js')).status, 404);
@@ -107,7 +111,7 @@ test('Rechaza orígenes ajenos y secretos de sesión no válidos', async () => {
   a.socket.disconnect();
 });
 test('Un cliente de protocolo antiguo recibe un error explícito y conserva su secreto', async () => {
-  for (const protocolVersion of [undefined, 0, PROTOCOL_VERSION + 1, '1']) {
+  for (const protocolVersion of [undefined, 0, PROTOCOL_VERSION - 1, PROTOCOL_VERSION + 1, '1']) {
     await assert.rejects(
       connect(secret(), { auth: { sessionToken: secret(), protocolVersion } }),
       (error) =>
@@ -422,6 +426,21 @@ test('Nuevos juegos: dos salas independientes, proyección privada y reconexión
     'battleship',
     'mancala',
     'combinations',
+    'parchis',
+    'oca',
+    'go',
+    'chinesecheckers',
+    'mahjong',
+    'brisca',
+    'mus',
+    'escoba',
+    'cinquillo',
+    'poker',
+    'words',
+    'quiz',
+    'drawing',
+    'mystery',
+    'conquest',
   ]) {
     const host = await connect(),
       guest = await connect(),
@@ -429,9 +448,27 @@ test('Nuevos juegos: dos salas independientes, proyección privada y reconexión
     const room = await create(host, game),
       second = await create(other, game);
     await ack(guest.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' });
-    if (game === 'impostor') await ack(host.socket, 'room:add_bot');
-    await ack(other.socket, 'room:add_bot');
-    if (game === 'impostor') await ack(other.socket, 'room:add_bot');
+    const extra = [];
+    for (const [owner, info, count] of [
+      [host, room, 2],
+      [other, second, 1],
+    ]) {
+      for (let n = count; n < getGame(game).minPlayers; n++) {
+        if (getGame(game).supportsBots === false) {
+          const human = await connect();
+          extra.push(human);
+          assert.equal(
+            (
+              await ack(human.socket, 'room:join', {
+                roomCode: info.code,
+                playerName: `Persona ${n}`,
+              })
+            ).success,
+            true,
+          );
+        } else await ack(owner.socket, 'room:add_bot');
+      }
+    }
     assert.equal((await ack(host.socket, 'room:start_game')).success, true);
     assert.equal((await ack(other.socket, 'room:start_game')).success, true);
     const a = await ack(host.socket, 'game:reconnect', { roomCode: room.code }),
@@ -447,6 +484,59 @@ test('Nuevos juegos: dos salas independientes, proyección privada y reconexión
       (await ack(host.socket, 'game:action', { type: 'FIRE', index: Infinity })).success,
       false,
     );
+    if (['mus', 'escoba', 'cinquillo', 'words', 'mystery'].includes(game)) {
+      for (const view of [a.state, b.state]) {
+        assert.equal('stock' in view, false);
+        assert.equal('bag' in view, false);
+        assert.equal('solution' in view && view.solution !== null, false);
+      }
+      if (game === 'mus') assert.ok(a.state.players.every((p) => p.hand === null));
+      else assert.ok(a.state.players.every((p) => !('hand' in p)));
+      assert.ok(a.state.hand.length);
+      assert.ok(b.state.hand.length);
+    }
+    if (game === 'poker') {
+      assert.equal(a.state.players[1].hand, null);
+      assert.equal(b.state.players[0].hand, null);
+      assert.equal('deck' in a.state, false);
+    }
+    if (game === 'quiz') {
+      assert.equal(a.state.question.answer, null);
+      assert.equal('deck' in a.state, false);
+    }
+    if (game === 'drawing') {
+      assert.equal((await ack(host.socket, 'room:add_bot')).success, false);
+      assert.equal(b.state.choices.length, 0);
+      assert.equal(b.state.word, null);
+      assert.equal('deck' in b.state, false);
+    }
+    if (game === 'brisca') {
+      assert.equal('stock' in a.state, false);
+      assert.ok(a.state.players.every((p) => !('hand' in p)));
+      assert.equal(a.state.hand.length, 3);
+      assert.equal(b.state.hand.length, 3);
+      assert.ok(!a.state.hand.some((c) => b.state.hand.includes(c)));
+      assert.equal(a.state.stockCount, 34);
+    }
+    if (game === 'mahjong') {
+      for (const view of [a.state, b.state]) {
+        assert.equal('wall' in view, false);
+        assert.equal('responses' in view, false);
+        assert.equal(view.wallCount, 83);
+        assert.ok(
+          view.players.every((p) => !('hand' in p) && !('blocked' in p) && p.revealedHand === null),
+        );
+      }
+      assert.equal(a.state.hand.length, 14);
+      assert.equal(b.state.hand.length, 13);
+      assert.equal(b.state.drawn, null);
+      assert.ok(!a.state.hand.some((t) => b.state.hand.includes(t)));
+    }
+    if (game === 'go') {
+      assert.equal('history' in a.state, false);
+      assert.equal('history' in b.state, false);
+      assert.equal(a.state.legalMoves.length, 81);
+    }
     if (game === 'rummy' || game === 'dominoes') {
       assert.equal('stock' in a.state, false);
       assert.equal('hand' in a.state.players[1], false);
@@ -468,6 +558,10 @@ test('Nuevos juegos: dos salas independientes, proyección privada y reconexión
       assert.equal(v.state.revealedFleet, null);
       assert.equal('ships' in v.state.players[0], false);
     }
+    for (const human of extra) {
+      await ack(human.socket, 'room:leave');
+      human.socket.disconnect();
+    }
     await ack(host.socket, 'room:leave');
     await ack(guest.socket, 'room:leave');
     await ack(other.socket, 'room:leave');
@@ -478,9 +572,11 @@ test('Nuevos juegos: dos salas independientes, proyección privada y reconexión
 });
 
 test(
-  'Los nueve juegos nuevos completan decisiones agotadas con acciones legales',
-  { timeout: 45000 },
+  'Los juegos ampliados completan decisiones agotadas con acciones legales',
+  { timeout: 80000 },
   async () => {
+    // El catálogo ampliado usa más handshakes: respetamos la ventana de 120/minuto.
+    await wait(Math.max(0, 61000 - (Date.now() - serverStartedAt)));
     const sessions = [];
     for (const game of [
       'rummy',
@@ -492,12 +588,18 @@ test(
       'battleship',
       'mancala',
       'combinations',
+      'parchis',
+      'oca',
+      'go',
+      'chinesecheckers',
+      'mahjong',
+      'brisca',
     ]) {
       const host = await connect(),
         guest = await connect(),
         room = await create(host, game);
       await ack(guest.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' });
-      if (game === 'impostor') await ack(host.socket, 'room:add_bot');
+      for (let n = 2; n < getGame(game).minPlayers; n++) await ack(host.socket, 'room:add_bot');
       await ack(host.socket, 'room:update_rules', { turnSeconds: 30 });
       let latest = null,
         updates = 0;
@@ -542,3 +644,57 @@ test('Los handshakes concurrentes no superan treinta sesiones por IP y liberan l
   const next = await connect();
   next.socket.disconnect();
 });
+
+test(
+  'Últimos nueve juegos: plazos reales progresan sin superar treinta sesiones por IP',
+  { timeout: 45000 },
+  async () => {
+    const sessions = [];
+    for (const game of [
+      'mus',
+      'escoba',
+      'cinquillo',
+      'poker',
+      'words',
+      'quiz',
+      'drawing',
+      'mystery',
+      'conquest',
+    ]) {
+      const host = await connect(),
+        guest = await connect(),
+        room = await create(host, game),
+        extra = [];
+      assert.equal(
+        (await ack(guest.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' }))
+          .success,
+        true,
+      );
+      for (let n = 2; n < getGame(game).minPlayers; n++) {
+        if (getGame(game).supportsBots === false) {
+          const human = await connect();
+          extra.push(human);
+          await ack(human.socket, 'room:join', { roomCode: room.code, playerName: `Persona ${n}` });
+        } else await ack(host.socket, 'room:add_bot');
+      }
+      await ack(host.socket, 'room:update_rules', { turnSeconds: 30 });
+      let updates = 0;
+      host.socket.on('game:state_update', () => updates++);
+      assert.equal((await ack(host.socket, 'room:start_game')).success, true);
+      sessions.push({ host, guest, extra, room, game, updates: () => updates });
+    }
+    await wait(31500);
+    for (const session of sessions) {
+      assert.ok(session.updates() > 0, `Sin progreso en ${session.game}`);
+      const recovered = await ack(session.host.socket, 'game:reconnect', {
+        roomCode: session.room.code,
+      });
+      assert.equal(recovered.success, true);
+      assert.ok(recovered.room.turnDeadline > Date.now());
+      for (const human of [session.host, session.guest, ...session.extra]) {
+        await ack(human.socket, 'room:leave');
+        human.socket.disconnect();
+      }
+    }
+  },
+);

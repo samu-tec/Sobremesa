@@ -28,6 +28,8 @@ La aplicación no usa `X-Forwarded-For` ni confía automáticamente en `CF-Conne
 
 Cloudflare puede servir la web sin esa variable. Mientras la lista esté vacía, el servidor usa la dirección TCP que ve: desde Cloudflared, normalmente será la IP del contenedor del túnel. En ese caso los visitantes comparten los límites por IP. Para que los límites reflejen la IP de cada visitante, hace falta conocer y permitir la IP exacta del contenedor Cloudflared. No se debe permitir toda la subred `cloudflare` ni confiar en la cabecera por sí sola. Si esa IP cambia, la aplicación vuelve a ignorar la cabecera hasta que la lista se actualice.
 
+Para verificarlo manualmente en el entorno administrado, comprueba la IP de Cloudflared en la red compartida y la dirección TCP que recibe Node; un puente o NAT puede hacer que sean diferentes. Autoriza únicamente ese origen si está reservado al proxy y no puede ser utilizado por conexiones directas de clientes u otros contenedores. Comprueba también que el proxy sustituye la cabecera del visitante. Después verifica que dos visitantes distintos tienen contadores por IP independientes y que una conexión directa con una cabecera inventada no cambia su identidad. Estas comprobaciones dependen del entorno real y no se realizan desde las pruebas locales. No es seguro deducir automáticamente la IP autorizada ni permitir una subred completa.
+
 Los límites predeterminados son 10 intentos de creación de sala por IP y minuto, 30 creaciones globales por minuto, 500 salas y 2.000 conexiones. También hay límites por conexión. Estas medidas no sustituyen las protecciones de tráfico de Cloudflare.
 
 ## Comprobaciones operativas

@@ -166,12 +166,15 @@ export function WaitingRoomView({
                 </div>
               ))}
             </div>
-            {host && room.players.length < room.maxPlayers && (
-              <button className="button secondary full" disabled={busy} onClick={onAddBot}>
-                <Plus size={17} />
-                <Bot size={18} /> {t('Añadir bot')}{' '}
-              </button>
-            )}
+            {host &&
+              game.supportsBots !== false &&
+              !(room.gameType === 'impostor' && room.customRules?.impostorMode === 1) &&
+              room.players.length < room.maxPlayers && (
+                <button className="button secondary full" disabled={busy} onClick={onAddBot}>
+                  <Plus size={17} />
+                  <Bot size={18} /> {t('Añadir bot')}{' '}
+                </button>
+              )}
             <div className="waiting-start">
               {host && (
                 <button
@@ -192,6 +195,8 @@ export function WaitingRoomView({
                   disabled={
                     busy ||
                     room.players.length < room.minPlayers ||
+                    (game.playerCounts !== undefined &&
+                      !game.playerCounts.includes(room.players.length)) ||
                     room.players.some((p) => !p.connected)
                   }
                   onClick={onStartGame}
@@ -205,11 +210,15 @@ export function WaitingRoomView({
                 </div>
               )}
               <p>
-                {room.players.length < room.minPlayers
-                  ? t('Necesitas al menos dos jugadores. Puedes añadir un bot.')
-                  : host
-                    ? t('¿Estamos todos? Que empiece lo bueno.')
-                    : t('Mientras esperas, puedes consultar las reglas.')}
+                {game.playerCounts && !game.playerCounts.includes(room.players.length)
+                  ? t('Números de participantes admitidos: {0}', {
+                      '0': game.playerCounts.join(', '),
+                    })
+                  : room.players.length < room.minPlayers
+                    ? t('Necesitas al menos dos jugadores. Puedes añadir un bot.')
+                    : host
+                      ? t('¿Estamos todos? Que empiece lo bueno.')
+                      : t('Mientras esperas, puedes consultar las reglas.')}
               </p>
             </div>
           </section>
@@ -306,33 +315,12 @@ export function WaitingRoomView({
                   </p>
                 </div>
               ))}
-              {!GAME_SETTINGS[room.gameType]?.length &&
-                !['monopoly', 'colorclash'].includes(room.gameType) && (
-                  <p className="form-hint">
-                    {t(
-                      'Este juego mantiene sus reglas clásicas. Puedes ajustar el tiempo por turno.',
-                    )}
-                  </p>
-                )}
-              {room.gameType === 'colorclash' && (
-                <>
-                  <label className="field-label" htmlFor="starting-cards">
-                    {t('Cartas iniciales')}
-                  </label>
-                  <select
-                    className="field"
-                    id="starting-cards"
-                    disabled={!host || busy}
-                    value={settings?.startingCards ?? 7}
-                    onChange={(e) => changeRules({ startingCards: Number(e.target.value) })}
-                  >
-                    {[5, 7, 9].map((n) => (
-                      <option value={n} key={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </>
+              {!GAME_SETTINGS[room.gameType]?.length && room.gameType !== 'monopoly' && (
+                <p className="form-hint">
+                  {t(
+                    'Este juego mantiene sus reglas clásicas. Puedes ajustar el tiempo por turno.',
+                  )}
+                </p>
               )}
               {host && (
                 <button
@@ -341,11 +329,7 @@ export function WaitingRoomView({
                   onClick={() =>
                     changeRules({
                       ...defaultGameSettings(room.gameType),
-                      ...(room.gameType === 'monopoly'
-                        ? DEFAULT_CIUDAD_FORTUNA_RULES
-                        : room.gameType === 'colorclash'
-                          ? { startingCards: 7 }
-                          : {}),
+                      ...(room.gameType === 'monopoly' ? DEFAULT_CIUDAD_FORTUNA_RULES : {}),
                       turnSeconds: 90,
                     })
                   }

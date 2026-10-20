@@ -11,9 +11,9 @@ import {
   type IGameEngine,
 } from '../src/index.js';
 
-test('El catálogo conserva quince juegos únicos y todo juego declara explícitamente sus opciones', () => {
-  assert.equal(GAME_CATALOG.length, 15);
-  assert.equal(new Set(GAME_CATALOG.map((g) => g.id)).size, 15);
+test('El catálogo conserva treinta juegos únicos y todo juego declara explícitamente sus opciones', () => {
+  assert.equal(GAME_CATALOG.length, 30);
+  assert.equal(new Set(GAME_CATALOG.map((g) => g.id)).size, 30);
   assert.deepEqual(Object.keys(GAME_DEFINITIONS).sort(), Object.keys(GAME_SETTINGS).sort());
   for (const definition of GAME_CATALOG) {
     assert.equal(getGame(definition.id), definition);

@@ -236,6 +236,12 @@ importers:
 
   apps/sobremesa-server:
     dependencies:
+      an-array-of-english-words:
+        specifier: 2.0.0
+        version: 2.0.0
+      an-array-of-spanish-words:
+        specifier: 2.0.0
+        version: 2.0.0
       cors:
         specifier: ^2.8.5
         version: 2.8.6
@@ -1059,6 +1065,14 @@ packages:
 
   ajv@6.15.0:
     resolution: {integrity: sha512-fgFx7Hfoq60ytK2c7DhnF8jIvzYgOMxfugjLOSMHjLIPgenqa7S7oaagATUq99mV6IYvN2tRmC0wnTYX6iPbMw==}
+
+  an-array-of-english-words@2.0.0:
+    resolution: {integrity: sha512-FXnNvZSOI27kkKXeLSquhaTGP7z198UOQ4txaYO9fCfrjCh+D5SV7G7XqzEH0229+pAi4cjBEZ4WIQYgjKtO7Q==}
+    hasBin: true
+
+  an-array-of-spanish-words@2.0.0:
+    resolution: {integrity: sha512-mzTXYjlzlT6RhQWeBpXgz0mtUkR1qNra6Zx68BRsMY5uejokblFW3d0asckbds5uacO/otrFPka2dWCr65gzmg==}
+    hasBin: true
 
   ansi-styles@4.3.0:
     resolution: {integrity: sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg==}
@@ -2914,6 +2928,10 @@ snapshots:
       fast-json-stable-stringify: 2.1.0
       json-schema-traverse: 0.4.1
       uri-js: 4.4.1
+
+  an-array-of-english-words@2.0.0: {}
+
+  an-array-of-spanish-words@2.0.0: {}
 
   ansi-styles@4.3.0:
     dependencies:

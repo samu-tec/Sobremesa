@@ -49,7 +49,9 @@ for (const game of GAME_CATALOG) {
     const state = engine.initGame(players);
     const actor = runtime.actor(state);
     const before = structuredClone(state);
-    const action = engine.getBotAction(state, actor);
+    const botAction = engine.getBotAction(state, actor);
+    if (game.supportsBots === false) assert.equal(botAction, null);
+    const action = game.id === 'drawing' ? { type: 'CHOOSE', index: 0 } : botAction;
     assert.ok(action);
     assert.equal(engine.validateAction(state, actor, action), true);
     assert.equal(engine.validateAction(state, 'outsider', action), false);
@@ -79,7 +81,12 @@ for (const game of GAME_CATALOG) {
       assert.equal(match.act(matchActor, invalid), null);
       assert.deepEqual(match.state, matchBefore);
     }
-    assert.ok(match.act(matchActor, match.botAction(matchActor)));
+    assert.ok(
+      match.act(
+        matchActor,
+        game.id === 'drawing' ? { type: 'CHOOSE', index: 0 } : match.botAction(matchActor),
+      ),
+    );
     assert.deepEqual(isolated.state, untouched, 'Otra partida conserva su estado');
     match.reset();
     assert.equal(match.publicState(matchActor), null);
@@ -549,5 +556,404 @@ test('Una excepción del motor en una acción manual cierra solo su sala y respo
   } finally {
     manager.dispose();
     context.mock.timers.reset();
+  }
+});
+
+for (const game of GAME_CATALOG) {
+  test(`${game.id}: inicio rechaza identidades repetidas y cantidades fuera del catálogo`, () => {
+    const engine = gameFactories[game.id]().engine;
+    const players = Array.from({ length: game.maxPlayers + 1 }, (_, i) => ({
+      id: `p${i}`,
+      isBot: false,
+      name: `Persona ${i}`,
+    }));
+    const duplicated = players.slice(0, game.minPlayers);
+    duplicated[1] = { ...duplicated[1], id: duplicated[0].id };
+    assert.throws(() => engine.initGame(duplicated));
+    assert.throws(() => engine.initGame(players.slice(0, game.minPlayers - 1)));
+    assert.throws(() => engine.initGame(players));
+    for (const count of new Set([game.minPlayers, game.maxPlayers])) {
+      const input = players.slice(0, count);
+      const before = structuredClone(input);
+      assert.doesNotThrow(() => engine.initGame(input));
+      assert.deepEqual(input, before);
+    }
+  });
+}
+
+for (const scenario of [
+  ['inicio', 'start'],
+  ['inicio', 'actor'],
+  ['inicio', 'publicState'],
+  ['inicio', 'botId'],
+  ['reinicio', 'reset'],
+  ['abandono', 'forfeit'],
+  ['abandono', 'result'],
+  ['finalización', 'result'],
+  ['reconexión', 'publicState'],
+  ['configuración', 'configureRules'],
+]) {
+  const [operation, failure] = scenario;
+  test(`Fallo de ${failure} durante ${operation}: cierra solo la sala afectada`, (context) => {
+    context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+    const emitted = [];
+    const leaves = [];
+    const io = {
+      to: (code) => ({ emit: (event, payload) => emitted.push({ code, event, payload }) }),
+      sockets: {
+        sockets: new Map(
+          ['socket-a', 'socket-b', 'socket-new'].map((id) => [
+            id,
+            { leave: (code) => leaves.push({ id, code }) },
+          ]),
+        ),
+      },
+    };
+    const logged = context.mock.method(console, 'error', () => {});
+    const manager = new RoomManager(io);
+    try {
+      const code = manager.createRoom('Ana', 'a', 'socket-a', 'tictactoe').room.code;
+      manager.joinRoom(code, 'Bruno', 'b', 'socket-b');
+      const room = manager.getRoomBySocket('socket-a');
+      const other = manager.createRoom('Clara', 'c', 'socket-c', 'tictactoe').room.code;
+      manager.joinRoom(other, 'David', 'd', 'socket-d');
+      manager.startGame(other, 'c');
+      const healthy = manager.getRoomBySocket('socket-c');
+      const before = structuredClone(healthy.match.state);
+      if (!['inicio', 'configuración'].includes(operation)) manager.startGame(code, 'a');
+      if (operation === 'reinicio' || operation === 'finalización') {
+        for (const [id, index] of [
+          ['a', 0],
+          ['b', 3],
+          ['a', 1],
+          ['b', 4],
+        ])
+          assert.equal(manager.handleAction(code, id, { type: 'MAKE_MOVE', index }).success, true);
+        if (operation === 'reinicio') {
+          manager.handleAction(code, 'a', { type: 'MAKE_MOVE', index: 2 });
+          assert.equal(room.status, 'finished');
+        }
+      }
+      if (operation === 'reconexión') manager.handleDisconnect('socket-b');
+      const target = failure === 'configureRules' ? room : room.match;
+      target[failure] = () => {
+        throw new Error('secreto-no-publicable');
+      };
+      emitted.length = 0;
+      let result;
+      assert.doesNotThrow(() => {
+        if (operation === 'inicio') result = manager.startGame(code, 'a');
+        if (operation === 'reinicio') result = manager.restartGame(code, 'a');
+        if (operation === 'abandono') manager.leaveRoom('socket-b');
+        if (operation === 'finalización')
+          result = manager.handleAction(code, 'a', { type: 'MAKE_MOVE', index: 2 });
+        if (operation === 'reconexión') result = manager.reconnectPlayer(code, 'b', 'socket-new');
+        if (operation === 'configuración')
+          result = manager.updateRoomRules(code, 'a', { turnSeconds: 60 });
+      });
+      if (result) assert.equal(result.success, false);
+      assert.equal(manager.getRoomsCount(), 1);
+      for (const socket of ['socket-a', 'socket-b', 'socket-new'])
+        assert.equal(manager.getRoomBySocket(socket), undefined);
+      assert.equal(room.turnTimeout, undefined);
+      assert.equal(room.turnDeadline, null);
+      assert.equal(room.botLoopTimeout, undefined);
+      assert.equal(manager.reconnectPlayer(code, 'a', 'socket-again').success, false);
+      assert.equal(emitted.filter((e) => e.event === 'room:closed' && e.code === code).length, 1);
+      assert.ok(leaves.some((e) => e.id === 'socket-a' && e.code === code));
+      assert.equal(logged.mock.calls.length, 1);
+      assert.ok(
+        !JSON.stringify([emitted, logged.mock.calls, result]).includes('secreto-no-publicable'),
+      );
+      assert.deepEqual(healthy.match.state, before);
+      context.mock.timers.tick(300000);
+      assert.equal(manager.getRoomBySocket('socket-c'), healthy);
+      assert.notDeepEqual(healthy.match.state, before);
+      assert.equal(logged.mock.calls.length, 1);
+    } finally {
+      manager.dispose();
+      context.mock.timers.reset();
+    }
+  });
+}
+
+test('Cambio de Color: opciones compartidas conservan valores, tipos, aislamiento y reparto', () => {
+  const io = { to: () => ({ emit: () => {} }), sockets: { sockets: new Map() } };
+  const manager = new RoomManager(io);
+  try {
+    const other = manager.createRoom('Clara', 'c', 'socket-c', 'colorclash').room;
+    for (const count of [5, 7, 9]) {
+      const room = manager.createRoom('Ana', 'a', 'socket-a', 'colorclash').room;
+      manager.joinRoom(room.code, 'Bruno', 'b', 'socket-b');
+      assert.equal(manager.updateRoomRules(room.code, 'a', { startingCards: count }).success, true);
+      for (const invalid of [4, 6, 8, 10, '7', true, null, [], {}]) {
+        assert.equal(
+          manager.updateRoomRules(room.code, 'a', { startingCards: invalid }).success,
+          false,
+        );
+        assert.equal(manager.getRoomBySocket('socket-a').customRules.startingCards, count);
+      }
+      assert.equal(manager.getRoomBySocket('socket-c').customRules.startingCards, 7);
+      manager.startGame(room.code, 'a');
+      assert.equal(manager.getRoomBySocket('socket-a').match.publicState('a').myHand.length, count);
+      manager.leaveRoom('socket-a');
+      manager.leaveRoom('socket-b');
+    }
+    assert.equal(manager.getRoomBySocket('socket-c').code, other.code);
+  } finally {
+    manager.dispose();
+  }
+});
+
+test('Parchís: capturar conserva el reloj del movimiento y el plazo completa el premio pendiente', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+  const io = { to: () => ({ emit: () => {} }), sockets: { sockets: new Map() } };
+  const manager = new RoomManager(io);
+  try {
+    const code = manager.createRoom('Ana', 'a', 'socket-a', 'parchis').room.code;
+    manager.joinRoom(code, 'Bruno', 'b', 'socket-b');
+    manager.updateRoomRules(code, 'a', { turnSeconds: 30 });
+    manager.startGame(code, 'a');
+    const room = manager.getRoomBySocket('socket-a'),
+      deadline = room.turnDeadline,
+      s = room.match.state;
+    s.phase = 'move';
+    s.steps = 1;
+    s.lastRoll = 1;
+    s.players[0].pawns[0] = 0;
+    s.players[1].pawns[0] = 35;
+    context.mock.timers.tick(10000);
+    assert.equal(manager.handleAction(code, 'a', { type: 'MOVE', pawn: 0 }).success, true);
+    assert.equal(room.match.state.steps, 20);
+    assert.equal(room.match.state.bonus, true);
+    assert.equal(room.turnDeadline, deadline, 'La captura no concede otro presupuesto');
+    context.mock.timers.tick(20000);
+    assert.equal(room.match.state.players[0].pawns[0], 21);
+    assert.equal(room.match.state.currentTurnPlayerId, 'b');
+    assert.equal(room.match.state.bonus, false);
+    assert.equal(room.match.state.phase, 'roll');
+    assert.ok(room.turnDeadline > Date.now());
+  } finally {
+    manager.dispose();
+    context.mock.timers.reset();
+  }
+});
+
+test('Parchís: tres seises sin poder salir no bloquean un turno automático', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+  context.mock.method(Math, 'random', () => 0.99);
+  const io = { to: () => ({ emit: () => {} }), sockets: { sockets: new Map() } };
+  const manager = new RoomManager(io);
+  try {
+    const code = manager.createRoom('Ana', 'a', 'socket-a', 'parchis').room.code;
+    manager.joinRoom(code, 'Bruno', 'b', 'socket-b');
+    manager.updateRoomRules(code, 'a', { turnSeconds: 30 });
+    manager.startGame(code, 'a');
+    context.mock.timers.tick(30000);
+    const room = manager.getRoomBySocket('socket-a');
+    assert.equal(room.match.state.currentTurnPlayerId, 'b');
+    assert.equal(room.match.state.rollCount, 3);
+    assert.equal(room.match.state.sixes, 0);
+    assert.equal(room.status, 'in_game');
+    assert.ok(room.turnDeadline > Date.now());
+  } finally {
+    manager.dispose();
+    context.mock.timers.reset();
+  }
+});
+
+test('Go: marcar un grupo no renueva el reloj y un timeout de revisión reanuda sin aceptar', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+  const io = { to: () => ({ emit: () => {} }), sockets: { sockets: new Map() } };
+  const manager = new RoomManager(io);
+  try {
+    const code = manager.createRoom('Ana', 'a', 'socket-a', 'go').room.code;
+    manager.joinRoom(code, 'Bruno', 'b', 'socket-b');
+    manager.updateRoomRules(code, 'a', { turnSeconds: 30 });
+    manager.startGame(code, 'a');
+    for (const [id, action] of [
+      ['a', { type: 'PLACE', index: 0 }],
+      ['b', { type: 'PLACE', index: 20 }],
+      ['a', { type: 'PASS' }],
+      ['b', { type: 'PASS' }],
+    ])
+      assert.equal(manager.handleAction(code, id, action).success, true);
+    const room = manager.getRoomBySocket('socket-a'),
+      deadline = room.turnDeadline;
+    context.mock.timers.tick(10000);
+    manager.handleAction(code, 'a', { type: 'MARK_DEAD', index: 0 });
+    assert.equal(room.turnDeadline, deadline);
+    manager.handleAction(code, 'a', { type: 'ACCEPT_SCORE' });
+    assert.equal(room.match.state.phase, 'score');
+    assert.deepEqual(room.match.state.accepted, ['a']);
+    context.mock.timers.tick(30000);
+    assert.equal(room.match.state.phase, 'play');
+    assert.equal(room.match.state.currentTurnPlayerId, 'a');
+    assert.equal(room.match.state.board[0], 1);
+    assert.equal(room.match.state.winner, null);
+    assert.deepEqual(room.match.state.accepted, []);
+  } finally {
+    manager.dispose();
+    context.mock.timers.reset();
+  }
+});
+
+test('Damas chinas: cinco participantes no cierran la sala y seis pueden empezar', () => {
+  const manager = new RoomManager({
+    to: () => ({ emit: () => {} }),
+    sockets: { sockets: new Map() },
+  });
+  try {
+    const code = manager.createRoom('Ana', 'a', 'socket-a', 'chinesecheckers').room.code;
+    for (let n = 0; n < 4; n++) assert.equal(manager.addBot(code, 'a').success, true);
+    const result = manager.startGame(code, 'a');
+    assert.equal(result.success, false);
+    assert.equal(manager.getRoomBySocket('socket-a').status, 'waiting');
+    assert.equal(manager.getRoomBySocket('socket-a').players.length, 5);
+    assert.equal(manager.addBot(code, 'a').success, true);
+    assert.equal(manager.startGame(code, 'a').success, true);
+    assert.equal(manager.getRoomBySocket('socket-a').status, 'in_game');
+  } finally {
+    manager.dispose();
+  }
+});
+
+test('Mahjong: reclamaciones de ocho segundos y robar no renueva el presupuesto del descarte', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+  const manager = new RoomManager({
+    to: () => ({ emit: () => {} }),
+    sockets: { sockets: new Map() },
+  });
+  try {
+    const code = manager.createRoom('Ana', 'a', 'socket-a', 'mahjong').room.code;
+    for (const id of ['b', 'c', 'd']) manager.joinRoom(code, id, id, `socket-${id}`);
+    manager.updateRoomRules(code, 'a', { turnSeconds: 30 });
+    manager.startGame(code, 'a');
+    const room = manager.getRoomBySocket('socket-a');
+    const discard = room.match.publicState('a').legalActions.find((a) => a.type === 'DISCARD');
+    context.mock.timers.tick(5000);
+    assert.equal(manager.handleAction(code, 'a', discard).success, true);
+    assert.equal(room.turnDeadline, Date.now() + 8000);
+    for (const expected of ['c', 'd']) {
+      context.mock.timers.tick(8000);
+      assert.equal(room.match.state.currentTurnPlayerId, expected);
+      assert.equal(room.match.state.phase, 'claim');
+      assert.equal(room.turnDeadline, Date.now() + 8000);
+    }
+    context.mock.timers.tick(8000);
+    assert.equal(room.match.state.phase, 'draw');
+    assert.equal(room.match.state.currentTurnPlayerId, 'b');
+    const deadline = room.turnDeadline;
+    context.mock.timers.tick(5000);
+    assert.equal(manager.handleAction(code, 'b', { type: 'DRAW' }).success, true);
+    assert.equal(room.turnDeadline, deadline);
+    assert.equal(room.match.state.players[1].hand.length, 14);
+    context.mock.timers.tick(deadline - Date.now());
+    assert.ok(['claim', 'finished'].includes(room.match.state.phase));
+    assert.ok(room.match.state.revision >= 6);
+    assert.equal('responses' in room.match.publicState('a'), false);
+  } finally {
+    manager.dispose();
+    context.mock.timers.reset();
+  }
+});
+
+test('Dibujo: una sala sin bots, límites de trazos y respuestas que no renuevan el reloj', () => {
+  const runtime = gameFactories.drawing(),
+    match = runtime.createMatch();
+  match.start([
+    { id: 'a', isBot: false },
+    { id: 'b', isBot: false },
+    { id: 'c', isBot: false },
+  ]);
+  assert.equal(match.timeoutSeconds(), 20);
+  assert.equal(match.botAction('a'), null);
+  assert.equal(match.act('a', { type: 'CHOOSE', index: 0 }).completed, true);
+  assert.equal(match.timeoutSeconds(), 60);
+  const stroke = {
+    points: [
+      [0, 0],
+      [1000, 1000],
+    ],
+    color: 0,
+    width: 5,
+  };
+  assert.equal(match.act('a', { type: 'STROKE', stroke }).completed, false);
+  assert.equal(match.act('b', { type: 'GUESS', text: 'incorrecta' }).completed, false);
+  assert.equal(match.act('c', { type: 'STROKE', stroke }), null);
+  assert.equal(match.timeoutStep('a').continue, false);
+  assert.equal(match.timeoutSeconds(), 8);
+  assert.ok(match.publicState('c').word);
+});
+test('Diccionarios locales y banco propio: cobertura bilingüe, soluciones solo en el servidor', () => {
+  for (const language of [0, 1]) {
+    const runtime = gameFactories.words();
+    runtime.configureRules({ wordLanguage: language });
+    const match = runtime.createMatch();
+    match.start([
+      { id: 'a', isBot: false },
+      { id: 'b', isBot: true },
+    ]);
+    assert.equal(match.publicState('a').language, language ? 'en' : 'es');
+    assert.ok(match.botAction('a'));
+    assert.equal('bag' in match.publicState('a'), false);
+  }
+  const quiz = gameFactories.quiz().createMatch();
+  quiz.start([
+    { id: 'a', isBot: false },
+    { id: 'b', isBot: false },
+  ]);
+  assert.equal(quiz.publicState('b').question.answer, null);
+  assert.equal(quiz.timeoutStep('a').continue, false);
+  assert.notEqual(quiz.publicState('b').question.answer, null);
+});
+
+test('Impostor presencial: rechaza bots y conserva el moderador autorizado al migrar a un humano conectado', () => {
+  const io = { to: () => ({ emit: () => {} }), sockets: { sockets: new Map() } },
+    manager = new RoomManager(io);
+  try {
+    const code = manager.createRoom('Ana', 'a', 'socket-a', 'impostor').room.code;
+    for (const id of ['b', 'c', 'd']) manager.joinRoom(code, id, id, `socket-${id}`);
+    manager.updateRoomRules(code, 'a', { impostorMode: 1, physicalVoting: 1 });
+    assert.equal(manager.addBot(code, 'a').success, false);
+    assert.equal(manager.startGame(code, 'a').success, true);
+    const room = manager.getRoomBySocket('socket-a');
+    room.match.state.impostorId = 'd';
+    manager.handleDisconnect('socket-b');
+    manager.leaveRoom('socket-a');
+    assert.equal(room.hostId, 'c');
+    assert.equal(room.match.state.moderatorId, 'c');
+    assert.equal(manager.getRoomBySocket('socket-c'), room);
+  } finally {
+    manager.dispose();
+  }
+});
+
+test('Palabras: partidas completas con los dos diccionarios de producción y conservación de letras', () => {
+  for (const wordLanguage of [0, 1]) {
+    const { engine } = gameFactories.words();
+    engine.setRules({ wordLanguage });
+    let state = engine.initGame([
+        { id: 'a', isBot: true },
+        { id: 'b', isBot: true },
+      ]),
+      steps = 0,
+      placements = 0;
+    const letters = state.bag.length + state.players.reduce((sum, p) => sum + p.hand.length, 0);
+    while (!state.winner && steps++ < 1000) {
+      const action = engine.getBotAction(state, state.currentTurnPlayerId);
+      assert.ok(action);
+      assert.ok(engine.validateAction(state, state.currentTurnPlayerId, action));
+      if (action.type === 'PLACE') placements++;
+      state = engine.applyAction(state, state.currentTurnPlayerId, action);
+      assert.equal(
+        state.bag.length +
+          state.players.reduce((sum, p) => sum + p.hand.length, 0) +
+          state.board.filter(Boolean).length,
+        letters,
+      );
+    }
+    assert.ok(state.winner);
+    assert.ok(placements > 0);
   }
 });

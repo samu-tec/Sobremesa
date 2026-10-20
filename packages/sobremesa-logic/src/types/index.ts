@@ -1,3 +1,18 @@
+import type { PokerAction, PokerPublicState } from '../games/poker/engine.js';
+import type { WordsAction, WordsPublicState } from '../games/words/engine.js';
+import type { QuizAction, QuizPublicState } from '../games/quiz/engine.js';
+import type { DrawingAction, DrawingPublicState } from '../games/drawing/engine.js';
+import type { MysteryAction, MysteryPublicState } from '../games/mystery/engine.js';
+import type { ConquestAction, ConquestPublicState } from '../games/conquest/engine.js';
+import type { CinquilloAction, CinquilloPublicState } from '../games/cinquillo/engine.js';
+import type { EscobaAction, EscobaPublicState } from '../games/escoba/engine.js';
+import type { MusAction, MusPublicState } from '../games/mus/engine.js';
+import type { BriscaAction, BriscaPublicState } from '../games/brisca/engine.js';
+import type { MahjongAction, MahjongPublicState } from '../games/mahjong/engine.js';
+import type { ChineseAction, ChinesePublicState } from '../games/damas-chinas/engine.js';
+import type { GoAction, GoPublicState } from '../games/go/engine.js';
+import type { OcaAction, OcaState } from '../games/oca/engine.js';
+import type { ParchisAction, ParchisPublicState } from '../games/parchis/engine.js';
 import type {
   CiudadFortunaPublicState,
   CiudadFortunaAction,
@@ -42,7 +57,22 @@ export type GameType =
   | 'backgammon'
   | 'battleship'
   | 'mancala'
-  | 'combinations';
+  | 'combinations'
+  | 'parchis'
+  | 'oca'
+  | 'go'
+  | 'chinesecheckers'
+  | 'mahjong'
+  | 'brisca'
+  | 'mus'
+  | 'escoba'
+  | 'poker'
+  | 'words'
+  | 'quiz'
+  | 'drawing'
+  | 'mystery'
+  | 'conquest'
+  | 'cinquillo';
 
 export type RoomStatus = 'waiting' | 'in_game' | 'finished';
 
@@ -90,7 +120,22 @@ export type GamePublicState =
   | DominoPublicState
   | ImpostorPublicState
   | BatallaNavalPublicState
-  | DadosDeCombinacionesPublicState;
+  | DadosDeCombinacionesPublicState
+  | ParchisPublicState
+  | OcaState
+  | GoPublicState
+  | ChinesePublicState
+  | MahjongPublicState
+  | BriscaPublicState
+  | MusPublicState
+  | EscobaPublicState
+  | PokerPublicState
+  | WordsPublicState
+  | QuizPublicState
+  | DrawingPublicState
+  | MysteryPublicState
+  | ConquestPublicState
+  | CinquilloPublicState;
 
 export type GameAction =
   | CiudadFortunaAction
@@ -107,4 +152,19 @@ export type GameAction =
   | DominoAction
   | ImpostorAction
   | BatallaNavalAction
-  | DadosDeCombinacionesAction;
+  | DadosDeCombinacionesAction
+  | ParchisAction
+  | OcaAction
+  | GoAction
+  | ChineseAction
+  | MahjongAction
+  | BriscaAction
+  | MusAction
+  | EscobaAction
+  | PokerAction
+  | WordsAction
+  | QuizAction
+  | DrawingAction
+  | MysteryAction
+  | ConquestAction
+  | CinquilloAction;

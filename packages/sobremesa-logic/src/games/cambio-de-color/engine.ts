@@ -1,3 +1,4 @@
+import { participants } from '../../engine/helpers.js';
 import { message as msg, term } from '../../messages.js';
 import { IGameEngine } from '../../engine/IGameEngine.js';
 import {
@@ -19,9 +20,7 @@ export class CambioDeColorEngine implements IGameEngine<
     this.startingCards = value;
   }
   initGame(players: { id: string; isBot: boolean; name?: string }[]): CambioDeColorState {
-    if (players.length < 2 || players.length > 4) {
-      throw new Error('Cambio de Color requires between 2 and 4 players');
-    }
+    players = participants(players, 2, 4);
 
     const deck = shuffleDeck(createDeck());
     const playerHands: PlayerHand[] = [];

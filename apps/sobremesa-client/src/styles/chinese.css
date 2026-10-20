@@ -1,0 +1,114 @@
+.chinese-scroll {
+  overflow: auto;
+  max-width: 100%;
+  padding: 8px 0;
+}
+.chinese-board {
+  position: relative;
+  width: min(100%, 660px);
+  min-width: 0;
+  aspect-ratio: 1 / 1.08;
+  margin: auto;
+}
+.chinese-board > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: #e4c38c;
+  stroke: #85683b;
+  stroke-width: 0.5;
+}
+.chinese-hole {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 5%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  padding: 0;
+  border: 1px solid #8a7048;
+  background: #c29e67;
+  color: #162a1e;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.chinese-pawn {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  background: var(--pawn-color);
+  color: #fff;
+  border: 2px solid #fff6d9;
+  border-radius: 50%;
+  box-shadow: 0 2px 3px #32221055;
+  font-weight: 700;
+  font-size: clamp(0.5rem, 2.8vw, 0.8rem);
+}
+.chinese-hole.legal {
+  background: #f6ffea;
+  border: 2px solid #386d50;
+  font-weight: 800;
+  font-size: 1.5rem;
+}
+.chinese-hole.selected {
+  outline: 3px solid #162a1e;
+  outline-offset: 2px;
+  z-index: 2;
+}
+.chinese-hole.route {
+  box-shadow: 0 0 0 3px #fff6d9;
+}
+.chinese-hole:focus-visible {
+  outline: 3px solid #141d2b;
+  outline-offset: 3px;
+  z-index: 3;
+}
+.chinese-controls {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+.chinese-controls label {
+  display: grid;
+  gap: 6px;
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.chinese-controls select {
+  width: 100%;
+  min-height: 44px;
+}
+.chinese-controls .button {
+  min-height: 44px;
+}
+.chinese-legend {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  font-size: 0.9rem;
+}
+.chinese-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chinese-legend li > span {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.chinese-board.enlarged {
+  min-width: 510px;
+}
+
+.chinese-hole:disabled {
+  opacity: 1;
+  cursor: default;
+}

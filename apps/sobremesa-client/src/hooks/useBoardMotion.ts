@@ -5,6 +5,7 @@ export interface PieceTravel {
   to: string;
 }
 interface MotionOptions {
+  layoutKey?: string | number;
   travel?: PieceTravel[];
   flipCells?: string[];
   sow?: { from: number; path: number[] } | null;
@@ -16,6 +17,7 @@ interface MotionOptions {
 export function useBoardMotion(revision: string | number, options: MotionOptions = {}) {
   const root = useRef<HTMLDivElement>(null),
     previous = useRef<{
+      layoutKey?: string | number;
       tokens: Map<string, Box>;
       cells: Map<string, Box>;
       diceKey?: string | number;
@@ -60,9 +62,16 @@ export function useBoardMotion(revision: string | number, options: MotionOptions
       .querySelectorAll<HTMLElement>('[data-cell]')
       .forEach((node) => cells.set(node.dataset.cell!, box(node)));
     const before = previous.current;
-    previous.current = { tokens, cells, diceKey: options.diceKey, travelKey: options.travelKey };
+    previous.current = {
+      tokens,
+      cells,
+      diceKey: options.diceKey,
+      travelKey: options.travelKey,
+      layoutKey: options.layoutKey,
+    };
     if (
       !before ||
+      before.layoutKey !== options.layoutKey ||
       document.hidden ||
       matchMedia('(prefers-reduced-motion: reduce)').matches ||
       typeof host.animate !== 'function'
@@ -193,6 +202,6 @@ export function useBoardMotion(revision: string | number, options: MotionOptions
       }
     // Only a server revision starts motion; UI-only option changes must not replay a move.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revision]);
+  }, [revision, options.layoutKey]);
   return root;
 }

@@ -99,9 +99,7 @@ export class RoomManager {
       customRules:
         gameType === 'monopoly'
           ? { ...DEFAULT_CIUDAD_FORTUNA_RULES }
-          : gameType === 'colorclash'
-            ? { startingCards: 7 }
-            : defaultGameSettings(gameType),
+          : defaultGameSettings(gameType),
     };
     this.rooms.set(room.code, room);
     this.socketToRoom.set(socketId, room.code);
@@ -142,6 +140,11 @@ export class RoomManager {
   }
   addBot(code: string, id: string) {
     const room = this.hostRoom(code, id, 'waiting');
+    if (
+      getGame(room.gameType).supportsBots === false ||
+      (room.gameType === 'impostor' && room.customRules?.impostorMode === 1)
+    )
+      return { success: false, error: 'Este juego requiere participantes humanos.' };
     if (room.players.length >= room.maxPlayers)
       return { success: false, error: 'La sala está completa.' };
     let n = 1;
@@ -177,12 +180,6 @@ export class RoomManager {
       if (key === 'turnSeconds' && [30, 60, 90, 120, 180].includes(value as number))
         seconds = value as number;
       else if (
-        room.gameType === 'colorclash' &&
-        key === 'startingCards' &&
-        [5, 7, 9].includes(value as number)
-      )
-        next.startingCards = value as number;
-      else if (
         room.gameType === 'monopoly' &&
         ((key === 'startingCash' && [1000, 1500, 2000, 2500].includes(value as number)) ||
           (key === 'salaryGO' && [200, 300, 400].includes(value as number)) ||
@@ -203,37 +200,62 @@ export class RoomManager {
         next[key] = value as number | boolean | null;
       else return { success: false, error: 'Opción de regla no permitida.' };
     }
-    room.configureRules(next);
-    room.turnSeconds = seconds;
-    room.customRules = next;
-    room.lastActivity = Date.now();
-    this.broadcastRoomUpdate(room);
-    return { success: true };
+    return this.runMatchOperation(room, 'configuración', () => {
+      room.configureRules(next);
+      room.turnSeconds = seconds;
+      room.customRules = next;
+      room.lastActivity = Date.now();
+      this.broadcastRoomUpdate(room);
+      return { success: true };
+    });
   }
   startGame(code: string, id: string) {
     const room = this.hostRoom(code, id, 'waiting');
     if (room.players.length < room.minPlayers || room.players.some((p) => !p.connected))
       return { success: false, error: 'Faltan jugadores. Invita a alguien o añade un bot.' };
-    room.match.start(room.players.map(({ id, isBot, name }) => ({ id, isBot, name })));
-    room.status = 'in_game';
-    room.lastActivity = Date.now();
-    this.armTurnClock(room, true);
-    this.broadcastRoomUpdate(room);
-    this.broadcastGameState(room, true);
-    this.checkAndTriggerBotTurn(room);
-    return { success: true };
+    if (
+      room.gameType === 'impostor' &&
+      room.customRules?.impostorMode === 1 &&
+      room.players.some((p) => p.isBot)
+    )
+      return { success: false, error: 'La modalidad presencial requiere participantes humanos.' };
+    const counts = getGame(room.gameType).playerCounts;
+    if (counts && !counts.includes(room.players.length))
+      return {
+        success: false,
+        error: 'Esta cantidad de participantes no es válida para este juego.',
+      };
+    return this.runMatchOperation(room, 'inicio', () => {
+      room.match.start(
+        room.players.map(({ id, isBot, name }) => ({
+          id,
+          isBot,
+          name,
+          isHost: id === room.hostId,
+        })),
+      );
+      room.status = 'in_game';
+      room.lastActivity = Date.now();
+      this.armTurnClock(room, true);
+      this.broadcastRoomUpdate(room);
+      this.broadcastGameState(room, true);
+      this.checkAndTriggerBotTurn(room);
+      return { success: true };
+    });
   }
   restartGame(code: string, id: string) {
     const room = this.hostRoom(code, id, 'finished');
-    clearTimeout(room.botLoopTimeout);
-    room.botLoopTimeout = undefined;
-    this.clearTurnClock(room);
-    room.status = 'waiting';
-    room.match.reset();
-    room.lastActivity = Date.now();
-    if (room.players.length > 1) room.players.push(room.players.shift()!);
-    this.broadcastRoomUpdate(room);
-    return { success: true };
+    return this.runMatchOperation(room, 'reinicio', () => {
+      clearTimeout(room.botLoopTimeout);
+      room.botLoopTimeout = undefined;
+      this.clearTurnClock(room);
+      room.status = 'waiting';
+      room.match.reset();
+      room.lastActivity = Date.now();
+      if (room.players.length > 1) room.players.push(room.players.shift()!);
+      this.broadcastRoomUpdate(room);
+      return { success: true };
+    });
   }
   handleAction(code: string, id: string, action: unknown) {
     const room = this.rooms.get(code);
@@ -313,13 +335,15 @@ export class RoomManager {
     player.connected = true;
     this.socketToRoom.set(socketId, code);
     room.lastActivity = Date.now();
-    this.broadcastRoomUpdate(room);
-    this.checkAndTriggerBotTurn(room);
-    return {
-      success: true,
-      room: this.getRoomInfo(room),
-      state: room.match.publicState(id),
-    };
+    return this.runMatchOperation(room, 'reconexión', () => {
+      this.broadcastRoomUpdate(room);
+      this.checkAndTriggerBotTurn(room);
+      return {
+        success: true,
+        room: this.getRoomInfo(room),
+        state: room.match.publicState(id),
+      };
+    });
   }
   handleDisconnect(socketId: string) {
     const room = this.getRoomBySocket(socketId);
@@ -342,7 +366,7 @@ export class RoomManager {
     this.socketToRoom.delete(socketId);
     if (!room) return;
     const player = room.players.find((p) => p.socketId === socketId);
-    if (player) this.removePlayer(room, player.id);
+    if (player) this.runMatchOperation(room, 'abandono', () => this.removePlayer(room, player.id));
   }
   private removePlayer(room: ActiveRoom, id: string) {
     if (!this.rooms.has(room.code)) return;
@@ -362,7 +386,7 @@ export class RoomManager {
     if (room.status === 'in_game') {
       clearTimeout(room.botLoopTimeout);
       room.botLoopTimeout = undefined;
-      room.match.forfeit(id);
+      room.match.forfeit(id, room.hostId);
       this.finishIfNeeded(room);
       this.armTurnClock(room);
       this.broadcastGameState(room);
@@ -414,6 +438,18 @@ export class RoomManager {
     this.broadcastGameState(room);
     this.checkAndTriggerBotTurn(room);
   }
+  private runMatchOperation<T>(room: ActiveRoom, operation: string, task: () => T) {
+    try {
+      return task();
+    } catch {
+      this.closeFailedRoom(room, operation);
+      return {
+        success: false as const,
+        error: 'No se pudo completar la acción. Comprueba el estado de la sala.',
+      };
+    }
+  }
+
   private runAutomaticTask(room: ActiveRoom, operation: string, task: () => void) {
     if (this.rooms.get(room.code) !== room) return;
     try {

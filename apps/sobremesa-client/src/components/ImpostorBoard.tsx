@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { ImpostorPublicState, ImpostorAction } from 'sobremesa-logic';
 import { t, useLocale } from '../i18n';
+import { Modal } from '../ui/Modal';
+import '../styles/impostor-physical.css';
 import { useBoardMotion } from '../hooks/useBoardMotion';
 import { BoardFrame, type BoardProps } from '../ui/GameLayout';
 export function ImpostorBoard({
@@ -36,7 +38,7 @@ export function ImpostorBoard({
       values={Object.fromEntries(
         s.players.map((p) => [
           p.id,
-          s.phase === 'vote'
+          s.phase === 'vote' && !s.physicalVoting
             ? s.votedIds.includes(p.id)
               ? t('Voto enviado')
               : t('Voto pendiente')
@@ -74,18 +76,22 @@ export function ImpostorBoard({
         <span className={s.phase === 'guess' ? 'active' : ''}>3 · {t('Último intento')}</span>
       </div>
       <p className="board-instruction" role="status">
-        {s.phase === 'clue'
-          ? t('Vuelta {0} de {1}: da una pista de una sola palabra.', {
-              '0': s.clueRound,
-              '1': s.clueRounds,
-            })
-          : s.phase === 'vote'
-            ? s.runoff
-              ? t('Desempate: vota entre los candidatos marcados.')
-              : t('¿Quién no conoce la palabra? Tu voto es secreto.')
-            : s.phase === 'guess'
-              ? t('El impostor ha sido descubierto. Puede salvarse adivinando la palabra.')
-              : t('La palabra y los votos ya se pueden revelar.')}
+        {s.mode === 'physical' && s.phase === 'clue'
+          ? t('Las pistas se dicen en voz alta; no hace falta escribir.')
+          : s.phase === 'clue'
+            ? t('Vuelta {0} de {1}: da una pista de una sola palabra.', {
+                '0': s.clueRound,
+                '1': s.clueRounds,
+              })
+            : s.phase === 'vote'
+              ? s.physicalVoting
+                ? t('El grupo vota en persona; el anfitrión registra el recuento.')
+                : s.runoff
+                  ? t('Desempate: vota entre los candidatos marcados.')
+                  : t('¿Quién no conoce la palabra? Tu voto es secreto.')
+              : s.phase === 'guess'
+                ? t('El impostor ha sido descubierto. Puede salvarse adivinando la palabra.')
+                : t('La palabra y los votos ya se pueden revelar.')}
       </p>
       <div className="clue-list">
         {s.clues.map((clue, i) => (
@@ -93,11 +99,25 @@ export function ImpostorBoard({
             <small>
               {room.players.find((p) => p.id === clue.playerId)?.name} · {clue.round}
             </small>
-            <strong>{clue.bot ? t(clue.word) : clue.word}</strong>
+            <strong>
+              {clue.spoken
+                ? t(clue.skipped ? 'Turno de pista agotado' : 'Pista hablada completada')
+                : clue.bot
+                  ? t(clue.word)
+                  : clue.word}
+            </strong>
           </div>
         ))}
       </div>
-      {(s.phase === 'clue' || s.phase === 'guess') && (
+      {s.mode === 'physical' && (
+        <PhysicalImpostorControls
+          state={s}
+          myPlayerId={myPlayerId}
+          onAction={onAction}
+          busy={busy}
+        />
+      )}
+      {s.mode === 'online' && (s.phase === 'clue' || s.phase === 'guess') && (
         <form
           className="impostor-form"
           onSubmit={(e) => {
@@ -123,7 +143,7 @@ export function ImpostorBoard({
           </button>
         </form>
       )}
-      {s.phase === 'vote' && (
+      {s.phase === 'vote' && !s.physicalVoting && (
         <div className="vote-options">
           {s.players
             .filter((p) => p.id !== myPlayerId)
@@ -141,9 +161,179 @@ export function ImpostorBoard({
       )}
       <p className="board-caption">
         {t(
-          'No compartas tu pantalla al consultar tu papel. Las pistas de todos aparecen en la mesa.',
+          s.mode === 'physical'
+            ? 'Oculta tu papel antes de dejar el móvil sobre la mesa. Las pistas se dan en persona.'
+            : 'No compartas tu pantalla al consultar tu papel. Las pistas de todos aparecen en la mesa.',
         )}
       </p>
     </BoardFrame>
+  );
+}
+
+export function PhysicalImpostorControls({
+  state: s,
+  myPlayerId,
+  onAction,
+  busy = false,
+}: {
+  state: ImpostorPublicState;
+  myPlayerId: string;
+  onAction: (a: ImpostorAction) => void;
+  busy?: boolean;
+}) {
+  const [draft, setDraft] = useState<{ key: string; counts: Record<string, number> }>({
+      key: '',
+      counts: {},
+    }),
+    key = `${s.phase}:${s.clues.length}:${s.runoff?.join(',') ?? ''}`,
+    counts = draft.key === key ? draft.counts : {},
+    [confirmation, setConfirmation] = useState<{ key: string; action: ImpostorAction } | null>(
+      null,
+    ),
+    can = !busy && !s.winner && !s.isDraw && s.currentTurnPlayerId === myPlayerId,
+    moderator = s.moderatorId === myPlayerId,
+    name = (id: string) => s.players.find((p) => p.id === id)?.name ?? id,
+    recorded = s.players.map((p) => ({ playerId: p.id, count: counts[p.id] ?? 0 })),
+    valid =
+      recorded.every(
+        (c) => Number.isInteger(c.count) && c.count >= 0 && c.count <= s.players.length,
+      ) && recorded.reduce((sum, c) => sum + c.count, 0) <= s.players.length;
+  return (
+    <section className="physical-impostor">
+      {s.phase === 'clue' && (
+        <>
+          <p className="board-instruction" role="status">
+            {t('Vuelta {0}/{1}: {2} da su pista de viva voz.', {
+              '0': s.clueRound,
+              '1': s.clueRounds,
+              '2': name(s.currentTurnPlayerId),
+            })}
+          </p>
+          <button
+            className="button primary"
+            disabled={!can}
+            onClick={() => onAction({ type: 'SPOKEN_CLUE' })}
+          >
+            {t('He dado mi pista')}
+          </button>
+        </>
+      )}
+      {s.phase === 'vote' && s.physicalVoting && (
+        <>
+          <h2>{s.runoff ? t('Recuento del desempate presencial') : t('Votación presencial')}</h2>
+          <p>
+            {t(
+              'Votad en persona y registrad solo los totales. La aplicación no recoge votos individuales.',
+            )}
+          </p>
+          <p>{t('Registra el recuento: {0}', { '0': name(s.moderatorId) })}</p>
+          {moderator && (
+            <>
+              <div className="physical-counts">
+                {s.players.map((p) => (
+                  <label key={p.id}>
+                    {name(p.id)}
+                    <input
+                      type="number"
+                      min={0}
+                      max={s.players.length}
+                      value={counts[p.id] ?? 0}
+                      disabled={!can || Boolean(s.runoff && !s.runoff.includes(p.id))}
+                      onChange={(e) =>
+                        setDraft({ key, counts: { ...counts, [p.id]: Number(e.target.value) } })
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
+              <button
+                className="button primary"
+                disabled={!can || !valid}
+                onClick={() =>
+                  setConfirmation({ key, action: { type: 'RECORD_VOTE', counts: recorded } })
+                }
+              >
+                {t('Registrar recuento físico')}
+              </button>
+              <p>
+                {t(
+                  'La suma no puede superar el número de personas. Cero votos representa abstención.',
+                )}
+              </p>
+            </>
+          )}
+        </>
+      )}
+      {s.phase === 'guess' && (
+        <>
+          <h2>{t('Último intento hablado')}</h2>
+          <p>
+            {t('{0} dice la palabra en voz alta. {1} confirma el resultado.', {
+              '0': name(s.accused ?? ''),
+              '1': name(s.moderatorId),
+            })}
+          </p>
+          {moderator && (
+            <div className="board-actions">
+              <button
+                className="button primary"
+                disabled={!can}
+                onClick={() =>
+                  setConfirmation({ key, action: { type: 'CONFIRM_GUESS', correct: true } })
+                }
+              >
+                {t('Ha acertado')}
+              </button>
+              <button
+                className="button secondary"
+                disabled={!can}
+                onClick={() =>
+                  setConfirmation({ key, action: { type: 'CONFIRM_GUESS', correct: false } })
+                }
+              >
+                {t('No ha acertado')}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+      {confirmation?.key === key && can && moderator && (
+        <Modal title={t('Confirmar resultado presencial')} onClose={() => setConfirmation(null)}>
+          <p>
+            {t(
+              'Comprueba el resultado con el grupo antes de confirmarlo. Esta decisión resuelve la fase.',
+            )}
+          </p>
+          {confirmation.action.type === 'RECORD_VOTE' ? (
+            <ul>
+              {confirmation.action.counts.map((c) => (
+                <li key={c.playerId}>
+                  {name(c.playerId)}: {c.count}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>
+              {confirmation.action.type === 'CONFIRM_GUESS' &&
+                t(confirmation.action.correct ? 'Ha acertado' : 'No ha acertado')}
+            </p>
+          )}
+          <div className="board-actions">
+            <button className="button secondary" onClick={() => setConfirmation(null)}>
+              {t('Cancelar')}
+            </button>
+            <button
+              className="button primary"
+              onClick={() => {
+                onAction(confirmation.action);
+                setConfirmation(null);
+              }}
+            >
+              {t('Confirmar resultado')}
+            </button>
+          </div>
+        </Modal>
+      )}
+    </section>
   );
 }

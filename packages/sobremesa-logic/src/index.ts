@@ -41,3 +41,34 @@ export * from './games/dados-de-combinaciones/engine.js';
 export * from './settings.js';
 
 export * from './events/protocol.js';
+
+export * from './games/parchis/engine.js';
+
+export * from './games/oca/engine.js';
+
+export * from './games/go/engine.js';
+
+export * from './games/damas-chinas/engine.js';
+
+export * from './games/mahjong/engine.js';
+
+export * from './games/brisca/engine.js';
+export * from './games/spanish-cards.js';
+
+export * from './games/mus/engine.js';
+
+export * from './games/escoba/engine.js';
+
+export * from './games/cinquillo/engine.js';
+
+export * from './games/poker/engine.js';
+
+export * from './games/words/engine.js';
+
+export * from './games/quiz/engine.js';
+
+export * from './games/drawing/engine.js';
+
+export * from './games/mystery/engine.js';
+
+export * from './games/conquest/engine.js';

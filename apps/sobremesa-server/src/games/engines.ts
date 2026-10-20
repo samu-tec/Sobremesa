@@ -1,4 +1,19 @@
 import {
+  PokerEngine,
+  WordsEngine,
+  QuizEngine,
+  DrawingEngine,
+  MysteryEngine,
+  ConquestEngine,
+  CinquilloEngine,
+  EscobaEngine,
+  MusEngine,
+  BriscaEngine,
+  MahjongEngine,
+  ChineseEngine,
+  GoEngine,
+  OcaEngine,
+  ParchisEngine,
   CambioDeColorEngine,
   CiudadFortunaEngine,
   TresEnRayaEngine,
@@ -19,8 +34,93 @@ import {
 } from 'sobremesa-logic';
 
 import { defineGame, type GameMatch } from './runtime.js';
+import { randomInt } from 'node:crypto';
+import { drawingWords } from './drawing-words.js';
+import { quizQuestions } from './quiz-questions.js';
+import { wordDictionaries } from './word-dictionaries.js';
 
+const secureRandom = () => randomInt(0x100000000) / 0x100000000;
 export const gameFactories = {
+  poker: () =>
+    defineGame(new PokerEngine(secureRandom), {
+      timeoutAction: (s) => ({
+        type:
+          s.phase === 'hand_end'
+            ? 'NEXT_HAND'
+            : s.players.find((p) => p.id === s.currentTurnPlayerId)!.bet >= s.currentBet
+              ? 'CHECK'
+              : 'FOLD',
+      }),
+    }),
+  words: () => defineGame(new WordsEngine(secureRandom, wordDictionaries)),
+  quiz: () =>
+    defineGame(new QuizEngine(secureRandom, quizQuestions), {
+      timeoutAction: (s) => ({ type: s.phase === 'review' ? 'NEXT' : 'SKIP' }),
+    }),
+  drawing: () =>
+    defineGame(new DrawingEngine(secureRandom, drawingWords), {
+      completed: (s, a) => a.type === 'CHOOSE' || a.type === 'NEXT' || s.phase === 'review',
+      timeoutSeconds: (s) => (s.phase === 'choose' ? 20 : s.phase === 'review' ? 8 : s.drawSeconds),
+      timeoutAction: (s) =>
+        s.phase === 'choose'
+          ? ({ type: 'CHOOSE', index: 0 } as const)
+          : ({ type: s.phase === 'draw' ? 'END' : 'NEXT' } as const),
+    }),
+  mystery: () => {
+    const engine = new MysteryEngine(secureRandom);
+    return defineGame(engine, {
+      timeoutAction: (s, id) =>
+        s.phase === 'refute' ? engine.getBotAction(s, id) : { type: 'END_TURN' },
+    });
+  },
+  conquest: () => {
+    const engine = new ConquestEngine(secureRandom);
+    return defineGame(engine, {
+      completed: (_s, a) => a.type === 'END_TURN',
+      timeoutAction: (s, id) => engine.getTimeoutAction(s, id),
+      continueTimeout: (a) => a.type === 'REINFORCE',
+    });
+  },
+  cinquillo: () => defineGame(new CinquilloEngine(secureRandom)),
+  escoba: () => defineGame(new EscobaEngine(secureRandom)),
+  mus: () => {
+    const engine = new MusEngine(secureRandom);
+    return defineGame(engine, {
+      timeoutAction: (s, id) =>
+        s.phase === 'mus'
+          ? ({ type: 'CUT' } as const)
+          : s.phase === 'bet'
+            ? ({ type: s.bet ? 'FOLD' : 'PASS' } as const)
+            : engine.getBotAction(s, id),
+    });
+  },
+  brisca: () =>
+    defineGame(new BriscaEngine(secureRandom), {
+      completed: (_s, a) => a.type === 'PLAY' || a.type === 'NEXT_ROUND',
+      continueTimeout: (a) => a.type === 'EXCHANGE' || a.type === 'COLLECT',
+    }),
+  mahjong: () => {
+    const engine = new MahjongEngine(secureRandom);
+    return defineGame(engine, {
+      completed: (_s, a) => a.type !== 'DRAW' && a.type !== 'KONG',
+      timeoutSeconds: (s) => (s.phase === 'claim' ? 8 : null),
+      timeoutAction: (s, id) =>
+        s.phase === 'claim' ? ({ type: 'PASS' } as const) : engine.getBotAction(s, id),
+      continueTimeout: (a) => a.type === 'DRAW' || a.type === 'KONG',
+    });
+  },
+  chinesecheckers: () => defineGame(new ChineseEngine()),
+  go: () =>
+    defineGame(new GoEngine(), {
+      completed: (_s, a) => a.type !== 'MARK_DEAD',
+      timeoutAction: (s) => ({ type: s.phase === 'score' ? 'RESUME' : 'PASS' }) as const,
+    }),
+  oca: () => defineGame(new OcaEngine()),
+  parchis: () =>
+    defineGame(new ParchisEngine(), {
+      completed: (s) => s.phase === 'roll',
+      continueTimeout: (_action) => true,
+    }),
   tictactoe: () => defineGame(new TresEnRayaEngine()),
   colorclash: () => {
     const engine = new CambioDeColorEngine();
@@ -85,7 +185,7 @@ export const gameFactories = {
       continueTimeout: () => true,
     }),
   chess: () => defineGame(new AjedrezEngine(), { completed: (_s, a) => a.type === 'MOVE' }),
-  impostor: () => defineGame(new ImpostorEngine()),
+  impostor: () => defineGame(new ImpostorEngine(secureRandom)),
   dominoes: () =>
     defineGame(new DominoEngine(), {
       completed: (_s, a) => a.type !== 'DRAW',

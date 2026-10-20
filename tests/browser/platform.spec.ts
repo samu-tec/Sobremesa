@@ -20,7 +20,7 @@ async function ready(page: import('@playwright/test').Page) {
 
 test('Catálogo, búsqueda por nombre, categorías y favoritos', async ({ page }) => {
   await ready(page);
-  await expect(page.locator('.game-card')).toHaveCount(15);
+  await expect(page.locator('.game-card')).toHaveCount(30);
   const search = page.getByRole('searchbox', { name: 'Buscar juegos' });
   await search.fill('ciudad fortuna');
   await expect(page.locator('.game-card')).toHaveCount(1);
@@ -92,7 +92,7 @@ for (const viewport of [
     expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 
     await page.getByRole('button', { name: 'Volver a los juegos', exact: true }).click();
-    await expect(page.locator('.game-card')).toHaveCount(15);
+    await expect(page.locator('.game-card')).toHaveCount(30);
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   });
 
@@ -160,7 +160,7 @@ for (const name of games)
       .getByRole('dialog')
       .getByRole('button', { name: 'Salir de la partida', exact: true })
       .click();
-    await expect(page.locator('.game-card')).toHaveCount(15);
+    await expect(page.locator('.game-card')).toHaveCount(30);
   });
 
 test('Dos navegadores juegan, terminan y preparan revancha', async ({ page, browser }) => {
@@ -314,7 +314,7 @@ test('Primera visita: idioma, apodo aleatorio, persistencia y privacidad', async
   );
   await welcome.getByRole('textbox', { name: 'Your name', exact: true }).fill('Suerte');
   await welcome.getByRole('button', { name: 'Enter Sobremesa', exact: true }).click();
-  await expect(page.locator('.game-card')).toHaveCount(15);
+  await expect(page.locator('.game-card')).toHaveCount(30);
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.locator('.game-card h3').first()).toHaveText('Fortune City');
   await page.getByRole('searchbox', { name: 'Search games' }).fill('fortune city');

@@ -1,3 +1,4 @@
+import { participants } from '../../engine/helpers.js';
 import { IGameEngine } from '../../engine/IGameEngine.js';
 import {
   TresEnRayaAction,
@@ -14,9 +15,7 @@ export class TresEnRayaEngine implements IGameEngine<
   TresEnRayaPublicState
 > {
   initGame(players: { id: string; isBot: boolean; name?: string }[]): TresEnRayaState {
-    if (players.length !== 2) {
-      throw new Error('Tres en Raya requires exactly 2 players');
-    }
+    players = participants(players, 2, 2);
 
     const assignedPlayers = [
       { id: players[0].id, symbol: 'X' as TresEnRayaSymbol, isBot: players[0].isBot },

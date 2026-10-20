@@ -1,0 +1,92 @@
+.poker-hand,
+.poker-community {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.poker-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #fffaf0;
+  border: 1px solid #a89d84;
+  border-radius: 9px;
+  width: 64px;
+  height: 96px;
+  padding: 7px;
+  color: #172d26;
+  box-sizing: border-box;
+  font-size: 22px;
+  box-shadow: 0 3px 5px #0002;
+}
+.poker-card > span {
+  align-self: center;
+  font-size: 34px;
+  line-height: 1;
+}
+.poker-card.suit-1,
+.poker-card.suit-2 {
+  color: #ab2839;
+}
+.poker-card.back {
+  background: #294f48;
+  color: #fff;
+  align-items: center;
+  justify-content: center;
+}
+.poker-table {
+  background: #1c5145;
+  color: #fff;
+  padding: 20px;
+  border-radius: 20px;
+  margin-top: 20px;
+}
+.poker-community {
+  justify-content: center;
+  gap: clamp(3px, 1vw, 10px);
+}
+.poker-community .poker-card,
+.poker-empty {
+  width: clamp(38px, 10vw, 64px);
+  height: clamp(60px, 16vw, 96px);
+}
+.poker-empty {
+  display: grid;
+  place-items: center;
+  border: 1px dashed #fff8;
+  border-radius: 9px;
+}
+.poker-seats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 12px;
+}
+.poker-seats section {
+  background: #0002;
+  padding: 12px;
+  border: 1px solid #fff5;
+  border-radius: 12px;
+}
+.poker-seats h3,
+.poker-seats p {
+  margin: 5px 0;
+}
+.poker-seats .folded {
+  border-style: dashed;
+}
+.poker-bet {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.poker-bet label {
+  display: grid;
+  gap: 5px;
+  max-width: 100%;
+}
+.poker-bet input {
+  width: 150px;
+  min-height: 44px;
+}

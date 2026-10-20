@@ -8,7 +8,7 @@ Sobremesa usa salvia, crema, verdes oscuros, ilustraciones SVG y tipografía edi
 
 Reutiliza los tokens en superficies compartidas. Conserva el ámbito de las media queries y las alternativas sintácticas necesarias para los navegadores compatibles. No reordenes reglas solo porque comparten selector: podrían competir con variantes intermedias. Una ampliación debería integrarse en la sección correspondiente y evitar otra capa global de sobrescrituras.
 
-Las ilustraciones SVG se agrupan como funciones locales en `src/ui/GameArtwork.tsx`, junto al contenedor, las paletas y el registro exhaustivo de los quince juegos. Ajedrez y damas comparten la misma base. Cada ilustración recibe el identificador único del contenedor para referenciar sus filtros sin colisiones entre tarjetas; no necesita un archivo propio mientras siga siendo una pieza pequeña y exclusiva de este módulo.
+Las ilustraciones SVG se agrupan como funciones locales en `src/ui/GameArtwork.tsx`, junto al contenedor, las paletas y el registro exhaustivo de los treinta juegos. Ajedrez y damas comparten la misma base. Cada ilustración recibe el identificador único del contenedor para referenciar sus filtros sin colisiones entre tarjetas; no necesita un archivo propio mientras siga siendo una pieza pequeña y exclusiva de este módulo.
 
 ## Tokens utilizados
 
@@ -21,12 +21,12 @@ Las ilustraciones SVG se agrupan como funciones locales en `src/ui/GameArtwork.t
 | Foco                              | `--focus: #9c4b17`, `--focus-on-dark: #f7dfad` para la barra lateral; contorno de 3 px y separación de 4 px |
 | Error / éxito                     | `--error: #9b3528`, `--success: #2e654e`, siempre con texto                                                 |
 | Espaciado                         | `--space-1/2/3/4/6/8`: 4, 8, 12, 16, 24 y 32 px                                                             |
-| Texto / control                   | `--font-body: 14px`, `--font-control: 12px`; títulos editoriales Georgia                                    |
+| Texto / control                   | `--font-body: 16px`, `--font-control: 14px`; títulos editoriales Georgia                                    |
 | Controles                         | `--control-height: 44px`, `--radius-control: 8px`                                                           |
 | Diálogo                           | `--radius-dialog: 17px`, `--shadow-dialog`                                                                  |
 | Transición / capas                | `--duration-fast: .18s`, `--layer-dialog: 80`, `--layer-notice: 70`                                         |
 
-Los tokens definen el vocabulario común de los componentes. Los estilos de fichas, casillas y tableros pueden tener valores específicos. Los avisos de partida tienen reglas de capa propias. No cambies en bloque todos los colores iguales: una casilla, una ficha y un estado semántico pueden necesitar evolucionar por separado.
+El texto base usa 16 px y los controles principales 14 px; las etiquetas y ayudas de los formularios revisados mantienen al menos 13 px. Los detalles geométricos de tableros pueden ser menores cuando tienen una alternativa legible, como el inspector de casillas de Ciudad Fortuna y las etiquetas de coordenadas de Batalla naval. Los tokens definen el vocabulario común de los componentes. Los estilos de fichas, casillas y tableros pueden tener valores específicos. Los avisos de partida tienen reglas de capa propias. No cambies en bloque todos los colores iguales: una casilla, una ficha y un estado semántico pueden necesitar evolucionar por separado.
 
 El verde sobre crema y blanco sobre verde son combinaciones principales. El texto secundario usa `#626f5d`. El foco utiliza una variante oscura sobre superficies claras y una clara en la barra lateral. Acentos y bordes suaves no bastan para identificar controles por sí solos; conserva texto, forma y foco. La comprobación automática de contraste depende del contexto y no acredita todos los estados.
 

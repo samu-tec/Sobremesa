@@ -1,0 +1,106 @@
+.brisca-teams {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.brisca-teams section {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.brisca-teams p {
+  margin: 6px 0;
+}
+.brisca-teams b {
+  font-size: 0.875rem;
+}
+.brisca-hand-title {
+  font-size: 1.2rem;
+  margin: 16px 0 0;
+}
+.brisca-table {
+  margin-top: 24px;
+  padding: 20px;
+  background: #315e49;
+  color: #fff9e8;
+  border: 7px solid #947752;
+  border-radius: 20px;
+  box-shadow: inset 0 0 20px #193b2b77;
+}
+.brisca-stock {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+.brisca-stock > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  flex: 1;
+  min-width: 0;
+}
+.brisca-stock strong {
+  font-size: 0.875rem;
+}
+.brisca-empty {
+  width: 64px;
+  height: 100px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed #a9c0a3;
+  border-radius: 7px;
+}
+.brisca-table h2 {
+  font-size: 1.2rem;
+  margin: 24px 0 16px;
+  text-align: center;
+}
+.brisca-table > p {
+  text-align: center;
+}
+.brisca-trick {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+}
+.brisca-trick > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 80px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.brisca-trick > div > span:first-child {
+  font-size: 0.875rem;
+}
+.brisca-captured {
+  margin-top: 20px;
+}
+.brisca-captured summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding: 10px 0;
+}
+.brisca-captured p {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 560px) {
+  .brisca-table {
+    padding: 14px;
+    border-width: 5px;
+  }
+  .brisca-stock {
+    gap: 12px;
+  }
+  .brisca-teams {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

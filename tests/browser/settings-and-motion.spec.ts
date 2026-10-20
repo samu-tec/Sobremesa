@@ -271,3 +271,88 @@ test('Mancala: animación de siembra con limpieza de las semillas decorativas', 
   const sum = await page.locator('.seed-pit strong,.seed-store strong').allTextContents();
   expect(sum.reduce((n, v) => n + Number(v), 0)).toBe(48);
 });
+
+for (const width of [1280, 768, 390, 375, 320])
+  test(`Legibilidad de controles y configuración a ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await ready(page);
+    await room(page, 'colorclash');
+    const cards = page.getByRole('combobox', { name: 'Cartas iniciales', exact: true });
+    await expect(cards).toHaveCount(1);
+    await expect(cards).toHaveValue('7');
+    await cards.selectOption('9');
+    await page.reload();
+    await expect(cards).toHaveValue('9');
+    for (const selector of ['.field', '.field-label', '.form-hint', '.waiting-player strong']) {
+      const fonts = await page
+        .locator(selector)
+        .evaluateAll((nodes) =>
+          nodes
+            .filter((node) => node.getClientRects().length)
+            .map((node) => parseFloat(getComputedStyle(node).fontSize)),
+        );
+      expect(fonts.length, selector).toBeGreaterThan(0);
+      expect(Math.min(...fonts), selector).toBeGreaterThanOrEqual(13);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
+      true,
+    );
+    await cards.focus();
+    await expect(cards).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(
+      page.getByRole('button', { name: 'Restablecer opciones', exact: true }),
+    ).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(cards).toHaveValue('7');
+    await select(page, 'Cartas iniciales', '5');
+    await start(page);
+    await expect(page.locator('.your-hand .hand-card')).toHaveCount(5);
+    await page.getByRole('button', { name: 'Reglas', exact: true }).click();
+    await expect(
+      page.getByRole('dialog').getByText('Cartas iniciales:', { exact: false }),
+    ).toHaveCount(1);
+    await expect(page.getByRole('dialog')).toContainText('5');
+  });
+
+test('Configuración con texto ampliado al 200% mantiene reflujo y controles', async ({ page }) => {
+  await page.setViewportSize({ width: 640, height: 1000 });
+  await ready(page);
+  await room(page, 'colorclash');
+  await page.evaluate(() => {
+    document.documentElement.style.zoom = '2';
+  });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
+    true,
+  );
+  const cards = page.getByRole('combobox', { name: 'Cartas iniciales', exact: true });
+  await cards.selectOption('9');
+  await expect(cards).toHaveValue('9');
+  await page.getByRole('button', { name: 'Restablecer opciones', exact: true }).click();
+  await expect(cards).toHaveValue('7');
+});
+
+test('Rummy: una combinación larga de solo lectura se desplaza con teclado', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await ready(page);
+  await room(page, 'rummy');
+  await start(page);
+  const tiles = page.locator('.number-tile-rack > button');
+  await expect(tiles).toHaveCount(14);
+  for (let i = 0; i < (await tiles.count()); i++) await tiles.nth(i).click();
+  await page.getByRole('button', { name: /Crear combinación/ }).click();
+  const row = page.locator('.tile-set-row').first();
+  // Reproduce la vista de solo lectura: los botones bloqueados no pueden dar foco a la fila.
+  await row.locator('button').evaluateAll((buttons) =>
+    buttons.forEach((button) => {
+      (button as HTMLButtonElement).disabled = true;
+    }),
+  );
+  expect(await row.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true);
+  await row.focus();
+  await expect(row).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(() => row.evaluate((node) => node.scrollLeft)).toBeGreaterThan(0);
+  const audit = await accessibilityAudit(page).analyze();
+  expect(audit.violations.map((v) => v.id)).not.toContain('scrollable-region-focusable');
+});

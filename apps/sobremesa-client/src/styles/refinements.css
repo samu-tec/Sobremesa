@@ -31,7 +31,7 @@
   font-size: 12px;
 }
 .connection {
-  font-size: 11px;
+  font-size: 12px;
 }
 .topbar-profile {
   font-size: 12px;
@@ -56,14 +56,14 @@
   letter-spacing: 1.5px;
 }
 .hero-copy > p {
-  font-size: 13px;
+  font-size: 14px;
   color: #d7e7ce;
 }
 .hero-actions .button {
-  font-size: 12px;
+  font-size: 14px;
 }
 .hero-join {
-  font-size: 11px;
+  font-size: 13px;
   color: #e5ecd9;
 }
 .hero-note > span:last-child {
@@ -95,10 +95,10 @@
   height: 43px;
 }
 .search-box input {
-  font-size: 12px;
+  font-size: 16px;
 }
 .category-tabs button {
-  font-size: 11px;
+  font-size: 13px;
   min-height: 37px;
 }
 .catalog-count {
@@ -108,18 +108,18 @@
   font-size: 20px;
 }
 .game-description {
-  font-size: 12px;
+  font-size: 14px;
   min-height: 44px;
 }
 .game-meta {
-  font-size: 11px;
+  font-size: 12px;
   gap: 13px;
 }
 .game-category {
   font-size: 9px;
 }
 .play-friends {
-  font-size: 12px;
+  font-size: 14px;
   min-height: 40px;
 }
 .play-bot {
@@ -178,7 +178,7 @@
 }
 @media (max-width: 1100px) {
   .sidebar .nav-item {
-    font-size: 11px;
+    font-size: 12px;
     padding-left: 8px;
     padding-right: 8px;
   }
@@ -186,19 +186,19 @@
     font-size: 40px;
   }
   .hero-copy > p {
-    font-size: 11px;
+    font-size: 14px;
   }
   .hero-label {
     font-size: 8px;
   }
   .hero-actions .button {
-    font-size: 11px;
+    font-size: 14px;
   }
   .hero-note > span:last-child {
     font-size: 8px;
   }
   .hero-join {
-    font-size: 10px;
+    font-size: 13px;
   }
   .page-intro h1 {
     font-size: 25px;
@@ -207,12 +207,12 @@
     gap: 9px;
   }
   .game-description {
-    font-size: 12px;
+    font-size: 14px;
   }
 }
 @media (max-width: 800px) {
   .sidebar .nav-item {
-    font-size: 10px;
+    font-size: 12px;
     padding-left: 6px;
     padding-right: 6px;
   }
@@ -220,7 +220,7 @@
     font-size: 36px;
   }
   .hero-copy > p {
-    font-size: 11px;
+    font-size: 14px;
   }
   .hero-copy {
     flex-basis: 75%;
@@ -240,21 +240,21 @@
     font-size: 17px;
   }
   .game-description {
-    font-size: 11px;
+    font-size: 14px;
     min-height: 57px;
   }
   .game-meta {
-    font-size: 10px;
+    font-size: 12px;
   }
   .play-friends {
-    font-size: 10px;
+    font-size: 14px;
   }
   .play-bot {
     width: 34px;
     height: 38px;
   }
   .search-box input {
-    font-size: 12px;
+    font-size: 16px;
   }
   .page-intro h1 {
     font-size: 23px;
@@ -265,7 +265,7 @@
 }
 @media (max-width: 600px) {
   .sidebar .nav-item {
-    font-size: 10px;
+    font-size: 12px;
     padding: 10px 7px;
     gap: 6px;
   }
@@ -276,7 +276,7 @@
     font-size: 10px;
   }
   .connection {
-    font-size: 10px;
+    font-size: 12px;
   }
   .hero-copy {
     padding: 27px 22px;
@@ -288,7 +288,7 @@
     font-size: 7px;
   }
   .hero-copy > p {
-    font-size: 11px;
+    font-size: 14px;
     max-width: 260px;
   }
   .hero-visual {
@@ -298,10 +298,10 @@
     bottom: -25px;
   }
   .hero-actions .button {
-    font-size: 11px;
+    font-size: 14px;
   }
   .hero-join {
-    font-size: 11px;
+    font-size: 13px;
   }
   .hero-note > span:last-child {
     font-size: 7px;
@@ -323,7 +323,7 @@
     gap: 5px;
   }
   .category-tabs button {
-    font-size: 11px;
+    font-size: 13px;
     min-height: 41px;
     flex-shrink: 0;
     padding: 8px 12px;
@@ -335,16 +335,16 @@
     font-size: 18px;
   }
   .game-description {
-    font-size: 12px;
+    font-size: 14px;
     min-height: 62px;
   }
   .game-meta {
-    font-size: 11px;
+    font-size: 12px;
     flex-direction: row;
     gap: 12px;
   }
   .play-friends {
-    font-size: 11px;
+    font-size: 14px;
     min-height: 42px;
     padding: 10px 8px;
   }
@@ -402,17 +402,17 @@
     font-size: 22px;
   }
   .game-description {
-    font-size: 13px;
+    font-size: 14px;
     min-height: 0;
     margin-top: 10px;
   }
   .game-meta {
-    font-size: 11px;
+    font-size: 12px;
     margin-top: 15px;
     gap: 20px;
   }
   .play-friends {
-    font-size: 12px;
+    font-size: 14px;
     justify-content: space-between;
     min-height: 44px;
     padding: 11px 14px;
@@ -456,7 +456,7 @@
     font-size: 23px;
   }
   .sidebar .nav-item {
-    font-size: 9px;
+    font-size: 12px;
     padding-left: 7px;
     padding-right: 7px;
     gap: 5px;
@@ -471,7 +471,7 @@
 }
 @media (max-width: 360px) {
   .sidebar .nav-item {
-    font-size: 9px;
+    font-size: 12px;
     padding: 10px 5px;
   }
   .sidebar .nav-item > svg {
@@ -485,13 +485,13 @@
   }
   .hero-copy > p {
     max-width: 235px;
-    font-size: 10px;
+    font-size: 14px;
   }
   .hero-label {
     font-size: 6px;
   }
   .hero-actions .button {
-    font-size: 10px;
+    font-size: 14px;
   }
   .hero-note > span:last-child {
     font-size: 6px;
@@ -508,7 +508,7 @@
     font-size: 9px;
   }
   .connection {
-    font-size: 9px;
+    font-size: 12px;
   }
   .site-footer {
     padding: 18px 13px;
@@ -556,7 +556,7 @@
   text-align: left;
 }
 .color-choice-panel > p {
-  font-size: 12px;
+  font-size: 14px;
   margin: 8px 0;
 }
 .color-choice-panel .color-choices {
@@ -610,13 +610,10 @@
     flex: 0 0 auto;
     scroll-snap-align: center;
   }
-  .color-choice-panel .color-choices {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 .language-selector {
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   color: #294c3d;
   background: #fffdf5;
   border: 1px solid #ccd4bf;
@@ -668,7 +665,7 @@
     gap: 6px;
   }
   .language-selector {
-    font-size: 11px;
+    font-size: 14px;
     padding: 6px;
     max-width: 83px;
     min-height: 36px;
@@ -678,7 +675,7 @@
     padding: 10px;
   }
   .game-header .back-link {
-    font-size: 11px;
+    font-size: 13px;
     margin-right: auto;
   }
   .game-header > .language-selector {
@@ -692,7 +689,7 @@
     gap: 6px;
   }
   .turn-badge {
-    font-size: 10px;
+    font-size: 14px;
     padding: 8px;
   }
   .turn-clock {
@@ -751,7 +748,7 @@
   margin-bottom: 8px;
 }
 .rules-room-summary p {
-  font-size: 12px;
+  font-size: 14px;
   margin: 5px 0;
 }
 .hand-zone,
@@ -781,21 +778,19 @@
     margin: 10px 0 0;
   }
   .color-choice-panel .section-row strong {
-    font-size: 12px;
-  }
-  .color-choice-panel > p {
-    display: none;
+    font-size: 13px;
   }
   .color-choice-panel .color-choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 5px;
   }
   .color-choice-panel .color-choices button {
-    font-size: 10px;
+    font-size: 13px;
     flex-direction: column;
     gap: 2px;
   }
   .color-choice-panel .text-button {
-    font-size: 11px;
+    font-size: 13px;
   }
   .hand-zone .your-hand-heading {
     padding-top: 10px;
@@ -884,7 +879,7 @@
   margin-top: 7px;
 }
 .settings-owner-note {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   margin-top: 12px;
   color: #53634f;
@@ -917,7 +912,7 @@
     font-size: 14px;
   }
   .turn-announcement span {
-    font-size: 11px;
+    font-size: 13px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

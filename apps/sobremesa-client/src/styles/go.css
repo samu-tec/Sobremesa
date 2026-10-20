@@ -1,0 +1,93 @@
+.go-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 5px;
+}
+.go-board {
+  display: grid;
+  grid-template-columns: repeat(var(--go-size), minmax(0, 1fr));
+  width: min(100%, 580px);
+  min-width: calc(var(--go-size) * 26px);
+  margin: auto;
+  padding: 12px;
+  background: #e4cc97;
+  border: 5px solid #8d7c55;
+  border-radius: 8px;
+}
+.go-board > button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  aspect-ratio: 1;
+  background:
+    linear-gradient(transparent 48.5%, #84744e 48.5%, #84744e 51.5%, transparent 51.5%),
+    linear-gradient(90deg, transparent 48.5%, #84744e 48.5%, #84744e 51.5%, transparent 51.5%);
+  border-radius: 0;
+}
+.go-board > button:focus-visible {
+  z-index: 3;
+  outline-offset: -2px;
+}
+.go-stone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 86%;
+  aspect-ratio: 1;
+  border: 1px solid #514b3c;
+  border-radius: 50%;
+  box-shadow: 1px 2px 2px #463b3c55;
+}
+.go-stone.black {
+  background: radial-gradient(circle at 35% 25%, #526057, #14291f);
+}
+.go-stone.white {
+  background: radial-gradient(circle at 35% 25%, #fffefa, #e1dfd3);
+}
+.go-dead {
+  font-size: clamp(18px, 3vw, 30px);
+  line-height: 1;
+  font-weight: 800;
+  color: #a33928;
+  background: #fff9e7;
+  border-radius: 50%;
+  width: 80%;
+  height: 80%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.go-last .go-stone:after {
+  content: '';
+  width: 25%;
+  height: 25%;
+  border: 2px solid #c48939;
+  position: absolute;
+  border-radius: 50%;
+}
+.go-cursor {
+  width: 55%;
+  height: 55%;
+  border: 2px solid #395e45;
+  border-radius: 50%;
+}
+.go-score {
+  padding: 14px;
+  background: var(--mint);
+  border: 1px solid var(--green);
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+@media (max-width: 600px) {
+  .extended-go {
+    padding: 16px 10px;
+  }
+  .go-board {
+    padding: 7px;
+    border-width: 3px;
+  }
+}

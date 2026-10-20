@@ -1,3 +1,4 @@
+import { participants } from '../../engine/helpers.js';
 import { message as msg, type GameText } from '../../messages.js';
 import type { IGameEngine } from '../../engine/IGameEngine.js';
 export interface ReversiState {
@@ -43,7 +44,7 @@ const moves = (board: ReversiState['board'], id: string) =>
   board.flatMap((_, i) => (reversiFlips(board, id, i).length ? [i] : []));
 export class ReversiEngine implements IGameEngine<ReversiState, ReversiAction, ReversiState> {
   initGame(players: { id: string; isBot: boolean }[]): ReversiState {
-    if (players.length !== 2) throw new Error('Se necesitan dos jugadores.');
+    players = participants(players, 2, 2);
     const board: ReversiState['board'] = Array(64).fill(null);
     board[27] = board[36] = players[1].id;
     board[28] = board[35] = players[0].id;

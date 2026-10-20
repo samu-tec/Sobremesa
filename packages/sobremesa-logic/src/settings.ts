@@ -25,7 +25,102 @@ const toggle = (
 /** One schema for the lobby, server validation and the rules shown during play. */
 export const GAME_SETTINGS: Record<GameType, readonly GameSetting[]> = {
   monopoly: [], // The legacy economic settings have their own typed schema and UI.
-  colorclash: [], // startingCards is configured by the existing card-game UI.
+  colorclash: [
+    number(
+      'startingCards',
+      'Cartas iniciales',
+      'Número de cartas que recibe cada persona.',
+      7,
+      [5, 7, 9],
+    ),
+  ],
+  parchis: [],
+  oca: [],
+  poker: [],
+  words: [
+    {
+      key: 'wordLanguage',
+      label: 'Idioma del diccionario',
+      description: 'El idioma de las letras y palabras se mantiene durante toda la partida.',
+      defaultValue: 0,
+      values: [0, 1],
+      labels: ['Español', 'Inglés'],
+    },
+  ],
+  quiz: [
+    number(
+      'questionsPerPlayer',
+      'Preguntas por persona',
+      'Número de turnos de respuesta que recibe cada participante.',
+      5,
+      [3, 5, 8],
+    ),
+  ],
+  drawing: [
+    number('drawCycles', 'Vueltas de dibujo', 'Cada persona dibuja una vez por vuelta.', 1, [1, 2]),
+    number(
+      'drawSeconds',
+      'Segundos de dibujo',
+      'El reloj no se renueva con los trazos ni las respuestas.',
+      60,
+      [45, 60, 90],
+    ),
+  ],
+  mystery: [],
+  conquest: [],
+  cinquillo: [],
+  escoba: [
+    number(
+      'targetScore',
+      'Puntos para ganar',
+      'El recuento se realiza al final de cada reparto. Los empates en cabeza se desempatan con otro reparto.',
+      15,
+      [11, 15, 21, 31],
+    ),
+  ],
+  mus: [
+    number(
+      'targetPoints',
+      'Piedras para ganar',
+      'Un juego de Mus a treinta o cuarenta piedras, sin vacas adicionales.',
+      40,
+      [30, 40],
+    ),
+  ],
+  brisca: [
+    number(
+      'targetWins',
+      'Victorias para ganar',
+      'Los repartos empatados a sesenta no suman victorias.',
+      1,
+      [1, 3, 5],
+    ),
+    toggle(
+      'trumpExchange',
+      'Cambio de triunfo',
+      'El ganador puede cambiar el siete o el dos de triunfo antes de robar, excepto en el último robo.',
+      true,
+    ),
+  ],
+  chinesecheckers: [],
+  mahjong: [
+    number(
+      'minimumFan',
+      'Mínimo de fan',
+      'Bonos necesarios para declarar Mahjong. El límite de puntuación es cuatro fan.',
+      0,
+      [0, 1, 3],
+    ),
+  ],
+  go: [
+    number(
+      'boardSize',
+      'Tamaño del tablero',
+      'Intersecciones por lado. Las reglas y el komi se mantienen.',
+      9,
+      [9, 13, 19],
+    ),
+  ],
   tictactoe: [],
   connect4: [],
   reversi: [],
@@ -76,6 +171,26 @@ export const GAME_SETTINGS: Record<GameType, readonly GameSetting[]> = {
     ),
   ],
   impostor: [
+    {
+      ...number(
+        'impostorMode',
+        'Modalidad de Impostor',
+        'Online conserva pistas escritas; presencial utiliza pistas habladas y requiere personas.',
+        0,
+        [0, 1],
+      ),
+      labels: ['Online', 'Presencial'],
+    },
+    {
+      ...number(
+        'physicalVoting',
+        'Votación presencial',
+        'En presencial puedes registrar un recuento físico o mantener los votos digitales secretos.',
+        0,
+        [0, 1],
+      ),
+      labels: ['Digital secreta', 'Recuento físico'],
+    },
     number(
       'clueRounds',
       'Vueltas de pistas',

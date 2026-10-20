@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import {
   analyzeRummyDeFichasSet,
   checkRummyDeFichasPlay,
@@ -11,6 +11,12 @@ import {
 import { t, quantity } from '../i18n';
 import { useBoardMotion } from '../hooks/useBoardMotion';
 import { BoardFrame, type BoardProps } from '../ui/GameLayout';
+function scrollTiles(event: KeyboardEvent<HTMLDivElement>) {
+  if (event.target !== event.currentTarget || !['ArrowLeft', 'ArrowRight'].includes(event.key))
+    return;
+  event.preventDefault();
+  event.currentTarget.scrollLeft += event.key === 'ArrowRight' ? 80 : -80;
+}
 const marks = ['●', '◆', '■', '▲'];
 const colour = (n: number) => [t('Rojo'), t('Azul'), t('Negro'), t('Mostaza')][n] || t('Comodín');
 const tileName = (tile: RummyDeFichasTile) =>
@@ -203,7 +209,13 @@ export function RummyDeFichasBoard({
                     ↶
                   </button>
                 </div>
-                <div className="tile-set-row">
+                <div
+                  className="tile-set-row"
+                  onKeyDown={scrollTiles}
+                  tabIndex={0}
+                  role="group"
+                  aria-label={t('Combinación {0}', { '0': index + 1 })}
+                >
                   {set.map((id) => renderTile(lookup.get(id)!, !editable(index)))}
                 </div>
                 {selected.length > 0 && (
@@ -222,7 +234,15 @@ export function RummyDeFichasBoard({
         {loose.length > 0 && (
           <div className="loose-tiles" role="status">
             <strong>{t('Fichas pendientes de colocar')}</strong>
-            <div className="tile-set-row">{loose.map((tile) => renderTile(tile))}</div>
+            <div
+              className="tile-set-row"
+              onKeyDown={scrollTiles}
+              tabIndex={0}
+              role="group"
+              aria-label={t('Fichas pendientes de colocar')}
+            >
+              {loose.map((tile) => renderTile(tile))}
+            </div>
           </div>
         )}
       </section>

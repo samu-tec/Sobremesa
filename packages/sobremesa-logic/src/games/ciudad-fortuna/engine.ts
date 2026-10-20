@@ -1,4 +1,10 @@
-import { shuffle, die, systemRandom, type RandomSource } from '../../engine/helpers.js';
+import {
+  participants,
+  shuffle,
+  die,
+  systemRandom,
+  type RandomSource,
+} from '../../engine/helpers.js';
 import { message as msg, term } from '../../messages.js';
 import { IGameEngine } from '../../engine/IGameEngine.js';
 import { BOARD_TILES, CHANCE_CARDS, COMMUNITY_CHEST_CARDS, PROPERTY_GROUPS } from './boardData.js';
@@ -33,9 +39,7 @@ export class CiudadFortunaEngine implements IGameEngine<
   }
 
   initGame(players: { id: string; isBot: boolean; name?: string }[]): CiudadFortunaState {
-    if (players.length < 2 || players.length > 6) {
-      throw new Error('Ciudad Fortuna requiere entre 2 y 6 jugadores');
-    }
+    players = participants(players, 2, 6);
 
     const startingCash = this.customRules.startingCash || 1500;
 

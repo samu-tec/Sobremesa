@@ -4,6 +4,7 @@
 }
 .game-header {
   min-height: 73px;
+  flex-wrap: wrap;
   padding: 16px max(24px, calc((100vw - 1360px) / 2));
   display: flex;
   align-items: center;
@@ -15,7 +16,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: 13px;
   color: #56644d;
   min-height: 36px;
   padding: 0;
@@ -54,7 +55,7 @@
   margin-top: 10px;
 }
 .waiting-intro > p:last-child {
-  font-size: 12px;
+  font-size: 14px;
   color: #5b6453;
   margin: 12px auto 0;
   max-width: 490px;
@@ -114,17 +115,17 @@
 }
 .waiting-player > div > strong {
   display: block;
-  font-size: 12px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 .waiting-player > div > span {
   display: block;
   color: #5a6353;
-  font-size: 9px;
+  font-size: 13px;
   margin-top: 5px;
 }
 .waiting-player small {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 400;
   color: #5b6355;
 }
@@ -164,7 +165,7 @@
   color: #4a6660;
 }
 .host-label {
-  font-size: 8px;
+  font-size: 12px;
   color: #6e603a;
   display: flex;
   align-items: center;
@@ -184,7 +185,7 @@
 }
 .empty-seat {
   color: #5d6356;
-  font-size: 10px;
+  font-size: 13px;
   border-bottom: 1px dashed #e9eddf;
 }
 .empty-avatar {
@@ -203,7 +204,7 @@
   padding-top: 22px;
 }
 .waiting-start > p {
-  font-size: 10px;
+  font-size: 13px;
   color: #5b6453;
   text-align: center;
   margin-top: 10px;
@@ -216,7 +217,7 @@
   padding: 13px;
   background: #f1f4e9;
   border-radius: 8px;
-  font-size: 11px;
+  font-size: 13px;
   color: #556648;
 }
 .loading-dot {
@@ -241,12 +242,12 @@
   margin-top: 5px;
 }
 .waiting-game > p {
-  font-size: 12px;
+  font-size: 14px;
   color: #5a6453;
   margin-top: 8px;
 }
 .waiting-game > .game-meta {
-  font-size: 10px;
+  font-size: 12px;
   margin: 17px 0;
 }
 .room-settings {
@@ -261,7 +262,7 @@
   font-weight: 550;
 }
 .room-settings > p {
-  font-size: 10px;
+  font-size: 13px;
   color: #5b6453;
   margin-top: 10px;
 }
@@ -271,7 +272,7 @@
   justify-content: space-between;
   gap: 12px;
   margin-top: 20px;
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.6;
   color: #58654f;
 }

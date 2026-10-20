@@ -55,7 +55,7 @@ try {
       path.endsWith('.css') ? /text\/css/ : /javascript/,
     );
   }
-  assert.equal((await (await fetch(`${url}/api/stats`)).json()).supportedGames.length, 15);
+  assert.equal((await (await fetch(`${url}/api/stats`)).json()).supportedGames.length, 30);
   const poll = await fetch(`${url}/socket.io/?EIO=4&transport=polling`);
   assert.equal(poll.headers.get('cache-control'), 'no-store');
   await assert.rejects(connect(undefined, { extraHeaders: { Origin: 'https://evil.example' } }));

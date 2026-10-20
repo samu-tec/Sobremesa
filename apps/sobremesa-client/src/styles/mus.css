@@ -1,0 +1,80 @@
+.mus-score {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.mus-score > div {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+.mus-score p {
+  margin: 8px 0;
+}
+.mus-score b {
+  display: block;
+  font-family: Georgia, serif;
+  font-size: 1.8rem;
+  color: var(--green);
+}
+.mus-score span {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.875rem;
+}
+.mus-own h2 {
+  font-size: 1.2rem;
+  margin-top: 20px;
+}
+.mus-betting {
+  background: #f0eddf;
+  border: 1px solid #d2c5a6;
+  border-radius: 14px;
+  padding: 16px;
+  margin: 24px 0;
+}
+.mus-betting h2 {
+  font-size: 1.2rem;
+}
+.mus-amount {
+  display: grid;
+  gap: 6px;
+  width: 150px;
+}
+.mus-amount input {
+  min-height: 44px;
+  width: 100%;
+}
+.mus-reveal {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.mus-reveal section {
+  min-width: 0;
+}
+.mus-reveal h3 {
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+.mus-reveal section > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mus-results {
+  margin: 20px 0;
+  padding: 16px;
+  border-left: 4px solid var(--green);
+}
+.mus-results h2 {
+  font-size: 1.2rem;
+}
+@media (max-width: 560px) {
+  .mus-score,
+  .mus-reveal {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

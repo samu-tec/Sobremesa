@@ -1,3 +1,4 @@
+import { participants } from '../../engine/helpers.js';
 import type { IGameEngine } from '../../engine/IGameEngine.js';
 
 export interface CuatroEnLineaState {
@@ -42,7 +43,7 @@ export class CuatroEnLineaEngine implements IGameEngine<
   CuatroEnLineaState
 > {
   initGame(players: { id: string; isBot: boolean }[]): CuatroEnLineaState {
-    if (players.length !== 2) throw new Error('Se necesitan dos jugadores.');
+    players = participants(players, 2, 2);
     return {
       board: Array(42).fill(null),
       players: players.map((p) => ({ ...p })),

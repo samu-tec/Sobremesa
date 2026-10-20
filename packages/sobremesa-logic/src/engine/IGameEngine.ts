@@ -38,5 +38,5 @@ export interface IGameEngine<GameState, PlayerAction, PublicState> {
   getBotAction(state: GameState, botId: string): PlayerAction | null;
 
   /** Resolve a permanent departure while preserving a playable match. */
-  forfeitPlayer(state: GameState, playerId: string): GameState;
+  forfeitPlayer(state: GameState, playerId: string, newHostId?: string): GameState;
 }

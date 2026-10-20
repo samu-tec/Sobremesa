@@ -37,7 +37,7 @@
   letter-spacing: -0.8px;
 }
 .modal > p {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.8;
   margin: 12px 0;
 }
@@ -62,7 +62,7 @@
 }
 .field-label {
   display: block;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 650;
   margin: 15px 0 8px;
 }
@@ -74,7 +74,7 @@
   border-radius: 8px;
   color: var(--ink);
   padding: 12px 13px;
-  font-size: 14px;
+  font-size: 16px;
   min-height: 43px;
   max-width: 100%;
 }
@@ -90,7 +90,7 @@
   font-variant-numeric: tabular-nums;
 }
 .form-hint {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.8;
   color: #5b6454;
   margin: 10px 0 17px;
@@ -99,7 +99,7 @@
   padding-left: 23px;
   margin: 19px 0;
   color: #5e6f58;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.85;
 }
 .rules-list li {
@@ -122,7 +122,7 @@
   margin: 20px 0;
 }
 .tip p {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.8;
 }
 .how-steps {
@@ -146,7 +146,7 @@
   margin: 0 0 5px;
 }
 .how-steps p {
-  font-size: 12px;
+  font-size: 14px;
   color: #5a6453;
 }
 .toast {
@@ -166,7 +166,7 @@
   display: flex;
   gap: 15px;
   align-items: center;
-  font-size: 12px;
+  font-size: 14px;
 }
 .toast > span {
   max-width: 520px;

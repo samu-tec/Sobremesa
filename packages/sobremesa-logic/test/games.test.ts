@@ -17,15 +17,16 @@ const players = [
   { id: 'a', isBot: true, name: 'Ana' },
   { id: 'b', isBot: true, name: 'Bruno' },
 ];
-test('Catálogo: quince juegos, búsqueda por nombres propios y reglas', () => {
-  assert.equal(GAME_CATALOG.length, 15);
-  assert.equal(new Set(GAME_CATALOG.map((g) => g.id)).size, 15);
+test('Catálogo: treinta juegos, búsqueda por nombres propios y reglas', () => {
+  assert.equal(GAME_CATALOG.length, 30);
+  assert.equal(new Set(GAME_CATALOG.map((g) => g.id)).size, 30);
   for (const [query, id] of [
     ['ciudad fortuna', 'monopoly'],
     ['CAMBIO DE COLOR', 'colorclash'],
     ['cuatro en linea', 'connect4'],
     ['rummy de fichas', 'rummy'],
     ['reversi', 'reversi'],
+    ['parchis', 'parchis'],
   ])
     assert.ok(GAME_CATALOG.some((g) => g.id === id && matchesGame(g, query)));
   for (const query of ['monopoly', 'monópoli', 'uno', 'rummikub', 'othello', 'yahtzee', 'richup'])

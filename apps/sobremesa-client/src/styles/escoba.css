@@ -1,0 +1,81 @@
+.escoba-title {
+  font-size: 1.2rem;
+  margin-top: 20px;
+}
+.escoba-sum {
+  font-size: 1.2rem;
+  color: var(--green);
+  font-weight: 700;
+}
+.escoba-combo {
+  display: grid;
+  gap: 8px;
+  max-width: 100%;
+}
+.escoba-combo select {
+  min-height: 44px;
+  width: 100%;
+  max-width: 100%;
+}
+.escoba-table {
+  background: #315e49;
+  color: #fff9e8;
+  padding: 20px;
+  border: 7px solid #947752;
+  border-radius: 18px;
+  margin-top: 24px;
+}
+.escoba-table h2 {
+  font-size: 1.2rem;
+  margin: 0 0 16px;
+}
+.escoba-table > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 10px;
+}
+.escoba-table button {
+  border: 0;
+  padding: 0;
+  background: none;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.escoba-table button[aria-pressed='true'] {
+  outline: 3px solid #ffe19a;
+  outline-offset: 4px;
+  transform: translateY(-3px);
+}
+.escoba-table button:focus-visible {
+  outline: 3px solid var(--focus-on-dark);
+  outline-offset: 4px;
+}
+.escoba-table button:disabled {
+  cursor: default;
+  opacity: 1;
+}
+.escoba-results {
+  margin-top: 24px;
+  border-left: 4px solid var(--green);
+  padding-left: 16px;
+}
+.escoba-results h2 {
+  font-size: 1.2rem;
+}
+.escoba-captured {
+  margin-top: 20px;
+}
+.escoba-captured summary {
+  min-height: 44px;
+  cursor: pointer;
+  padding: 10px 0;
+}
+.escoba-captured p {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 560px) {
+  .escoba-table {
+    padding: 14px;
+    border-width: 5px;
+  }
+}

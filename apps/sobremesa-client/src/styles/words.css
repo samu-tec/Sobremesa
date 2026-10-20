@@ -1,0 +1,84 @@
+.words-rack {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.words-rack > div {
+  display: grid;
+  justify-items: center;
+}
+.words-rack button,
+.words-grid button {
+  position: relative;
+  background: #fff0c9;
+  color: #293d31;
+  border: 1px solid #a79167;
+  border-radius: 5px;
+  font-size: 23px;
+  font-weight: 700;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 5px;
+}
+.words-rack button[aria-pressed='true'] {
+  outline: 3px solid var(--accent, #8c492f);
+  outline-offset: 2px;
+}
+.words-rack label {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+}
+.words-rack input {
+  width: 20px;
+  height: 20px;
+}
+.words-rack small,
+.words-grid small {
+  font-size: 10px;
+  position: absolute;
+  bottom: 2px;
+  right: 3px;
+}
+.words-scroll {
+  overflow: auto;
+  max-width: 100%;
+  margin-top: 18px;
+  overscroll-behavior: contain;
+}
+.words-grid {
+  display: grid;
+  grid-template-columns: repeat(11, 44px);
+  gap: 3px;
+  padding: 10px;
+  background: #345949;
+  width: max-content;
+  border-radius: 14px;
+}
+.words-grid button:disabled {
+  opacity: 1;
+}
+.words-grid .draft {
+  background: #d9edcb;
+  outline: 2px dashed #285237;
+  outline-offset: -3px;
+}
+.words-grid .center {
+  border: 2px solid #ac5f29;
+}
+.words-coordinates {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 14px 0;
+}
+.words-coordinates label {
+  display: grid;
+  gap: 4px;
+}
+.words-coordinates input {
+  width: 75px;
+  min-height: 44px;
+}

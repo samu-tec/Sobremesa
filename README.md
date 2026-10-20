@@ -1,6 +1,6 @@
 # Sobremesa
 
-Juegos de mesa para compartir con amigos desde el navegador. Incluye quince juegos: Ciudad Fortuna, Cambio de Color, Cuatro en Línea, Reversi, Tres en Raya, Dados al 100, Rummy de fichas, Ajedrez, Impostor, Dominó, Damas, Backgammon, Batalla naval, Mancala y Dados de combinaciones. Puedes crear una sala, compartir su código o jugar contra un bot, sin registrarte. La interfaz, reglas y partidas están disponibles en español e inglés.
+Juegos de mesa para compartir con amigos desde el navegador. Incluye treinta juegos: Ciudad Fortuna, Cambio de Color, Cuatro en Línea, Reversi, Tres en Raya, Dados al 100, Rummy de fichas, Ajedrez, Impostor, Dominó, Damas, Backgammon, Batalla naval, Mancala, Dados de combinaciones, Parchís, Juego de la Oca, Go, Damas chinas, Mahjong tradicional, Brisca, Mus, Escoba del 15, Cinquillo, Texas Hold’em, Palabras cruzadas, Preguntas y respuestas, Dibuja y adivina, Misterio y deducción y Conquista de territorios. Puedes crear una sala, compartir su código o jugar contra un bot, sin registrarte. La interfaz, reglas y partidas están disponibles en español e inglés. Dibuja y adivina requiere participantes humanos. Impostor conserva el modo online y añade partidas presenciales con varios móviles o un solo dispositivo, sin grabaciones ni persistencia de papeles.
 
 **Dirección pública prevista:** [games.samuelciocan.com](https://games.samuelciocan.com). El proyecto se llama **Sobremesa**; `games.samuelciocan.com` es su dirección web.
 
@@ -55,7 +55,7 @@ apps/
   sobremesa-client/    Interfaz, idiomas, componentes y conexión con las salas
   sobremesa-server/    Servidor HTTP, sesiones y partidas multijugador
 packages/
-  sobremesa-logic/     Reglas, tipos y bots de los quince juegos
+  sobremesa-logic/     Reglas, tipos y bots de los treinta juegos
     src/games/         Un directorio por juego
     test/              Pruebas de los motores
 tests/                Pruebas de integración y navegador

@@ -1,6 +1,10 @@
 import { useLocale, localizeGame, t } from '../i18n';
 import { randomName } from '../ui/Welcome';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
+const LocalImpostor = lazy(() =>
+  import('../components/LocalImpostor').then((m) => ({ default: m.LocalImpostor })),
+);
+
 import { GAME_CATALOG as BASE_CATALOG, matchesGame, type GameType } from 'sobremesa-logic';
 import {
   ArrowRight,
@@ -44,6 +48,7 @@ export function LobbyView({
 }: Props) {
   const { locale } = useLocale();
   const GAME_CATALOG = BASE_CATALOG.map(localizeGame);
+  const [localImpostor, setLocalImpostor] = useState(false);
   const [query, setQuery] = useState(''),
     [category, setCategory] = useState('Todos'),
     [view, setView] = useState<'all' | 'favorites'>('all');
@@ -79,6 +84,12 @@ export function LobbyView({
   );
   const game = GAME_CATALOG.find((g) => g.id === selected);
   const playDisabled = isConnecting || !connected;
+  if (localImpostor)
+    return (
+      <Suspense fallback={<p role="status">{t('Preparando partida local…')}</p>}>
+        <LocalImpostor onLeave={() => setLocalImpostor(false)} />
+      </Suspense>
+    );
   return (
     <Shell
       playerName={playerName}
@@ -181,7 +192,7 @@ export function LobbyView({
         </div>
         <div className="filter-row">
           <div className="category-tabs" aria-label={t('Categorías')}>
-            {['Todos', 'Estrategia', 'Cartas', 'Clásicos', 'Dados'].map((cat) => (
+            {['Todos', ...new Set(BASE_CATALOG.map((game) => game.category))].map((cat) => (
               <button
                 key={t(cat)}
                 onClick={() => setCategory(cat)}
@@ -293,15 +304,17 @@ export function LobbyView({
                     >
                       {t('Jugar con amigos')} <ArrowUpRight size={16} />
                     </button>
-                    <button
-                      className="play-bot"
-                      disabled={playDisabled}
-                      onClick={() => onQuickPlayVsBot(g.id)}
-                      aria-label={t('Jugar a {0} contra un bot', { '0': g.name })}
-                      title={t('Jugar contra un bot')}
-                    >
-                      <Bot size={18} />
-                    </button>
+                    {g.supportsBots !== false && (
+                      <button
+                        className="play-bot"
+                        disabled={playDisabled}
+                        onClick={() => onQuickPlayVsBot(g.id)}
+                        aria-label={t('Jugar a {0} contra un bot', { '0': g.name })}
+                        title={t('Jugar contra un bot')}
+                      >
+                        <Bot size={18} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </article>
@@ -332,6 +345,17 @@ export function LobbyView({
             {game.minPlayers}–{game.maxPlayers} {t('jugadores ·')} {game.duration}
           </p>
           <div className="choice-buttons">
+            {game.id === 'impostor' && (
+              <button
+                className="button secondary full"
+                onClick={() => {
+                  setSelected(null);
+                  setLocalImpostor(true);
+                }}
+              >
+                {t('Presencial con un solo móvil')}
+              </button>
+            )}
             <button
               className="button primary full"
               disabled={playDisabled}
@@ -339,13 +363,15 @@ export function LobbyView({
             >
               <Users size={18} /> {t('Crear sala con amigos')} <ArrowRight size={17} />
             </button>
-            <button
-              className="button secondary full"
-              disabled={playDisabled}
-              onClick={() => onQuickPlayVsBot(game.id)}
-            >
-              <Bot size={18} /> {t('Jugar ahora contra un bot')}{' '}
-            </button>
+            {game.supportsBots !== false && (
+              <button
+                className="button secondary full"
+                disabled={playDisabled}
+                onClick={() => onQuickPlayVsBot(game.id)}
+              >
+                <Bot size={18} /> {t('Jugar ahora contra un bot')}{' '}
+              </button>
+            )}
             <button
               className="text-button"
               onClick={() => {

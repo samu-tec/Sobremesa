@@ -1,5 +1,5 @@
 import type { GamePublicState, RoomInfo } from 'sobremesa-logic';
-import { t, useLocale, quantity } from '../i18n';
+import { t, useLocale, quantity, gameText } from '../i18n';
 export function useGameResults(
   room: RoomInfo | null,
   state: unknown,
@@ -8,7 +8,7 @@ export function useGameResults(
   if (!room || !state) return {};
   const s = state as GamePublicState,
     name = (id: string) => room.players.find((p) => p.id === id)?.name || t('otro jugador');
-  if ('winnerIds' in s) {
+  if ('revealedImpostor' in s) {
     return {
       winnerIds: s.winnerIds,
       resultNote: [
@@ -23,12 +23,34 @@ export function useGameResults(
       ]
         .filter(Boolean)
         .join(' '),
-      resultRows: Object.entries(s.votes).map(([voter, target]) => ({
-        label: name(voter),
-        value: `→ ${name(target)}`,
-      })),
+      resultRows: s.physicalVoting
+        ? Object.entries(s.physicalCounts ?? {}).map(([id, count]) => ({
+            label: name(id),
+            value: t('{0} votos', { '0': count }),
+          }))
+        : Object.entries(s.votes).map(([voter, target]) => ({
+            label: name(voter),
+            value: `→ ${name(target)}`,
+          })),
     };
   }
+  if ('winnerIds' in s)
+    return {
+      winnerIds: s.winnerIds,
+      resultNote: gameText(s.message),
+      resultRows: s.players.map((p) => ({
+        label: name(p.id),
+        value:
+          room.gameType === 'poker'
+            ? t('{0} fichas de póker', { '0': p.score })
+            : quantity(p.score, 'puntos'),
+      })),
+    };
+  if ('wallCount' in s)
+    return {
+      resultNote: gameText(s.message),
+      resultRows: s.players.map((p) => ({ label: name(p.id), value: quantity(p.score, 'puntos') })),
+    };
   if ('totals' in s)
     return {
       resultRows: s.players.map((p) => ({

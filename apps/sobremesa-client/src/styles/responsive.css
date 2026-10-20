@@ -26,18 +26,8 @@
   .game-card-art {
     height: 190px;
   }
-  .game-title-row h3 {
-    font-size: 20px;
-  }
   .game-description {
-    font-size: 11px;
     min-height: 40px;
-  }
-  .game-meta {
-    font-size: 10px;
-  }
-  .play-friends {
-    font-size: 11px;
   }
   .game-category {
     font-size: 8px;
@@ -59,9 +49,6 @@
   }
   .search-box {
     height: 42px;
-  }
-  .category-tabs button {
-    font-size: 11px;
   }
   .catalog-heading h2 {
     font-size: 25px;
@@ -157,14 +144,7 @@
     padding: 17px;
   }
   .game-description {
-    font-size: 10px;
     min-height: 36px;
-  }
-  .game-meta {
-    font-size: 9px;
-  }
-  .play-friends {
-    font-size: 10px;
   }
   .game-category {
     font-size: 8px;
@@ -196,6 +176,9 @@
   }
 }
 @media (max-width: 800px) {
+  .waiting-grid {
+    grid-template-columns: 1fr;
+  }
   .sidebar {
     width: 172px;
     flex-basis: 172px;
@@ -342,30 +325,23 @@
   }
   .category-tabs button {
     padding: 7px 10px;
-    font-size: 9px;
   }
   .game-card-art {
     height: 130px;
-  }
-  .game-title-row h3 {
-    font-size: 15px;
   }
   .game-card-body {
     padding: 14px 12px;
   }
   .game-description {
-    font-size: 9px;
     min-height: 48px;
   }
   .game-meta {
     gap: 7px;
-    font-size: 8px;
   }
   .game-meta svg {
     width: 12px;
   }
   .play-friends {
-    font-size: 8px;
     padding: 8px;
     min-height: 32px;
   }
@@ -446,7 +422,7 @@
     gap: 9px;
   }
   .host-label {
-    font-size: 7px;
+    font-size: 12px;
   }
 }
 @media (max-width: 600px) {
@@ -548,9 +524,6 @@
   .topbar {
     height: 44px;
     padding: 0 18px;
-  }
-  .topbar-title {
-    font-size: 9px;
   }
   .topbar-right {
     gap: 0;
@@ -660,7 +633,6 @@
   }
   .category-tabs button {
     padding: 7px 9px;
-    font-size: 9px;
     min-height: 35px;
   }
   .games-grid {
@@ -673,7 +645,6 @@
     padding: 14px 12px;
   }
   .game-title-row h3 {
-    font-size: 14px;
     letter-spacing: -0.35px;
   }
   .rules-button {
@@ -684,7 +655,6 @@
     height: 14px;
   }
   .game-description {
-    font-size: 9px;
     line-height: 1.7;
     min-height: 46px;
     margin-top: 8px;
@@ -695,7 +665,6 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 7px;
-    font-size: 8px;
     margin-top: 12px;
   }
   .game-meta svg {
@@ -708,7 +677,6 @@
     padding-top: 11px;
   }
   .play-friends {
-    font-size: 8px;
     min-height: 35px;
     justify-content: center;
     gap: 4px;
@@ -796,7 +764,7 @@
     height: 160px;
   }
   .modal > p {
-    font-size: 12px;
+    font-size: 14px;
   }
   .code-field {
     font-size: 28px;
@@ -818,7 +786,7 @@
     width: 25px;
   }
   .back-link {
-    font-size: 10px;
+    font-size: 13px;
     gap: 5px;
   }
   .back-link > svg {
@@ -827,7 +795,7 @@
   .game-header .button.small {
     padding: 8px;
     min-height: 35px;
-    font-size: 9px;
+    font-size: 13px;
     gap: 5px;
   }
   .header-actions {
@@ -851,7 +819,7 @@
     line-height: 1.2;
   }
   .waiting-intro > p:last-child {
-    font-size: 11px;
+    font-size: 14px;
     line-height: 1.8;
   }
   .waiting-grid {
@@ -886,12 +854,11 @@
     font-size: 7px;
   }
   .waiting-game > p {
-    font-size: 10px;
+    font-size: 14px;
     line-height: 1.7;
     margin-top: 5px;
   }
   .waiting-game > .game-meta {
-    font-size: 9px;
     flex-direction: row;
     gap: 8px;
     margin: 12px 0 0;
@@ -906,13 +873,13 @@
     padding: 20px;
   }
   .waiting-player > div > strong {
-    font-size: 12px;
+    font-size: 14px;
   }
   .host-label {
-    font-size: 8px;
+    font-size: 12px;
   }
   .waiting-player > div > span {
-    font-size: 10px;
+    font-size: 13px;
   }
   .room-code-text {
     font-size: 31px;
@@ -922,6 +889,7 @@
     padding: 24px 16px 40px;
   }
   .game-heading {
+    flex-wrap: wrap;
     margin-bottom: 21px;
     gap: 12px;
   }
@@ -951,13 +919,13 @@
     padding: 20px;
   }
   .table-player strong {
-    font-size: 12px;
+    font-size: 14px;
   }
   .table-player small {
-    font-size: 10px;
+    font-size: 12px;
   }
   .table-player > .player-value {
-    font-size: 12px;
+    font-size: 14px;
   }
   .game-tip {
     display: none;
@@ -967,10 +935,10 @@
     min-height: 440px;
   }
   .board-instruction {
-    font-size: 11px;
+    font-size: 14px;
   }
   .board-caption {
-    font-size: 10px;
+    font-size: 13px;
     margin-top: 23px;
   }
   .ttt-board {
@@ -1015,14 +983,14 @@
     gap: 8px;
   }
   .pig-actions .button {
-    font-size: 11px;
+    font-size: 14px;
     padding: 11px 14px;
   }
   .score-tracks > div > div {
-    font-size: 11px;
+    font-size: 13px;
   }
   .score-tracks strong {
-    font-size: 12px;
+    font-size: 14px;
   }
   .color-table {
     padding: 20px 16px;
@@ -1053,21 +1021,21 @@
     padding-top: 30px;
   }
   .opponents-hands strong {
-    font-size: 10px;
+    font-size: 13px;
   }
   .card-action-status {
-    font-size: 10px;
+    font-size: 14px;
   }
   .game-heading .eyebrow {
     letter-spacing: 1px;
   }
   .toast {
-    font-size: 11px;
+    font-size: 14px;
     bottom: 16px;
     padding: 10px 10px 10px 15px;
   }
   .offline-banner {
-    font-size: 10px;
+    font-size: 14px;
     padding: 10px 13px;
   }
   .your-hand-heading > small {
@@ -1101,9 +1069,6 @@
   .game-card-body {
     padding: 12px 10px;
   }
-  .game-title-row h3 {
-    font-size: 13px;
-  }
   .game-card-art {
     height: 113px;
   }
@@ -1114,12 +1079,10 @@
     gap: 5px;
   }
   .game-description {
-    font-size: 8px;
     min-height: 43px;
   }
   .category-tabs button {
     padding: 7px;
-    font-size: 8px;
   }
   .game-content {
     padding: 21px 12px 35px;

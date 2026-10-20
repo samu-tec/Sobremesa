@@ -1,0 +1,65 @@
+.conquest-controls {
+  padding: 16px;
+  background: #e7e8d6;
+  color: #2b4234;
+  border: 1px solid #b8bea0;
+  border-radius: 14px;
+  margin-bottom: 16px;
+}
+.conquest-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.conquest-inputs label {
+  display: grid;
+  gap: 5px;
+  max-width: 100%;
+}
+.conquest-inputs input,
+.conquest-inputs select {
+  min-height: 44px;
+  max-width: 100%;
+}
+.conquest-inputs input {
+  width: 80px;
+}
+.conquest-map {
+  max-width: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  margin: 14px 0;
+}
+.conquest-map svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.conquest-map.enlarged svg {
+  min-width: 700px;
+}
+.conquest-battle {
+  padding: 16px;
+  background: #eee2ca;
+  color: #384c3a;
+  border-radius: 14px;
+}
+.conquest-regions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: 16px;
+}
+.conquest-regions ul {
+  list-style: none;
+  padding: 0;
+}
+.conquest-regions li {
+  display: grid;
+  gap: 3px;
+  padding: 9px 0;
+  border-bottom: 1px solid #bfc2ac;
+}
+.conquest-regions li span {
+  font-size: 0.9rem;
+}

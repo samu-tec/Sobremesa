@@ -17,9 +17,9 @@ select {
 }
 button {
   cursor: pointer;
-}
-button {
   color: inherit;
+  border: 0;
+  background: none;
 }
 button:disabled {
   opacity: 0.42;
@@ -32,10 +32,6 @@ select:focus-visible,
 [tabindex]:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 4px;
-}
-button {
-  border: 0;
-  background: none;
 }
 a {
   color: inherit;
@@ -89,7 +85,7 @@ button:not(:disabled):active {
 }
 .muted {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 .eyebrow {
   display: block;
@@ -106,7 +102,7 @@ button:not(:disabled):active {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: var(--font-control);
   font-weight: 650;
   padding: 12px 18px;
   line-height: 1.4;
@@ -141,14 +137,14 @@ button:not(:disabled):active {
 }
 .button.small {
   min-height: 37px;
-  font-size: 11px;
+  font-size: 13px;
   padding: 8px 12px;
 }
 .full {
   width: 100%;
 }
 .text-button {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--green);
   font-weight: 650;
   display: inline-flex;

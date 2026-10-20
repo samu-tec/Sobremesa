@@ -1,0 +1,43 @@
+.cinquillo-table {
+  overflow-x: auto;
+  background: var(--felt, #234c3d);
+  border-radius: var(--radius-lg, 20px);
+  padding: 16px;
+  color: #fff;
+  overscroll-behavior: contain;
+}
+.cinquillo-lane {
+  min-width: 560px;
+}
+.cinquillo-lane h3 {
+  font-size: 0.9rem;
+  margin: 12px 0 6px;
+}
+.cinquillo-lane > div {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 5px;
+}
+.cinquillo-slot {
+  aspect-ratio: 0.64;
+  border: 1px dashed #ffffff50;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+.cinquillo-slot.five {
+  border-color: #ebcd73;
+}
+.cinquillo-slot .spanish-card {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+.cinquillo-slot > span {
+  font-weight: 700;
+  color: #ffffffa8;
+}
+.cinquillo-slot .spanish-card > small {
+  display: none;
+}

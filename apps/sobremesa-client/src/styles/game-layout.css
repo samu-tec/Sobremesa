@@ -24,7 +24,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: 14px;
   background: #e9eee0;
   color: #57644d;
   padding: 11px 16px;
@@ -91,7 +91,7 @@
   background: #f6ecd0;
   border: 1px solid #e5d7a7;
   border-radius: 8px;
-  font-size: 11px;
+  font-size: 14px;
   color: #6d603c;
   padding: 12px 16px;
   margin: 15px 0;
@@ -117,7 +117,7 @@
   margin-bottom: 18px;
 }
 .players-panel .muted {
-  font-size: 9px;
+  font-size: 12px;
 }
 .table-player {
   display: flex;
@@ -137,13 +137,13 @@
 }
 .table-player strong {
   display: block;
-  font-size: 11px;
+  font-size: 14px;
   overflow-wrap: anywhere;
   line-height: 1.5;
 }
 .table-player small {
   display: block;
-  font-size: 8px;
+  font-size: 12px;
   color: #5c6354;
   margin-top: 4px;
 }
@@ -154,7 +154,7 @@
   color: #516640;
 }
 .table-player > .player-value {
-  font-size: 10px;
+  font-size: 14px;
   white-space: nowrap;
   color: #5a654b;
 }
@@ -174,7 +174,7 @@
   letter-spacing: -0.2px;
 }
 .game-tip p {
-  font-size: 10px;
+  font-size: 13px;
   line-height: 1.9;
   margin-top: 6px;
   color: #59654e;
@@ -186,7 +186,7 @@
   font-size: 8px;
 }
 .game-mini-rules p {
-  font-size: 11px;
+  font-size: 13px;
   color: #596450;
   margin-top: 9px;
 }
@@ -199,13 +199,13 @@
   justify-content: center;
 }
 .board-instruction {
-  font-size: 12px;
+  font-size: 14px;
   color: #596451;
   text-align: center;
   min-height: 22px;
 }
 .board-caption {
-  font-size: 10px;
+  font-size: 13px;
   color: #5a6451;
   line-height: 1.8;
   text-align: center;

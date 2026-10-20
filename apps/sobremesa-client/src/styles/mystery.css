@@ -1,0 +1,65 @@
+.mystery-private {
+  padding: 18px;
+  background: #efe6d5;
+  border: 1px dashed #8c7859;
+  border-radius: 14px;
+  color: #314539;
+}
+.mystery-private li {
+  padding: 4px 0;
+}
+.mystery-hypothesis,
+.mystery-solution {
+  padding: 18px;
+  margin: 16px 0;
+  background: #dfe8d2;
+  color: #294332;
+  border-radius: 14px;
+}
+.mystery-selects {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.mystery-selects label {
+  display: grid;
+  gap: 5px;
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.mystery-selects select {
+  min-height: 44px;
+  max-width: 100%;
+}
+.mystery-notebook {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 215px), 1fr));
+  gap: 15px;
+}
+.mystery-notebook fieldset {
+  min-width: 0;
+  border: 1px solid #b5ae99;
+  border-radius: 12px;
+  padding: 12px;
+}
+.mystery-notebook label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 0.9rem;
+}
+.mystery-notebook input {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+.mystery-notebook .known {
+  background: #e0e9d3;
+  color: #2f4934;
+  border-radius: 6px;
+}
+.mystery-notebook legend {
+  font-weight: 700;
+}

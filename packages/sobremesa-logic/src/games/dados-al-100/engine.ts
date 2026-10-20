@@ -1,4 +1,4 @@
-import { die, systemRandom, type RandomSource } from '../../engine/helpers.js';
+import { participants, die, systemRandom, type RandomSource } from '../../engine/helpers.js';
 import { resolveGameSettings } from '../../settings.js';
 import { message as msg, type GameText } from '../../messages.js';
 import type { IGameEngine } from '../../engine/IGameEngine.js';
@@ -24,8 +24,7 @@ export class DadosAl100Engine implements IGameEngine<
     this.options = resolveGameSettings('pig', rules);
   }
   initGame(players: { id: string; isBot: boolean }[]): DadosAl100State {
-    if (players.length < 2 || players.length > 4)
-      throw new Error('Se necesitan entre dos y cuatro jugadores.');
+    players = participants(players, 2, 4);
     return {
       players: players.map((p) => ({ ...p, score: 0 })),
       currentTurnPlayerId: players[0].id,

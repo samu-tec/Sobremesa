@@ -1,0 +1,82 @@
+.spanish-card {
+  display: inline-flex;
+  flex: 0 0 auto;
+  position: relative;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 100px;
+  background: #fff9e9;
+  border: 1px solid #ad9671;
+  border-radius: 7px;
+  box-shadow: 0 3px 0 #c6b086;
+  color: #243b32;
+  vertical-align: middle;
+}
+.spanish-card > b {
+  position: absolute;
+  top: 3px;
+  left: 6px;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.spanish-card > svg {
+  width: 36px;
+  height: 46px;
+  margin-top: 14px;
+  stroke: #63461e;
+  stroke-width: 2;
+  fill: #d0a146;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.spanish-card.suit-1 > svg {
+  fill: #b5574c;
+  stroke: #853b32;
+}
+.spanish-card.suit-2 > svg {
+  fill: #a8bdc8;
+  stroke: #375870;
+}
+.spanish-card.suit-3 > svg {
+  fill: #8a9b4a;
+  stroke: #4c642e;
+}
+.spanish-card > small {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 3px;
+}
+.spanish-card.back {
+  background: repeating-linear-gradient(45deg, #315c49 0 4px, #52725a 4px 7px);
+  color: #e5d7ac;
+  border: 3px solid #eadbb9;
+  font-size: 1.6rem;
+}
+.spanish-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 10px;
+  padding: 10px 3px;
+}
+.spanish-hand > button {
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  cursor: pointer;
+}
+.spanish-hand > button[aria-pressed='true'] {
+  outline: 3px solid var(--green);
+  outline-offset: 3px;
+  transform: translateY(-4px);
+}
+.spanish-hand > button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+}
+.spanish-hand > button:disabled {
+  opacity: 1;
+  cursor: default;
+}

@@ -31,11 +31,6 @@ export function Rules({
               </p>
             );
           })}
-          {room.gameType === 'colorclash' && (
-            <p>
-              {t('Cartas iniciales')}: {room.customRules?.startingCards ?? 7}
-            </p>
-          )}
           {room.gameType === 'monopoly' && (
             <>
               <p>

@@ -57,7 +57,7 @@ export interface GameMatch {
   act(playerId: string, action: unknown): { completed: boolean } | null;
   actor(): string;
   result(): { winnerId: string | null; isDraw: boolean };
-  forfeit(playerId: string): void;
+  forfeit(playerId: string, newHostId?: string): void;
   publicState(playerId: string): GamePublicState | null;
   timeoutSeconds(): number | null;
   expire(): boolean;
@@ -102,8 +102,8 @@ export function createMatch<S extends MatchState, A, P extends GamePublicState>(
       winnerId: state ? engine.checkWinner(state) : null,
       isDraw: state?.isDraw === true,
     }),
-    forfeit(playerId) {
-      if (state) state = engine.forfeitPlayer(state, playerId);
+    forfeit(playerId, newHostId) {
+      if (state) state = engine.forfeitPlayer(state, playerId, newHostId);
     },
     publicState: (playerId) => (state ? engine.getSanitizedState(state, playerId) : null),
     timeoutSeconds: () => (state ? runtime.timeoutSeconds(state) : null),

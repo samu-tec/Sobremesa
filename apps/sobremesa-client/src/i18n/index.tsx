@@ -22,16 +22,16 @@ const brandCopy: Record<
   es: {
     title: 'Sobremesa · Juegos de mesa para compartir',
     description:
-      'Sobremesa reúne quince juegos de mesa para compartir con amigos. Juega en games.samuelciocan.com sin registro ni descargas.',
-    social: 'Quince juegos de mesa para compartir con amigos en games.samuelciocan.com.',
+      'Sobremesa reúne treinta juegos de mesa para compartir con amigos. Juega en games.samuelciocan.com sin registro ni descargas.',
+    social: 'Treinta juegos de mesa para compartir con amigos en games.samuelciocan.com.',
     ogLocale: 'es_ES',
     ogAlternateLocale: 'en_GB',
   },
   en: {
     title: 'Sobremesa · Board games to share',
     description:
-      'Sobremesa brings fifteen board games together to play with friends. Visit games.samuelciocan.com, with no account or downloads.',
-    social: 'Fifteen board games to share with friends at games.samuelciocan.com.',
+      'Sobremesa brings thirty board games together to play with friends. Visit games.samuelciocan.com, with no account or downloads.',
+    social: 'Thirty board games to share with friends at games.samuelciocan.com.',
     ogLocale: 'en_GB',
     ogAlternateLocale: 'es_ES',
   },

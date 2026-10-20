@@ -618,7 +618,7 @@
 }
 .combination-dice small {
   color: #4c6351;
-  font-size: 11px;
+  font-size: 12px;
 }
 .scorecard-wrap {
   max-width: 100%;
@@ -726,7 +726,7 @@
     border-width: 1px !important;
   }
   .bg-bar {
-    font-size: 10px;
+    font-size: 12px;
   }
   .combination-dice {
     gap: 3px;
@@ -741,7 +741,7 @@
     gap: 3px;
   }
   .combination-dice small {
-    font-size: 9px;
+    font-size: 12px;
   }
   .domino-table {
     padding: 10px;
