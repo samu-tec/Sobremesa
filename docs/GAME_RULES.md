@@ -20,7 +20,13 @@ La variante incluye:
 
 ### Cambio de Color
 
-No se acumulan penalizaciones ni se exige anunciar la última carta. El +4 se puede jugar en cualquier turno propio y no tiene desafío. Después de robar solo se puede jugar esa carta. La última carta termina la partida inmediatamente.
+Por defecto, las penalizaciones +2 y +4 se cobran inmediatamente y hacen perder el turno, sin acumulación. El anfitrión puede activar «Permitir acumular +2 y +4», una regla de la casa que permite responder con cualquiera de las dos cartas, incluso de otro color. Solo se permite continuar la cadena o aceptar el total: no se puede jugar una carta normal ni pasar sin robar. El robo se cobra una sola vez, reciclando descartes si hace falta, y siempre pasa el turno. Si ya no quedan cartas suficientes, se roban las disponibles y se cierra igualmente la penalización.
+
+Agotar el reloj acepta el total pendiente. Desconectar conserva la plaza y la penalización durante la reserva; abandonar definitivamente devuelve las cartas al mazo y transfiere la obligación al siguiente participante, según la dirección vigente. Si solo queda una persona, gana y se cancela la penalización. Los bots pueden continuar cualquier cadena mixta o aceptar el robo.
+
+No se exige anunciar la última carta. El +4 se puede jugar en cualquier turno propio y no tiene desafío. Después de un robo ordinario solo se puede jugar esa carta. Se conserva la victoria inmediata con cualquier última carta, también +2 o +4: termina la partida y se cancela el total pendiente, sin nuevos cobros. Cambio de Sentido invierte la dirección; con dos participantes permite jugar otra vez.
+
+El orden público procede de los asientos del motor, también tras rotar el inicio o abandonar. La mano mantiene el orden enviado por el servidor. La secuencia pública de acciones permite sonidos de carta, robo, cambio de sentido, salto y acumulación sin repetirlos por un render ni inferir cartas privadas.
 
 ## Motores y privacidad
 
@@ -28,9 +34,9 @@ No se acumulan penalizaciones ni se exige anunciar la última carta. El +4 se pu
 
 El ajedrez usa [chess.js 1.4.0](https://jhlywa.github.io/chess.js/) (BSD-2-Clause) para jugadas legales, mate, ahogado, material y cincuenta movimientos. La repetición se contabiliza por posición FEN sin contadores para evitar reconstruir el historial en cada turno. Las tablas por triple repetición y cincuenta movimientos son automáticas por defecto. El anfitrión puede exigir su reclamación; la quinta repetición y los setenta y cinco movimientos siguen produciendo tablas automáticas, con prioridad del jaque mate, según las [reglas de la FIDE](https://handbook.fide.com/chapter/E012023). El bot explora dos medias jugadas; las búsquedas de damas y mancala también están acotadas. El generador de avisos incluye las dependencias del paquete de lógica y conserva la licencia original.
 
-### Rummy de fichas
+### Rummy
 
-Rummy de fichas usa 106 fichas, dos comodines, atril de catorce fichas y apertura de 30 puntos, con [grupos y escaleras como referencia](https://rummikub.com/wp-content/uploads/2019/12/2600-English.pdf). Cada acción envía la propuesta completa de mesa: conserva todas las fichas anteriores, incorpora al menos una propia y deja únicamente combinaciones válidas. Antes de abrir no permite alterar ni aprovechar las combinaciones ajenas. El editor mantiene borradores privados con deshacer, división, unión y restauración. Los comodines se pueden reasignar al reorganizar y nunca volver al atril. Cada partida termina al vaciar un atril o tras una vuelta completa de pases con el pozo vacío; se muestran los puntos positivos y negativos, con penalización de 30 por comodín. El reloj descarta el borrador y roba una ficha o pasa.
+Rummy usa 106 fichas, dos comodines, atril de catorce fichas y apertura de 30 puntos, con [grupos y escaleras como referencia](https://rummikub.com/wp-content/uploads/2019/12/2600-English.pdf). Cada acción envía la propuesta completa de mesa: conserva todas las fichas anteriores, incorpora al menos una propia y deja únicamente combinaciones válidas. Antes de abrir no permite alterar ni aprovechar las combinaciones ajenas. El editor mantiene borradores privados con deshacer, división, unión y restauración. Los comodines se pueden reasignar al reorganizar y nunca volver al atril. Cada partida termina al vaciar un atril o tras una vuelta completa de pases con el pozo vacío; se muestran los puntos positivos y negativos, con penalización de 30 por comodín. El reloj descarta el borrador y roba una ficha o pasa.
 
 ### Dominó, Damas, Backgammon y dados
 
@@ -58,7 +64,7 @@ Modalidad individual de un dado para dos, tres o cuatro personas, cuatro fichas 
 
 Las reglas visibles del catálogo detallan las obligaciones de salir y abrir barrera. La geometría es un recorrido de 68 casillas y siete casillas de pasillo más meta por color. Referencias de mecánicas: [Ludoteka](https://www.ludoteka.com/juegos/parchis/reglas) y [Buho21](https://www.buho21.com/reglas/parchis.jsf), cuyas variantes de apertura y llegada no coinciden en todos los detalles. Los textos y SVG de Sobremesa son propios. No se incluyen equipos, dos dados ni rebote.
 
-Los bots deciden únicamente con el tablero público. Cada movimiento y premio se valida en el servidor. Agotar el reloj completa la secuencia pendiente hasta pasar el turno, con el límite de acciones automáticas existente. Abandonar retira las cuatro fichas y conserva la partida entre los demás; la última persona activa gana. Los botones de fichas y el panel desplegable de posiciones dan una alternativa legible y por teclado al tablero visual. La animación reutiliza el ciclo de movimiento reducido y reconexión de los tableros existentes.
+Los bots deciden únicamente con el tablero público. Cada movimiento y premio se valida en el servidor. Los bots completan las secuencias pendientes con el límite de acciones automáticas existente. Una decisión humana pendiente utiliza la confirmación de presencia descrita abajo. Abandonar retira las cuatro fichas y conserva la partida entre los demás; la última persona activa gana. Los botones de fichas y el panel desplegable de posiciones dan una alternativa legible y por teclado al tablero visual. La animación reutiliza el ciclo de movimiento reducido y reconexión de los tableros existentes.
 
 ## Juego de la Oca
 
@@ -123,3 +129,9 @@ Misterio y deducción plantea el caso original de la lente de Bruma: seis person
 Online conserva pistas escritas y votos digitales. Presencial permite pistas habladas, votos digitales secretos o totales físicos registrados por el anfitrión, desempate y último intento hablado confirmado en dos pasos. El recuento físico no representa votos individuales. El anfitrión migra cuando corresponde; solo él confirma esas fases. Los plazos marcan pistas agotadas, abstenciones o intento fallido, sin grabar voz.
 
 La opción de un solo móvil se abre desde Impostor: tres a diez nombres, ajustes existentes, pantalla neutral y revelación individual. Ocultar y pasar desmonta el papel anterior; cambiar de pestaña o perder foco lo oculta. No se guardan secretos. Después se usan pistas y recuento físicos, sin reloj automático local. Otra ronda vuelve a repartir papeles; recargar descarta el estado local.
+
+## Inactividad y abandono
+
+El presupuesto configurado no autoriza decisiones estratégicas de un bot por una persona ausente. Cuando vence una decisión humana que impide continuar, hay 15 segundos para confirmar o salir. Confirmar ofrece una sola prórroga de 30 segundos para jugar. Si tampoco actúa, el motor aplica abandono y continúa o finaliza según sus reglas. Una decisión parcial no renueva el presupuesto. No se pregunta a quien espera ni por perder foco o cambiar de pestaña.
+
+Se conservan vencimientos de subastas, preguntas y revisiones cronometradas, fin de dibujo/revisión, pases de reclamaciones de Mahjong y reanudación sin aceptar una puntuación en Go. Cambio de Color conserva el cobro de penalizaciones y el pase después de robar. Elegir concepto en Dibujo, investigar/refutar en Misterio, reforzar en Conquista y las decisiones de Impostor requieren presencia humana. La reserva de reconexión sigue siendo independiente y finita. Los bots mantienen sus resoluciones automáticas. No se modifican las condiciones de victoria, empates, variantes ni consecuencias de abandono de cada motor.

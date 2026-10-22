@@ -14,6 +14,7 @@ export interface GamePolicy<S, A> {
   timeoutAction(state: S, actor: string): A | null;
   continueTimeout(action: A): boolean;
   timeoutSeconds(state: S): number | null;
+  requiresPresence(state: S): boolean;
   botId(state: S, players: readonly BotPlayer[]): string | undefined;
 }
 export interface GameRuntime<S, A, P> extends GamePolicy<S, A> {
@@ -36,6 +37,7 @@ export function defineGame<S extends MatchState, A extends TurnAction, P extends
     timeoutAction: (s, id) => engine.getBotAction(s, id),
     continueTimeout: () => false,
     timeoutSeconds: () => null,
+    requiresPresence: () => true,
     botId: (s, players) => players.find((p) => p.isBot && p.id === actor(s))?.id,
     ...policy,
   };
@@ -60,6 +62,7 @@ export interface GameMatch {
   forfeit(playerId: string, newHostId?: string): void;
   publicState(playerId: string): GamePublicState | null;
   timeoutSeconds(): number | null;
+  requiresPresence(): boolean;
   expire(): boolean;
   timeoutStep(actor: string): { continue: boolean } | null;
   botId(players: Player[]): string | undefined;
@@ -107,6 +110,7 @@ export function createMatch<S extends MatchState, A, P extends GamePublicState>(
     },
     publicState: (playerId) => (state ? engine.getSanitizedState(state, playerId) : null),
     timeoutSeconds: () => (state ? runtime.timeoutSeconds(state) : null),
+    requiresPresence: () => !!state && runtime.requiresPresence(state),
     expire() {
       if (!state) return false;
       const expired = runtime.expire(state);

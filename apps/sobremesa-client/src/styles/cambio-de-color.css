@@ -1,0 +1,283 @@
+.color-match .color-table {
+  min-height: 0;
+  padding: 16px;
+}
+.color-direction {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 13px;
+  color: #3a5740;
+  margin-bottom: 8px;
+}
+.color-direction > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.color-player-order {
+  display: flex;
+  list-style: none;
+  gap: 8px;
+  margin: 0;
+  padding: 4px 3px 8px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+.color-player-order > li {
+  display: flex;
+  flex: 1 0 120px;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  background: #fffefa;
+  border: 2px solid #d4dfca;
+  border-radius: 8px;
+  padding: 6px;
+}
+.color-player-order .active {
+  border-color: #315f3b;
+  box-shadow: 0 0 0 1px #315f3b;
+}
+.color-player-order .next:not(.active) {
+  border-style: dashed;
+}
+.color-player-order strong,
+.color-player-order small {
+  display: block;
+  line-height: 1.4;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.color-player-order small {
+  color: #53604c;
+}
+.color-seat-number {
+  font-size: 12px;
+  color: #3a5740;
+}
+.color-order-arrow {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.color-match .card-table-center {
+  position: relative;
+  padding: 12px 0;
+  min-height: 186px;
+  align-items: center;
+  gap: 30px;
+}
+.color-match .deck-area,
+.color-match .discard-area {
+  gap: 8px;
+}
+.color-match .deck-area > small {
+  font-size: 12px;
+}
+.color-match .active-color {
+  font-size: 13px;
+  font-weight: 650;
+  padding: 3px 10px;
+  border: 1px solid currentColor;
+  border-radius: 12px;
+  background: #fffefa;
+}
+.color-penalty {
+  height: 52px;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  font-size: 13px;
+  text-align: center;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #43593b;
+}
+.color-penalty.pending {
+  background: #fff4d4;
+  color: #694a13;
+  border-color: #cfa85b;
+}
+.color-match .your-hand-heading {
+  padding-top: 10px;
+  margin-top: 8px;
+}
+.color-match .your-hand-heading > small {
+  font-size: 12px;
+}
+.color-match .your-hand {
+  margin-top: 8px;
+  padding-top: 5px;
+  padding-bottom: 8px;
+  min-height: 116px;
+}
+.color-match .hand-card {
+  position: relative;
+  opacity: 1;
+}
+.color-match .hand-card:disabled .playing-card {
+  filter: saturate(0.65);
+}
+.color-match .hand-card.playable .playing-card {
+  outline: 2px solid #315f3b;
+  outline-offset: 2px;
+}
+.color-match .card-play-marker {
+  position: absolute;
+  top: -5px;
+  right: -2px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #315f3b;
+  color: white;
+}
+.color-match .color-turn-controls {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+}
+.color-match .color-turn-controls .board-caption {
+  margin: 0;
+  line-height: 1.4;
+  font-size: 12px;
+}
+.color-match .pass-button {
+  margin: 0;
+  min-height: 44px;
+}
+.color-match .color-choice-panel {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  padding: 10px;
+}
+.color-match .choosing-color .deck-area,
+.color-match .choosing-color .discard-area {
+  visibility: hidden;
+}
+.color-match .color-choice-panel p {
+  font-size: 12px;
+  margin: 4px 0;
+}
+.color-match .color-choices {
+  margin-top: 4px;
+}
+.color-match .color-choices button {
+  min-height: 44px;
+}
+@media (max-width: 600px) {
+  .color-match .color-table {
+    padding: 10px;
+  }
+  .color-match .card-table-center {
+    min-height: 166px;
+    padding: 4px 0;
+  }
+  .color-match .card-table-center .playing-card {
+    width: 72px;
+    height: 108px;
+  }
+  .color-match .draw-deck {
+    width: 76px;
+    height: 112px;
+  }
+  .color-match .card-table-center .card-color-name {
+    font-size: 10px;
+  }
+  .color-match .color-penalty {
+    font-size: 12px;
+  }
+  .color-match .color-choice-panel .section-row {
+    gap: 4px;
+  }
+}
+
+.color-direction-label {
+  animation: color-direction-change 280ms ease-out;
+}
+@keyframes color-direction-change {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .color-direction-label {
+    animation: none;
+  }
+}
+.color-match .draw-deck > span {
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+.color-match .your-hand .card-color-name {
+  font-size: 10px;
+}
+
+.color-match .table-sidebar .color-direction {
+  padding: 0 8px;
+}
+.color-match .color-player-order {
+  flex-wrap: wrap;
+  overflow: visible;
+  gap: 4px;
+  padding: 0 8px;
+}
+.color-match .color-player-order > li {
+  flex: 1 1 auto;
+  border-width: 1px;
+  padding: 4px;
+}
+.color-match .color-player-order small {
+  display: none;
+}
+.color-match .draw-deck.draw-available {
+  outline: 2px solid #315f3b;
+  outline-offset: 3px;
+}
+.color-match .draw-deck.draw-required {
+  box-shadow: 0 0 0 6px #bfd2af;
+}
+.color-match .draw-deck.draw-penalty {
+  outline-color: #8b5b15;
+  box-shadow: 0 0 0 6px #f2d7a1;
+}
+.color-match .draw-deck:disabled {
+  box-shadow: none;
+  outline: none;
+}
+
+/* La carta se eleva sin mover el objetivo de pulsación ni recalcular el ajuste de la mano. */
+.color-match .hand-card:not(:disabled):hover {
+  transform: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .color-match .hand-card .playing-card {
+    transition: transform 180ms;
+  }
+  .color-match .hand-card:not(:disabled):hover .playing-card {
+    transform: translateY(-5px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .color-match .hand-card .playing-card {
+    transition: none;
+  }
+}

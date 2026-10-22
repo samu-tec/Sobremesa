@@ -1,4 +1,8 @@
 import type { GameType, RoomInfo, GamePublicState } from '../types/index.js';
+export interface RoomContext {
+  matchId: string;
+}
+export type GameSnapshot = GamePublicState & RoomContext & { gameType: GameType };
 export interface Result {
   success: boolean;
   error?: string;
@@ -6,20 +10,25 @@ export interface Result {
 }
 export interface RoomResult extends Result {
   room?: RoomInfo;
-  state?: GamePublicState | null;
+  state?: GameSnapshot | null;
 }
 export interface ServerToClientEvents {
   'session:incompatible': (data: { protocolVersion: number }) => void;
   'session:replaced': () => void;
   'session:ready': (data: { playerId: string; protocolVersion: number }) => void;
   'room:updated': (room: RoomInfo) => void;
+  'room:removed': (reason: string) => void;
   'room:closed': (reason: string) => void;
-  'game:started': (data: { gameType: GameType; publicState: GamePublicState }) => void;
-  'game:state_update': (publicState: GamePublicState) => void;
+  'game:started': (data: {
+    gameType: GameType;
+    matchId: string;
+    publicState: GameSnapshot;
+  }) => void;
+  'game:state_update': (publicState: GameSnapshot) => void;
   'game:ended': (data: { winnerId: string | null; winnerName: string; isDraw?: boolean }) => void;
   'game:error': (message: string) => void;
   'game:notification': (notification: {
-    text: string;
+    text: import('../messages.js').GameText;
     type?: 'info' | 'warning' | 'action';
   }) => void;
 }
@@ -33,12 +42,33 @@ export interface ClientToServerEvents {
     callback: (res: RoomResult) => void,
   ) => void;
   'room:leave': (callback?: (res: Result) => void) => void;
-  'room:add_bot': (callback: (res: Result) => void) => void;
-  'room:remove_bot': (data: { botId: string }, callback: (res: Result) => void) => void;
-  'room:start_game': (callback: (res: Result) => void) => void;
-  'room:update_rules': (rules: unknown, callback?: (res: Result) => void) => void;
-  'room:restart_game': (callback: (res: Result) => void) => void;
-  'game:action': (action: unknown, callback?: (res: Result) => void) => void;
+  'room:add_bot': (context: RoomContext, callback: (res: Result) => void) => void;
+  'room:remove_bot': (
+    data: { botId: string; matchId: string },
+    callback: (res: Result) => void,
+  ) => void;
+  'room:remove_player': (
+    data: RoomContext & { playerId: string },
+    callback: (res: Result) => void,
+  ) => void;
+  'room:change_game': (
+    data: RoomContext & { gameType: GameType },
+    callback: (res: Result) => void,
+  ) => void;
+  'room:confirm_presence': (
+    data: RoomContext & { challengeId: string; stay: boolean },
+    callback: (res: Result) => void,
+  ) => void;
+  'room:start_game': (context: RoomContext, callback: (res: Result) => void) => void;
+  'room:update_rules': (
+    data: RoomContext & { rules: unknown },
+    callback?: (res: Result) => void,
+  ) => void;
+  'room:restart_game': (context: RoomContext, callback: (res: Result) => void) => void;
+  'game:action': (
+    data: RoomContext & { action: unknown },
+    callback?: (res: Result) => void,
+  ) => void;
   'game:reconnect': (data: { roomCode: string }, callback: (res: RoomResult) => void) => void;
 }
 export interface InterServerEvents {

@@ -34,34 +34,24 @@ import {
   Gavel,
   Wallet,
   ShieldAlert,
-  Info,
   ChevronRight,
-  ZoomIn,
 } from 'lucide-react';
-import { DiceFace, type BoardProps } from '../ui/GameLayout';
+import { BoardFrame, DiceFace, type BoardProps } from '../ui/GameLayout';
 import { Modal } from '../ui/Modal';
 import '../styles/ciudad-fortuna.css';
 
 const money = formatMoney;
 export function CiudadFortunaBoard({
+  room,
   state,
   myPlayerId,
   onAction,
   busy,
 }: BoardProps<CiudadFortunaPublicState, CiudadFortunaAction>) {
-  const [compact, setCompact] = useState(() => matchMedia('(max-width: 900px)').matches);
-  useEffect(() => {
-    const query = matchMedia('(max-width: 900px)');
-    const change = () => setCompact(query.matches);
-    query.addEventListener('change', change);
-    change(); // A resize between render and subscription must not leave the desktop controls on mobile.
-    return () => query.removeEventListener('change', change);
-  }, []);
   const [tab, setTab] = useState<'properties' | 'trade' | 'history'>('properties'),
     [inspected, setInspected] = useState<BoardTile | null>(null),
     [bankruptcy, setBankruptcy] = useState(false),
-    [managementOpen, setManagementOpen] = useState(false),
-    [zoomed, setZoomed] = useState(() => matchMedia('(max-width: 600px)').matches);
+    [managementOpen, setManagementOpen] = useState(false);
   const [target, setTarget] = useState(''),
     [offeredCash, setOfferedCash] = useState(0),
     [requestedCash, setRequestedCash] = useState(0),
@@ -69,28 +59,6 @@ export function CiudadFortunaBoard({
     [requested, setRequested] = useState<number[]>([]),
     [bid, setBid] = useState(10);
   const { rolling, moving, positionOf } = useCiudadFortunaMotion(state);
-  const boardScroll = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!zoomed || moving) return;
-    const scroll = boardScroll.current;
-    const tile = scroll?.querySelector<HTMLElement>('.current-tile');
-    if (!scroll || !tile) return;
-    const tileRect = tile.getBoundingClientRect();
-    const viewport = scroll.getBoundingClientRect();
-    scroll.scrollTo({
-      left:
-        scroll.scrollLeft +
-        tileRect.left -
-        viewport.left -
-        (scroll.clientWidth - tileRect.width) / 2,
-      top:
-        scroll.scrollTop +
-        tileRect.top -
-        viewport.top -
-        (scroll.clientHeight - tileRect.height) / 2,
-      behavior: 'instant',
-    });
-  }, [zoomed, moving, state.lastMovement?.id, state.currentTurnPlayerId]);
   const me = state.players.find((p) => p.id === myPlayerId),
     current = state.players.find((p) => p.id === state.currentTurnPlayerId),
     myTurn =
@@ -335,38 +303,6 @@ export function CiudadFortunaBoard({
   );
   const management = (
     <>
-      <section className="panel city-players">
-        <div className="section-row">
-          <h2>{t('Los vecinos')}</h2>
-          <span className="pill">
-            {state.players.filter((p) => !p.isBankrupt).length} {t('en juego')}{' '}
-          </span>
-        </div>
-        {state.players.map((p, i) => (
-          <div
-            className={`city-player ${p.id === state.currentTurnPlayerId ? 'active' : ''} ${p.isBankrupt ? 'bankrupt-player' : ''}`}
-            key={p.id}
-          >
-            <PlayerPiece index={i} active={p.id === state.currentTurnPlayerId} />
-            <div>
-              <strong>
-                {p.name}
-                {p.id === myPlayerId ? t(' (tú)') : ''}
-              </strong>
-              <small>
-                {p.isBankrupt
-                  ? t('En bancarrota')
-                  : p.inJail
-                    ? t('En la cárcel')
-                    : t(own(p.id).length === 1 ? '{0} propiedad' : '{0} propiedades', {
-                        '0': own(p.id).length,
-                      })}
-              </small>
-            </div>
-            <strong>{money(p.cash)}</strong>
-          </div>
-        ))}
-      </section>
       <section className="panel city-management" id="city-management">
         <div className="section-row">
           <h2>{t('Tu estrategia')}</h2>
@@ -655,30 +591,52 @@ export function CiudadFortunaBoard({
     </>
   );
   return (
-    <div className="city-layout">
-      <div className="city-main">
-        {compact && (
-          <div className="city-mobile-players">
-            {state.players.map((p, i) => (
-              <button
-                key={p.id}
-                className={p.id === state.currentTurnPlayerId ? 'active' : ''}
-                onClick={() => setInspected(BOARD_TILES[positionOf(p)])}
-                aria-label={t('Ver la posición de {0}', { '0': p.name })}
-              >
-                <PlayerPiece index={i} />
-                <span>
-                  <strong>{p.name}</strong>
-                  <small>
-                    {p.isBankrupt ? t('En bancarrota') : `${money(p.cash)} · #${p.position}`}
-                  </small>
-                </span>
-              </button>
-            ))}
+    <BoardFrame
+      room={room}
+      myPlayerId={myPlayerId}
+      turn={state.currentTurnPlayerId}
+      values={Object.fromEntries(
+        state.players.map((p) => [
+          p.id,
+          p.isBankrupt
+            ? t('En bancarrota')
+            : `${money(p.cash)} · #${p.position}${p.inJail ? ` · ${t('En la cárcel')}` : ''}`,
+        ]),
+      )}
+      playerIcons={Object.fromEntries(
+        state.players.map((p, i) => [p.id, <PlayerPiece key={p.id} index={i} />]),
+      )}
+      actions={
+        <>
+          <div
+            key={state.lastMovement?.id ?? 0}
+            className={`city-dice ${rolling ? 'dice-rolling' : ''}`}
+          >
+            <DiceFace value={state.lastDice[0]} />
+            <DiceFace value={state.lastDice[1]} />
           </div>
-        )}
-        <section className={`panel city-board-panel ${zoomed ? 'board-zoomed' : ''}`}>
-          <div className="city-board-scroll" ref={boardScroll}>
+          <p>
+            {state.hasRolled
+              ? t('{0} puntos{1}', {
+                  '0': state.lastDiceSum,
+                  '1': state.isDouble ? t(' · Dobles') : '',
+                })
+              : t('Cada tirada, una oportunidad.')}
+          </p>
+
+          {actions}
+          <button
+            className="button secondary city-manage-toggle"
+            onClick={() => setManagementOpen(true)}
+          >
+            <Wallet size={16} /> {t('Propiedades y tratos')}
+          </button>
+        </>
+      }
+    >
+      <div className="city-main">
+        <section className="city-board-panel">
+          <div className="city-board-scroll">
             <BoardSurface
               state={state}
               positionOf={positionOf}
@@ -699,68 +657,19 @@ export function CiudadFortunaBoard({
                 {t('CIUDAD')} <br />
                 <span>{t('FORTUNA')}</span>
               </h2>
-              <div
-                key={state.lastMovement?.id ?? 0}
-                className={`city-dice ${rolling ? 'dice-rolling' : ''}`}
-              >
-                <DiceFace value={state.lastDice[0]} />
-                <DiceFace value={state.lastDice[1]} />
-              </div>
-              <p>
-                {state.hasRolled
-                  ? t('{0} puntos{1}', {
-                      '0': state.lastDiceSum,
-                      '1': state.isDouble ? t(' · Dobles') : '',
-                    })
-                  : t('Cada tirada, una oportunidad.')}
-              </p>
               {state.customRules.freeParkingPool && (
                 <span className="city-pot">
                   <Coins size={14} /> {t('Bote:')} {money(state.freeParkingPool)}
                 </span>
               )}
-              {!compact && actions}
             </BoardSurface>
           </div>
-          <p className="board-caption">
-            <Info size={14} />{' '}
-            {zoomed && compact
-              ? t('Desliza el tablero para explorar. Toca una casilla para ver sus detalles.')
-              : t(
-                  'Pulsa cualquier casilla para ver su precio y alquiler. Las fichas indican dónde está cada jugador.',
-                )}
-          </p>
         </section>
       </div>
-      {compact && (
-        <div className="city-mobile-dock">
-          <div className="city-tools">
-            <button
-              className="button secondary city-zoom-toggle"
-              aria-pressed={zoomed}
-              onClick={() => setZoomed(!zoomed)}
-            >
-              <ZoomIn size={16} />
-              {t(zoomed ? 'Ver tablero completo' : 'Ampliar tablero')}
-            </button>
-            <button
-              className="button secondary city-manage-toggle"
-              onClick={() => setManagementOpen(true)}
-            >
-              <Wallet size={16} /> {t('Jugadores y propiedades')}
-            </button>
-          </div>
-          {actions}
-        </div>
-      )}
-      {compact ? (
-        managementOpen && (
-          <Modal title={t('Jugadores y propiedades')} onClose={() => setManagementOpen(false)} wide>
-            <div className="city-sidebar mobile-city-sidebar">{management}</div>
-          </Modal>
-        )
-      ) : (
-        <aside className="city-sidebar">{management}</aside>
+      {managementOpen && (
+        <Modal title={t('Propiedades y tratos')} onClose={() => setManagementOpen(false)} wide>
+          {management}
+        </Modal>
       )}
 
       {inspected && (
@@ -958,7 +867,7 @@ export function CiudadFortunaBoard({
           </div>
         </Modal>
       )}
-    </div>
+    </BoardFrame>
   );
 }
 

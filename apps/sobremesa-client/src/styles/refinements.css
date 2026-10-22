@@ -632,11 +632,6 @@
 .game-header .header-actions {
   margin-left: auto;
 }
-.turn-summary {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
 .turn-clock {
   display: inline-flex;
   align-items: center;
@@ -685,13 +680,6 @@
     padding: 7px;
     min-height: 36px;
   }
-  .turn-summary {
-    gap: 6px;
-  }
-  .turn-badge {
-    font-size: 14px;
-    padding: 8px;
-  }
   .turn-clock {
     font-size: 12px;
   }
@@ -725,17 +713,7 @@
 .privacy-content a {
   text-decoration: underline;
 }
-.turn-summary .turn-badge {
-  max-width: none;
-}
-@media (max-width: 600px) {
-  .turn-summary {
-    max-width: 56%;
-  }
-  .turn-summary .turn-badge {
-    max-width: 140px;
-  }
-}
+
 .rules-room-summary {
   background: #edf1e3;
   border: 1px solid #d2ddc8;
@@ -821,28 +799,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Turn notices remain in the flow, leaving the board and its heading unobstructed. */
-.turn-announcement {
-  position: relative;
-  top: auto;
-  left: auto;
-  width: 100%;
-  transform: none;
-  margin: 0 0 16px;
-  justify-content: flex-start;
-  box-shadow: 0 3px 12px #142c2015;
-  animation: turn-notice-reveal 180ms ease-out both;
-}
-@keyframes turn-notice-reveal {
-  from {
-    opacity: 0;
-    transform: translateY(-5px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
 .animated-table,
 .extended-table {
   position: relative;
@@ -902,21 +858,4 @@
 }
 .table-player > div {
   min-width: 52px;
-}
-@media (max-width: 600px) {
-  .turn-announcement {
-    padding: 10px 13px;
-    gap: 9px;
-  }
-  .turn-announcement strong {
-    font-size: 14px;
-  }
-  .turn-announcement span {
-    font-size: 13px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .turn-announcement {
-    animation: none;
-  }
 }

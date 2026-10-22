@@ -12,13 +12,14 @@ async function ready(page: Page) {
 async function room(page: Page, id: string) {
   await page.locator(`.game-${id} .play-bot`).click();
   await expect(page.getByRole('button', { name: 'Empezar partida', exact: true })).toBeVisible();
+  await page.locator('#room-settings > summary').click();
 }
 async function select(page: Page, label: string, value: string) {
   await page.getByRole('combobox', { name: label, exact: true }).selectOption(value);
 }
 async function start(page: Page) {
   await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
-  await expect(page.getByText('Es tu turno', { exact: true })).toBeVisible();
+  await expect(page.locator('.table-player.active').first()).toBeVisible();
 }
 for (const id of [
   'rummy',
@@ -139,6 +140,7 @@ test('La sala permite restablecer las opciones antes de empezar', async ({ page 
     '14',
   );
   await page.reload();
+  await page.locator('#room-settings > summary').click();
   await expect(page.getByRole('combobox', { name: 'Puntos para abrir', exact: true })).toHaveValue(
     '30',
   );
@@ -273,7 +275,7 @@ test('Mancala: animación de siembra con limpieza de las semillas decorativas', 
 });
 
 for (const width of [1280, 768, 390, 375, 320])
-  test(`Legibilidad de controles y configuración a ${width}px`, async ({ page }) => {
+  test(`Legibilidad de controles y configuración a ${width}px`, async ({ page, browserName }) => {
     await page.setViewportSize({ width, height: 900 });
     await ready(page);
     await room(page, 'colorclash');
@@ -282,6 +284,7 @@ for (const width of [1280, 768, 390, 375, 320])
     await expect(cards).toHaveValue('7');
     await cards.selectOption('9');
     await page.reload();
+    await page.locator('#room-settings > summary').click();
     await expect(cards).toHaveValue('9');
     for (const selector of ['.field', '.field-label', '.form-hint', '.waiting-player strong']) {
       const fonts = await page
@@ -299,7 +302,8 @@ for (const width of [1280, 768, 390, 375, 320])
     );
     await cards.focus();
     await expect(cards).toBeFocused();
-    await page.keyboard.press('Tab');
+    // Safari on macOS uses Option+Tab to include every native control.
+    await page.keyboard.press(browserName === 'webkit' ? 'Alt+Tab' : 'Tab');
     await expect(
       page.getByRole('button', { name: 'Restablecer opciones', exact: true }),
     ).toBeFocused();

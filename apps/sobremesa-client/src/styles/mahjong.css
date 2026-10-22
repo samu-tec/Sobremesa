@@ -259,3 +259,31 @@
   outline: 3px solid var(--focus-on-dark);
   outline-offset: 3px;
 }
+
+@media (min-width: 1100px) {
+  .mahjong-seats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .mahjong-table {
+    max-height: max(220px, calc(100svh - 480px));
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: 10px;
+    border-width: 5px;
+  }
+  .mahjong-wall {
+    padding: 4px;
+  }
+  .mahjong-wall > span {
+    width: 36px;
+    height: 40px;
+    font-size: 1.5rem;
+  }
+  .mahjong-own {
+    margin-top: 0;
+  }
+  .mahjong-pending {
+    margin: 0;
+    padding: 10px;
+  }
+}

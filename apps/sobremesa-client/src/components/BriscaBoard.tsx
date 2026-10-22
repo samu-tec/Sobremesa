@@ -22,66 +22,8 @@ export function BriscaBoard({
     motionRef = useBoardMotion(s.revision),
     name = (id: string) => room.players.find((p) => p.id === id)?.name ?? id,
     shown = s.trick.length ? s.trick : s.lastTrick;
-  return (
-    <BoardFrame
-      room={room}
-      myPlayerId={myPlayerId}
-      turn={s.currentTurnPlayerId}
-      motionRef={motionRef}
-      values={Object.fromEntries(
-        s.players.map((p) => [
-          p.id,
-          t('Bando {0} · {1} puntos', { '0': p.team + 1, '1': p.score }),
-        ]),
-      )}
-    >
-      <p className="board-instruction" role="status">
-        {gameText(s.message)}
-      </p>
-      <div className="brisca-teams">
-        {[0, 1].map((team) => (
-          <section key={team}>
-            <strong>{t('Bando {0}', { '0': team + 1 })}</strong>
-            <p>
-              {s.players
-                .filter((p) => p.team === team)
-                .map((p) => name(p.id))
-                .join(' + ')}
-            </p>
-            <b>
-              {t('{0} puntos · {1}/{2} victorias', {
-                '0': s.players.filter((p) => p.team === team).reduce((sum, p) => sum + p.score, 0),
-                '1': s.wins[team],
-                '2': s.targetWins,
-              })}
-            </b>
-          </section>
-        ))}
-      </div>
-      <p className="board-caption">
-        {t('Reparto {0} · triunfo: {1} · mazo: {2}', {
-          '0': s.round,
-          '1': spanishSuitName(SPANISH_SUITS.indexOf(s.trumpSuit)),
-          '2': s.stockCount,
-        })}
-      </p>
-      <h2 className="brisca-hand-title">{t('Tu mano')}</h2>
-      <div className="spanish-hand" aria-label={t('Tu mano de Brisca')}>
-        {s.hand.map((card) => (
-          <button
-            key={card}
-            disabled={!can || s.phase !== 'play'}
-            aria-pressed={selected === card}
-            aria-label={spanishCardLabel(card)}
-            onClick={() => setSelection({ revision: s.revision, card })}
-          >
-            <SpanishCardFace card={card} motion />
-          </button>
-        ))}
-      </div>
-      {selected !== null && (
-        <p role="status">{t('Carta seleccionada: {0}', { '0': spanishCardLabel(selected) })}</p>
-      )}
+  const actions = (
+    <>
       <div className="board-actions">
         {s.phase === 'play' && (
           <button
@@ -129,6 +71,74 @@ export function BriscaBoard({
           </button>
         )}
       </div>
+    </>
+  );
+  return (
+    <BoardFrame
+      selectionActive={selected !== null}
+      onCancelSelection={() => setSelection({ revision: s.revision, card: null })}
+      room={room}
+      myPlayerId={myPlayerId}
+      turn={s.currentTurnPlayerId}
+      motionRef={motionRef}
+      values={Object.fromEntries(
+        s.players.map((p) => [
+          p.id,
+          t('Bando {0} · {1} puntos', { '0': p.team + 1, '1': p.score }),
+        ]),
+      )}
+      actions={actions}
+    >
+      <p className="board-instruction" role="status">
+        {gameText(s.message)}
+      </p>
+      <div className="brisca-teams">
+        {[0, 1].map((team) => (
+          <section key={team}>
+            <strong>{t('Bando {0}', { '0': team + 1 })}</strong>
+            <p>
+              {s.players
+                .filter((p) => p.team === team)
+                .map((p) => name(p.id))
+                .join(' + ')}
+            </p>
+            <b>
+              {t('{0} puntos · {1}/{2} victorias', {
+                '0': s.players.filter((p) => p.team === team).reduce((sum, p) => sum + p.score, 0),
+                '1': s.wins[team],
+                '2': s.targetWins,
+              })}
+            </b>
+          </section>
+        ))}
+      </div>
+      <p className="board-caption">
+        {t('Reparto {0} · triunfo: {1} · mazo: {2}', {
+          '0': s.round,
+          '1': spanishSuitName(SPANISH_SUITS.indexOf(s.trumpSuit)),
+          '2': s.stockCount,
+        })}
+      </p>
+      <h2 className="brisca-hand-title">{t('Tu mano')}</h2>
+      <div className="spanish-hand" aria-label={t('Tu mano de Brisca')}>
+        {s.hand.map((card) => (
+          <button
+            key={card}
+            disabled={!can || s.phase !== 'play'}
+            aria-pressed={selected === card}
+            aria-label={spanishCardLabel(card)}
+            onClick={() =>
+              setSelection({ revision: s.revision, card: selected === card ? null : card })
+            }
+          >
+            <SpanishCardFace card={card} motion />
+          </button>
+        ))}
+      </div>
+      {selected !== null && (
+        <p role="status">{t('Carta seleccionada: {0}', { '0': spanishCardLabel(selected) })}</p>
+      )}
+
       <div className="brisca-table">
         <div className="brisca-stock">
           <div>

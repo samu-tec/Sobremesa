@@ -16,6 +16,8 @@ export function QuizBoard({
     can = !busy && !s.winner && !s.isDraw && s.currentTurnPlayerId === myPlayerId;
   return (
     <BoardFrame
+      selectionActive={selected !== null}
+      onCancelSelection={() => setDraft(null)}
       room={room}
       myPlayerId={myPlayerId}
       turn={s.currentTurnPlayerId}
@@ -43,7 +45,7 @@ export function QuizBoard({
               className={`button ${s.question.answer === index ? 'correct' : 'secondary'}`}
               aria-pressed={selected === index}
               disabled={!can || s.phase !== 'question'}
-              onClick={() => setDraft({ revision: s.revision, index })}
+              onClick={() => setDraft(selected === index ? null : { revision: s.revision, index })}
             >
               <b>{String.fromCharCode(65 + index)}</b>
               <span>{choice}</span>

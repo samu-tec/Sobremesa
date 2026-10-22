@@ -91,3 +91,14 @@
     border-width: 3px;
   }
 }
+
+@media (min-width: 901px) {
+  .go-board {
+    width: min(100%, 580px, max(300px, calc(100svh - 350px)));
+  }
+  .go-scroll {
+    max-height: max(300px, calc(100svh - 330px));
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+}

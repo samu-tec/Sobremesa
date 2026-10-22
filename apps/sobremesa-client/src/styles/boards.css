@@ -1044,3 +1044,43 @@
     transition: none;
   }
 }
+
+@media (min-width: 1100px) {
+  .extended-rummy > .number-tile-table {
+    max-height: max(180px, calc(100svh - 480px));
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+  .extended-rummy > .tile-opening-status {
+    padding: 10px;
+  }
+  .extended-rummy .number-tile-rack {
+    margin: 8px 0;
+    padding: 12px 8px;
+  }
+  .extended-rummy .tile-confirm-panel {
+    gap: 8px;
+    padding-top: 8px;
+  }
+}
+
+@media (min-width: 1100px) {
+  .extended-backgammon .bg-moves {
+    max-height: max(220px, calc(100svh - 390px));
+    overflow: auto;
+  }
+  .extended-combinations .scorecard-wrap {
+    max-height: max(280px, calc(100svh - 370px));
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+  .extended-combinations .combination-scorecard thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  .extended-combinations .combination-scorecard tfoot {
+    position: sticky;
+    bottom: 0;
+  }
+}

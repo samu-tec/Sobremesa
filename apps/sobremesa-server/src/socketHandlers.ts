@@ -39,8 +39,8 @@ const name = (value: unknown) =>
         .slice(0, 24)
     : '';
 const code = (value: unknown) =>
-  typeof value === 'string' && /^[A-HJ-NP-Z2-9]{6}$/.test(value.toUpperCase().trim())
-    ? value.toUpperCase().trim()
+  typeof value === 'string' && /^[A-HJ-NP-Z2-9]{6}$/.test(value.toUpperCase().replace(/\s/g, ''))
+    ? value.toUpperCase().replace(/\s/g, '')
     : null;
 export function registerSocketHandlers(
   _io: TypedServer,
@@ -87,9 +87,14 @@ export function registerSocketHandlers(
       }
     });
   };
-  const roomAction = (operation: (roomCode: string, id: string) => Result) => {
+  const roomAction = (context: unknown, operation: (roomCode: string, id: string) => Result) => {
     const room = manager.getRoomBySocket(socket.id);
     if (!room) return { success: false, error: 'No estás en una sala.' };
+    if (!record(context) || context.matchId !== room.matchId)
+      return {
+        success: false,
+        error: 'La partida ha cambiado. Usa los controles actuales de la sala.',
+      };
     return operation(room.code, socket.data.playerId);
   };
   const enter = <T extends RoomResult>(result: T): T => {
@@ -144,19 +149,36 @@ export function registerSocketHandlers(
     socket.data.roomCode = undefined;
     return { success: true };
   });
-  on('room:add_bot', () => roomAction((c, id) => manager.addBot(c, id)));
-  on('room:remove_bot', (data: unknown) =>
+  on('room:add_bot', (data) => roomAction(data, (c, id) => manager.addBot(c, id)));
+  on('room:remove_bot', (data) =>
     record(data) && typeof data.botId === 'string'
-      ? roomAction((c, id) => manager.removeBot(c, id, data.botId as string))
+      ? roomAction(data, (c, id) => manager.removeBot(c, id, data.botId as string))
       : { success: false, error: 'Bot no válido.' },
   );
-  on('room:start_game', () => roomAction((c, id) => manager.startGame(c, id)));
-  on('room:restart_game', () => roomAction((c, id) => manager.restartGame(c, id)));
-  on('room:update_rules', (rules: unknown) =>
-    roomAction((c, id) => manager.updateRoomRules(c, id, rules)),
+  on('room:remove_player', (data) =>
+    record(data) && typeof data.playerId === 'string'
+      ? roomAction(data, (c, id) => manager.removeHuman(c, id, data.playerId as string))
+      : { success: false, error: 'Participante no válido.' },
   );
-  on('game:action', (action: unknown) =>
-    roomAction((c, id) => manager.handleAction(c, id, action)),
+  on('room:change_game', (data) =>
+    record(data) && GAME_CATALOG.some((g) => g.id === data.gameType)
+      ? roomAction(data, (c, id) => manager.changeGame(c, id, data.gameType as GameType))
+      : { success: false, error: 'Juego no válido.' },
+  );
+  on('room:confirm_presence', (data) =>
+    record(data) && typeof data.challengeId === 'string' && typeof data.stay === 'boolean'
+      ? roomAction(data, (c, id) =>
+          manager.confirmPresence(c, id, data.challengeId as string, data.stay as boolean),
+        )
+      : { success: false, error: 'Confirmación no válida.' },
+  );
+  on('room:start_game', (data) => roomAction(data, (c, id) => manager.startGame(c, id)));
+  on('room:restart_game', (data) => roomAction(data, (c, id) => manager.restartGame(c, id)));
+  on('room:update_rules', (data) =>
+    roomAction(data, (c, id) => manager.updateRoomRules(c, id, record(data) ? data.rules : null)),
+  );
+  on('game:action', (data) =>
+    roomAction(data, (c, id) => manager.handleAction(c, id, record(data) ? data.action : null)),
   );
   socket.on('disconnect', () => manager.handleDisconnect(socket.id));
 }

@@ -1,4 +1,46 @@
 export const en: Record<string, string> = {
+  'Acepta la penalización desde el mazo o continúa con +2 o +4.':
+    'Accept the penalty from the deck or continue with +2 or +4.',
+  'Si alguien abandona durante una cadena, la penalización continúa entre los participantes restantes, en el sentido vigente. Si solo queda una persona, gana y se cancela la penalización.':
+    'If someone leaves during a chain, the penalty continues among the remaining players in the current direction. If only one player remains, they win and the penalty is cancelled.',
+  'La última carta termina la partida inmediatamente, incluso si es especial: se cancela cualquier penalización pendiente. El mazo se repone con los descartes cuando hace falta.':
+    'The last card ends the game immediately, even if it is special: any pending penalty is cancelled. Discards replenish the deck when needed.',
+  'Regla de la casa opcional: permite acumular cualquier +2 o +4, sin importar el color. Roba el total y pierde el turno quien no continúe la cadena. El reloj agotado acepta la penalización.':
+    'Optional house rule: stack any +2 or +4, regardless of colour. Anyone who does not continue the chain draws the total and loses their turn. A timeout accepts the penalty.',
+  'Salto hace perder el turno; Cambio invierte el sentido (con dos jugadores, vuelves a jugar). Por defecto, +2 y +4 hacen robar y perder el turno sin acumularse.':
+    'Skip loses the next turn; Reverse changes direction (with two players, you play again). By default, +2 and +4 make the next player draw and lose their turn, without stacking.',
+  'Acumulación activada: cualquier +2 o +4 continúa la cadena. Robar el total hace perder el turno.':
+    'Stacking enabled: any +2 or +4 continues the chain. Drawing the total loses your turn.',
+  'Combina color o valor; los comodines permiten elegir color.':
+    'Match colour or value; wild cards let you choose the colour.',
+  'Con dos jugadores, Cambio de Sentido permite jugar de nuevo.':
+    'With two players, Reverse lets you play again.',
+  'Solo +2 o +4': 'Only +2 or +4',
+  'Responde con +2 o +4, o acepta el robo.': 'Respond with +2 or +4, or accept the draw.',
+  '+{0} pendientes': '+{0} pending',
+  'Robar {0} cartas y perder el turno': 'Draw {0} cards and lose your turn',
+  'Orden de juego': 'Playing order',
+  'Siguiente: {0}': 'Next: {0}',
+  'Sentido antihorario': 'Anticlockwise',
+  'Sentido horario': 'Clockwise',
+  'Jugó {0}: +{1} pendientes.': 'Played {0}: +{1} pending.',
+  'Aceptó la penalización de {0} cartas y perdió el turno.':
+    'Accepted the {0}-card penalty and lost their turn.',
+  'Regla de la casa: responde con cualquier +2 o +4, sin importar el color, o roba el total y pierde el turno. Desactivada por defecto.':
+    'House rule: respond with any +2 or +4, regardless of colour, or draw the total and lose your turn. Off by default.',
+  'Permitir acumular +2 y +4': 'Allow stacking +2 and +4',
+  'Aviso de partida': 'Game notice',
+  'Sonidos breves durante el juego. Se silencian al ocultar esta pestaña.':
+    'Short sounds during play. Muted when this tab is hidden.',
+  Volumen: 'Volume',
+  Sonido: 'Sound',
+  'Modo inmersivo': 'Immersive mode',
+  'Preferencias de partida': 'Game preferences',
+  'Activar sonido': 'Enable sound',
+  'Silenciar sonido': 'Mute sound',
+  'Ampliar el juego': 'Expand game',
+  'Salir de pantalla completa': 'Exit fullscreen',
+  'Copiar código de sala: {0}': 'Copy room code: {0}',
   'El grupo vota en persona; el anfitrión registra el recuento.':
     'The group votes in person; the host records the count.',
   '{0} votos': '{0} votes',
@@ -64,8 +106,8 @@ export const en: Record<string, string> = {
     'Online mode keeps typed clues and digital ballots. In Physical mode, each person views their role on their phone, says their clue aloud and selects I have given my clue. Clue rounds, category and visibility are retained. Physical mode requires people: remove bots before starting.',
   'En presencial puedes mantener la votación digital secreta o elegir Recuento físico. En este último caso, el anfitrión registra totales y abstenciones, sin fingir votos individuales. Un primer empate abre un desempate entre los candidatos; un segundo empate permite escapar al impostor, igual que online. El grupo debe respetar las normas de voto al realizar el recuento.':
     'Physical play can keep secret digital voting or use Physical count. For the latter, the host records totals and abstentions without pretending to collect individual ballots. A first tie opens a runoff among the candidates; a second tie lets the impostor escape, as online. The group must follow voting rules when counting.',
-  'Si se descubre al impostor en presencial, dice su último intento en voz alta y el anfitrión confirma acierto o fallo mediante una segunda confirmación. Los demás no pueden resolver esa fase. Una pista agotada se marca como tal; un recuento agotado registra abstenciones y un intento agotado cuenta como fallido. No se graba voz ni vídeo.':
-    'If caught during physical play, the impostor says their final guess aloud and the host confirms success or failure through a second confirmation. Others cannot resolve that phase. An expired clue is marked as timed out; an expired count records abstentions and an expired final guess counts as failed. No audio or video is recorded.',
+  'Si se descubre al impostor en presencial, dice su último intento en voz alta y el anfitrión confirma acierto o fallo mediante una segunda confirmación. Los demás no pueden resolver esa fase. Las decisiones humanas pendientes requieren confirmar presencia al agotar su plazo; no responder aplica el abandono. No se graba voz ni vídeo.':
+    'If caught during physical play, the impostor says their final guess aloud and the host confirms success or failure through a second confirmation. Others cannot resolve that phase. Pending human decisions require presence confirmation when time expires; no response counts as leaving. No audio or video is recorded.',
   'Desde la ficha de Impostor también puedes jugar Presencial con un solo móvil. Introduce de tres a diez nombres distintos y configura tema, vueltas y categoría. Cada persona recibe una pantalla neutral, revela únicamente su papel y lo oculta antes de pasar el teléfono. Después se siguen las pistas y el recuento físico, sin reloj automático local. Puedes jugar otra ronda o cambiar opciones. Los secretos no se guardan y recargar o salir descarta la partida.':
     'The Impostor card also offers Physical play with one phone. Enter three to ten distinct names and configure theme, rounds and category. Each person gets a neutral screen, reveals only their own role and hides it before passing the phone. Then follow spoken clues and physical counting, without a local automatic clock. Play another round or change settings. Secrets are not stored and reloading or leaving discards the match.',
 
@@ -90,8 +132,8 @@ export const en: Record<string, string> = {
     'You may stop attacking early. Once you enter transfer phase, you cannot fight again. Once per turn, move units between two owned territories connected by an entirely owned path, leaving one at the origin and respecting the destination cap of thirty. Then end your turn.',
   'Controlar doce territorios al terminar tu turno concede victoria. También ganas si eres la única persona activa con territorios. Si nadie lo logra en quince rondas, se cuentan dos puntos por territorio y cinco adicionales por región completa; gana la puntuación más alta y los empates se comparten. Las unidades no desempatan.':
     'Controlling twelve territories at the end of your turn wins. You also win as the only active person with territories. If nobody achieves this in fifteen rounds, score two per territory and five extra per complete region; highest score wins and ties share victory. Units do not break ties.',
-  'Quien pierde todos sus territorios deja de recibir turnos. Al abandonar, sus posiciones se vuelven neutrales con su guarnición actual, sin recibir más refuerzos. El reloj abarca el turno completo y no se renueva con cada refuerzo o combate: al agotarse, distribuye lo pendiente y termina el turno. Los bots solo utilizan el estado público.':
-    'Players without territories receive no further turns. A departure makes their positions neutral with their current garrisons and no further reinforcements. The clock covers the whole turn and does not restart for reinforcements or battles: expiry allocates remaining units and ends the turn. Bots only use public state.',
+  'Quien pierde todos sus territorios deja de recibir turnos. Al abandonar, sus posiciones se vuelven neutrales con su guarnición actual, sin recibir más refuerzos. El reloj abarca el turno completo y no se renueva con cada refuerzo o combate: al agotarse una decisión humana se pide confirmar presencia antes de aplicar abandono. Los bots solo utilizan el estado público.':
+    'Players without territories receive no further turns. A departure makes their positions neutral with their current garrisons and no further reinforcements. The clock covers the whole turn and does not restart for reinforcements or battles: an expired human decision requests presence before applying forfeit. Bots only use public state.',
   'Conquista de territorios': 'Territory conquest',
   'Tres regiones y dieciocho posiciones para construir tu estrategia.':
     'Three regions and eighteen positions to build your strategy.',
@@ -169,8 +211,8 @@ export const en: Record<string, string> = {
     'After a hypothesis, end your turn or make a final accusation. You may also accuse directly without investigating. Hypotheses may include your own cards; if nobody refutes one, check your hand before assuming it is the solution.',
   'Una acusación correcta gana inmediatamente y descubre las tres cartas de la solución. Si fallas, quedas fuera de la investigación y tus siguientes turnos se omiten, pero sigues mostrando pistas cuando corresponde. Si todos fallan, la partida acaba sin ganador y se descubre la solución.':
     'A correct accusation wins immediately and reveals the three solution cards. An incorrect accusation eliminates you from investigating and skips future turns, but you still show clues when needed. If everyone fails, the match ends without a winner and reveals the solution.',
-  'Las pistas que te muestran se guardan en tu vista privada para la reconexión. Las marcas del cuaderno son locales y se pierden al recargar. El reloj de refutación elige una carta propia válida; el de investigación o conclusión termina el turno sin arriesgar una acusación.':
-    'Clues shown to you remain in your private view for reconnection. Notebook marks are local and disappear on reload. Refutation timeout shows a valid card from your hand; investigation or conclusion timeout ends the turn without risking an accusation.',
+  'Las pistas que te muestran se guardan en tu vista privada para la reconexión. Las marcas del cuaderno son locales y se pierden al recargar. Refutar, investigar o concluir son decisiones humanas: agotar el plazo pide confirmar presencia antes de aplicar abandono.':
+    'Clues shown to you remain in your private view for reconnection. Notebook marks are local and disappear on reload. Refutation, investigation and conclusion are human decisions: expiry requests presence before applying forfeit.',
   'Los bots solo conocen sus cartas, las pistas que les mostraron y las hipótesis públicas. Un abandono cierra la investigación sin ganador y muestra la solución, manteniendo todas las manos privadas; así no se inventan pistas de una persona ausente.':
     'Bots only know their own cards, clues shown to them and public hypotheses. A departure closes the investigation without a winner and reveals the solution while all hands stay private, so no clues are invented for an absent player.',
   'Misterio y deducción': 'Mystery and deduction',
@@ -423,8 +465,8 @@ export const en: Record<string, string> = {
     'The order is high card, pair, two pair, three of a kind, straight, flush, full house, four of a kind and straight flush. Compare all kickers; an ace may also complete a five-high straight. Suits never break ties. A royal flush is the highest straight flush.',
   'Los all-in crean botes separados según las aportaciones. Solo puede ganar cada bote quien lo cubrió y no se retiró; las fichas sin igualar se devuelven. Cada bote empatado se divide por igual y las fichas sobrantes se entregan por orden desde la izquierda del botón.':
     'All-ins create separate pots based on contributions. Only players who covered a pot and did not fold may win it; uncalled chips are returned. Tied pots split equally and odd chips go in seat order from the left of the button.',
-  'Tras cada mano puedes revisar el reparto y continuar. Quien se queda sin fichas queda eliminado; gana el último participante activo con fichas. Al abandonar se retira tu mano y tu saldo restante sale del juego. El reloj no se renueva al preparar una cantidad en el navegador; al agotarse pasa si puede y, si no, se retira.':
-    'Review the payout after each hand and continue. Players without chips are eliminated; the last active player with chips wins. Leaving folds your hand and removes your remaining stack from play. Preparing an amount in the browser does not renew the clock; expiry checks if possible and otherwise folds.',
+  'Tras cada mano puedes revisar el reparto y continuar. Quien se queda sin fichas queda eliminado; gana el último participante activo con fichas. Al abandonar se retira tu mano y tu saldo restante sale del juego. El reloj no se renueva al preparar una cantidad en el navegador; al agotarse se pide confirmar presencia antes de aplicar abandono.':
+    'Review the payout after each hand and continue. Players without chips are eliminated; the last active player with chips wins. Leaving folds your hand and removes your remaining stack from play. Preparing an amount in the browser does not renew the clock; expiry requests presence before applying forfeit.',
   'Dos cartas privadas y una mesa que cambia con cada apuesta.':
     'Two private cards and a table that changes with every bet.',
   'Cuenta tus fichas antes de subir y distingue el bote principal de los secundarios.':
@@ -894,8 +936,8 @@ export const en: Record<string, string> = {
     'If you disagree, resume play and resolve the position through captures. Marked stones stay on the board when play resumes, and the turn due after the two passes is restored. Bots accept the current proposal without advanced life-and-death analysis.',
   'Se cuentan las piedras vivas y los puntos vacíos rodeados exclusivamente por un color. Las zonas junto a ambos colores son neutrales, incluido el espacio compartido en seki. Las capturas no añaden puntos extra. Blancas suma 7,5; gana la puntuación mayor.':
     'Count living stones and empty points surrounded only by one colour. Regions bordering both colours are neutral, including shared space in seki. Captures add no extra points. White adds 7.5; the higher score wins.',
-  'Puedes rendirte en cualquier momento. Abandonar concede la victoria al rival. Al agotarse el reloj se pasa durante el juego o se reanuda durante la revisión: nunca se acepta una puntuación humana automáticamente.':
-    'You may resign at any time. Leaving awards the game to the opponent. A timeout passes during play or resumes during scoring; it never automatically accepts a human score proposal.',
+  'Puedes rendirte en cualquier momento. Abandonar concede la victoria al rival. Al agotar una decisión de juego se pide confirmar presencia. En revisión se reanuda sin aceptar una puntuación humana automáticamente.':
+    'You may resign at any time. Leaving awards the game to the opponent. An expired playing decision requests presence. Scoring review resumes play without automatically accepting a human score proposal.',
   'Conserva libertades y une tus grupos antes de rodear más territorio.':
     'Keep liberties and connect your groups before surrounding more territory.',
   'Las negras empiezan. Coloca una piedra en una intersección libre.':
@@ -1049,8 +1091,8 @@ export const en: Record<string, string> = {
     'White moves first. Select a piece to see its legal destinations. Checkmate the opposing king to win.',
   'Se aplican los movimientos completos de las piezas, el enroque, la captura al paso y la promoción a dama, torre, alfil o caballo. No se permite dejar al propio rey en jaque.':
     'All piece moves, castling, en passant and promotion to queen, rook, bishop or knight are supported. You cannot leave your own king in check.',
-  'Puedes ofrecer tablas durante tu turno y aceptar una oferta rival. Puedes rendirte en cualquier momento. El reloj de sala es por turno; al agotarse, el servidor juega una jugada legal.':
-    'You may offer a draw on your turn and accept an opponent’s offer. You may resign at any time. The room timer is per turn; when it expires the server makes a legal move.',
+  'Puedes ofrecer tablas durante tu turno y aceptar una oferta rival. Puedes rendirte en cualquier momento. El reloj de sala es por turno; al agotarse se pide confirmar presencia antes de aplicar abandono.':
+    'You may offer a draw on your turn and accept an opponent’s offer. You may resign at any time. The room timer is per turn; when it expires, presence is requested before applying forfeit.',
   Impostor: 'Impostor',
   'Todos conocen la palabra… salvo el impostor. Da pistas y descubre quién disimula.':
     'Everyone knows the word… except one. Give clues and spot who is bluffing.',
@@ -1150,11 +1192,11 @@ export const en: Record<string, string> = {
     'Jokers stand for any tile and may be reassigned during rearrangement, but must remain in a valid set when confirmed. A joker left on your rack costs 30 points.',
   'Selecciona fichas y usa Crear combinación o Colocar aquí. Puedes desmontar grupos, deshacer y restaurar la mesa. Los cambios son privados hasta Confirmar jugada; el servidor solo acepta la mesa completa y válida.':
     'Select tiles, then use Create set or Move selection here. You may dismantle sets, undo and restore the table. Changes stay private until Confirm move; the server accepts only a complete, valid table.',
-  'Si no juegas, roba una ficha y pasa; no puedes usarla hasta tu siguiente turno. Si se agota el pozo, puedes pasar sin robar. Al agotarse el reloj se restaura la mesa y se roba o pasa automáticamente.':
-    'If you do not play, draw one tile and end your turn; use it from your next turn onwards. With an empty pool, pass without drawing. When time runs out, the draft is discarded and you automatically draw or pass.',
+  'Si no juegas, roba una ficha y pasa; no puedes usarla hasta tu siguiente turno. Si se agota el pozo, puedes pasar sin robar. Al agotarse una decisión humana se pide confirmar presencia; no responder aplica el abandono.':
+    'If you do not play, draw one tile and end your turn; use it from your next turn onwards. With an empty pool, pass without drawing. When a human decision expires, presence is requested; no response counts as leaving.',
   'Gana quien vacía el atril y suma el valor de las fichas rivales, que puntúan en negativo para sus dueños. Si todos pasan con el pozo vacío, gana el atril de menor valor y se puntúan las diferencias. Si empatan los menores, la partida termina en empate.':
     'Empty your rack to score the value of opponents’ remaining tiles, which they score negatively. If all pass with an empty pool, the lowest-value rack wins and scores the differences. Tied lowest racks draw.',
-  'Rummy de fichas': 'Tile Rummy',
+  Rummy: 'Rummy',
   'Forma grupos y escaleras, reorganiza la mesa y coloca todas tus fichas.':
     'Groups, runs and a table you can reinvent. Empty your rack before everyone else.',
   'Abre con 30 puntos y observa la mesa: separar una escalera puede liberar la ficha que necesitas.':
@@ -1388,7 +1430,7 @@ export const en: Record<string, string> = {
   'Prepara uno o más grupos o escaleras con tus fichas. Hasta abrir no puedes usar la mesa.':
     'Prepare one or more groups or runs with your tiles. Open before using the table.',
   'Apertura preparada: {0} / 30 puntos': 'Opening prepared: {0} / 30 points',
-  'Mesa de Rummy de fichas': 'Tile Rummy table',
+  'Mesa de Rummy': 'Rummy table',
   'La mesa': 'The table',
   '{0} combinaciones': '{0} sets',
   'Las primeras combinaciones empiezan aquí.': 'The first sets start here.',
@@ -2423,4 +2465,72 @@ export const en: Record<string, string> = {
   'Ya tienes una sala. Vuelve a conectarte a ella o espera a que caduque tu reserva.':
     'You already have a room. Reconnect to it or wait for your reservation to expire.',
   'Cambio de sentido': 'Reverse',
+  'Volver al grupo': 'Return to group',
+  'Gestionar participantes': 'Manage participants',
+  'Durante la partida solo puedes retirar personas desconectadas. El motor resolverá su abandono.':
+    'During a game you can only remove disconnected people. The game will resolve their departure.',
+  'Retirar a {0}': 'Remove {0}',
+  '¿Retirar a este participante?': 'Remove this participant?',
+  'Retirarás a {0} del grupo y se eliminará su reserva de reconexión.':
+    'You will remove {0} from the group and cancel their reserved seat.',
+  'El juego aplicará su política de abandono y continuará cuando sus reglas lo permitan.':
+    'The game will apply its departure policy and continue when its rules allow.',
+  'No se pudo retirar. Comprueba la conexión y el estado del participante.':
+    'Could not remove the participant. Check the connection and their status.',
+  'Retirar del grupo': 'Remove from group',
+  'Salir del grupo': 'Leave group',
+  'Unirme a amigos': 'Join friends',
+  'Juego del grupo': 'Group game',
+  'Elegir juego para el grupo': 'Choose a game for the group',
+  'Juego elegido por el anfitrión': 'Game chosen by the host',
+  'Ahora jugamos a {0}. El código y el grupo se conservan.':
+    'Now playing {0}. The code and group stay together.',
+  'Este juego admite de {0} a {1} participantes. El grupo se conserva; ajusta las plazas antes de empezar.':
+    'This game supports {0} to {1} participants. Your group stays together; adjust the seats before starting.',
+  'Este juego requiere personas. Retira los bots antes de empezar.':
+    'This game requires people. Remove the bots before starting.',
+  'Necesitas al menos {0} participantes para este juego.':
+    'You need at least {0} participants for this game.',
+  'El anfitrión te ha retirado de la sala.': 'The host has removed you from the room.',
+  'No puedes retirar a ese participante.': 'You cannot remove this participant.',
+  'Solo puedes retirar participantes desconectados durante la partida.':
+    'You can only remove disconnected participants during a game.',
+  'Termina la partida antes de cambiar de juego.': 'Finish the game before changing games.',
+  'Juego no válido.': 'Invalid game.',
+  'La partida ha cambiado. Usa los controles actuales de la sala.':
+    'The game has changed. Use the current room controls.',
+  'Cancelar selección': 'Cancel selection',
+  'Voltea {0} fichas': 'Flip {0} discs',
+  'Trazos: {0}/120. Levanta el puntero para compartir.':
+    'Strokes: {0}/120. Lift the pointer to share.',
+  'Mesa de Mahjong': 'Mahjong table',
+  'Territorios y control': 'Territories and control',
+  'Bot jugando': 'Bot playing',
+  'Acciones de partida': 'Game actions',
+  'Dibujo y respuestas': 'Drawing and guesses',
+  Dibujando: 'Drawing',
+  'Ya ha acertado': 'Already guessed',
+  'Puede responder': 'Can guess',
+  Reclamaciones: 'Claims',
+  Copiado: 'Copied',
+  'Propiedades y tratos': 'Properties and trades',
+  '¿Sigues en la partida?': 'Are you still playing?',
+  'Sí, sigo jugando': 'Yes, I am still playing',
+  'Tu decisión está pendiente. Confirma para disponer de 30 segundos más; después deberás jugar para continuar.':
+    'Your decision is pending. Confirm to get 30 more seconds; then you must play to continue.',
+  '{0} plazas libres': '{0} free seats',
+  'Cuando tu decisión bloquee la partida, tendrás 15 segundos para confirmar tu presencia y una única prórroga de 30 segundos. Los plazos propios de las reglas se mantienen.':
+    'When your decision holds up the game, you have 15 seconds to confirm your presence and one 30-second extension. Rule deadlines still apply.',
+  'Espera a que las personas desconectadas vuelvan o retíralas del grupo.':
+    'Wait for disconnected players to return or remove them from the group.',
+  'Confirmación no válida.': 'Invalid confirmation.',
+  'La confirmación ya no está vigente.': 'This confirmation has expired.',
+  'Has salido de la partida por inactividad.': 'You have left the game due to inactivity.',
+  '{0} ha salido por inactividad.': '{0} has left due to inactivity.',
+  'Recuento pendiente': 'Count pending',
+  'Recuento presencial': 'In-person count',
+  'Preparación de flotas': 'Fleet preparation',
+  'Flota confirmada': 'Fleet confirmed',
+  'Preparando flota': 'Preparing fleet',
+  'Sin intentos restantes': 'No attempts remaining',
 };

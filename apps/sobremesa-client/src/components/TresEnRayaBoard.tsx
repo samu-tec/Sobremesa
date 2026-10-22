@@ -1,7 +1,7 @@
 import { useBoardMotion } from '../hooks/useBoardMotion';
-import { getGame, t } from '../i18n';
+import { t } from '../i18n';
 import type { TresEnRayaState, TresEnRayaAction } from 'sobremesa-logic';
-import { GameTip, PlayersPanel, type BoardProps } from '../ui/GameLayout';
+import { PlayersPanel, moveBoardFocus, type BoardProps } from '../ui/GameLayout';
 import { Circle, X } from 'lucide-react';
 export function TresEnRayaBoard({
   room,
@@ -10,7 +10,6 @@ export function TresEnRayaBoard({
   onAction,
   busy,
 }: BoardProps<TresEnRayaState, TresEnRayaAction>) {
-  const game = getGame(room.gameType);
   const turn = s.currentTurn;
   const canPlay = turn === myPlayerId && !s.winner && !s.isDraw && !busy;
   const motionRef = useBoardMotion(JSON.stringify(s.board));
@@ -20,7 +19,12 @@ export function TresEnRayaBoard({
       <section className={`panel play-area play-${room.gameType}`}>
         <>
           <p className="board-instruction">{t('Tres símbolos. Una línea. Tu próxima jugada.')}</p>
-          <div className="ttt-board" role="group" aria-label={t('Tablero de Tres en Raya')}>
+          <div
+            className="ttt-board"
+            onKeyDown={(event) => moveBoardFocus(event, 3)}
+            role="group"
+            aria-label={t('Tablero de Tres en Raya')}
+          >
             {s.board.map((cell, index) => (
               <button
                 key={index}
@@ -56,11 +60,6 @@ export function TresEnRayaBoard({
       </section>
       <aside className="table-sidebar">
         <PlayersPanel room={room} myPlayerId={myPlayerId} currentTurn={turn} values={values} />
-        <GameTip text={game.tip} />
-        <div className="game-mini-rules">
-          <span className="eyebrow">{t('EL OBJETIVO')}</span>
-          <p>{t('Completa una fila, columna o diagonal.')}</p>
-        </div>
       </aside>
     </div>
   );

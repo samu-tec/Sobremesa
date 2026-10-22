@@ -31,7 +31,14 @@ export interface PlayerHand {
   cards: Card[];
 }
 
+export type CambioDeColorEvent =
+  'start' | 'card' | 'draw' | 'reverse' | 'skip' | 'stack' | 'pass' | 'leave' | 'win';
+
 export interface CambioDeColorState {
+  stackDrawCards: boolean;
+  pendingDraw: number;
+  actionNumber: number;
+  lastEvent: CambioDeColorEvent;
   drawnCardId?: string | null;
   players: PlayerHand[];
   drawPile: Card[];
@@ -64,6 +71,11 @@ export interface OpponentPublicInfo {
 }
 
 export interface CambioDeColorPublicState {
+  playerOrder: string[];
+  stackDrawCards: boolean;
+  pendingDraw: number;
+  actionNumber: number;
+  lastEvent: CambioDeColorEvent;
   drawnCardId?: string | null;
   myHand: Card[];
   opponents: OpponentPublicInfo[];

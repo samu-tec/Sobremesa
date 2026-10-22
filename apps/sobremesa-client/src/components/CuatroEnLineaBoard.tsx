@@ -1,7 +1,7 @@
 import { useBoardMotion } from '../hooks/useBoardMotion';
-import { getGame, t } from '../i18n';
+import { t } from '../i18n';
 import type { CuatroEnLineaState, CuatroEnLineaAction } from 'sobremesa-logic';
-import { GameTip, PlayersPanel, type BoardProps } from '../ui/GameLayout';
+import { PlayersPanel, moveBoardFocus, type BoardProps } from '../ui/GameLayout';
 import { ArrowDown } from 'lucide-react';
 export function CuatroEnLineaBoard({
   room,
@@ -10,7 +10,6 @@ export function CuatroEnLineaBoard({
   onAction,
   busy,
 }: BoardProps<CuatroEnLineaState, CuatroEnLineaAction>) {
-  const game = getGame(room.gameType);
   const turn = s.currentTurnPlayerId;
   const canPlay = turn === myPlayerId && !s.winner && !s.isDraw && !busy;
   const last = s.lastMove;
@@ -26,7 +25,11 @@ export function CuatroEnLineaBoard({
         <>
           <p className="board-instruction">{t('Una ficha puede cambiarlo todo.')}</p>
           <div className="connect-board-wrap">
-            <div className="column-controls">
+            <div
+              className="column-controls"
+              role="group"
+              onKeyDown={(event) => moveBoardFocus(event, 7)}
+            >
               {Array.from({ length: 7 }, (_, column) => (
                 <button
                   key={column}
@@ -69,11 +72,6 @@ export function CuatroEnLineaBoard({
       </section>
       <aside className="table-sidebar">
         <PlayersPanel room={room} myPlayerId={myPlayerId} currentTurn={turn} values={values} />
-        <GameTip text={game.tip} />
-        <div className="game-mini-rules">
-          <span className="eyebrow">{t('EL OBJETIVO')}</span>
-          <p>{t('Conecta cuatro fichas antes que tu rival.')}</p>
-        </div>
       </aside>
     </div>
   );

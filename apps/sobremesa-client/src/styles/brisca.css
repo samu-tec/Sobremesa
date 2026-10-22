@@ -104,3 +104,13 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+@media (min-width: 1100px) {
+  .extended-brisca > .brisca-table {
+    margin-top: 0;
+  }
+  .extended-brisca .brisca-hand-title,
+  .extended-brisca .brisca-teams {
+    margin: 0;
+  }
+}

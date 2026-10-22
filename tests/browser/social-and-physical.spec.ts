@@ -20,7 +20,7 @@ async function group(browser: Browser, page: Page, game: string) {
   await page.locator(`.game-${game} .play-friends`).click();
   const code = (await page.locator('.room-code-text').innerText()).trim();
   for (const guest of pages.slice(1)) {
-    await guest.getByRole('button', { name: 'Tengo un código', exact: true }).click();
+    await guest.getByRole('button', { name: 'Unirme a amigos', exact: true }).click();
     await guest.getByRole('textbox', { name: 'Código de la sala', exact: true }).fill(code);
     await guest.getByRole('button', { name: 'Unirme a la partida', exact: true }).click();
   }
@@ -135,6 +135,7 @@ test('Impostor presencial: tres móviles, papeles privados, pistas habladas y mo
 }) => {
   const { contexts, pages, names } = await group(browser, page, 'impostor');
   try {
+    await page.locator('#room-settings > summary').click();
     await page
       .getByRole('combobox', { name: 'Modalidad de Impostor', exact: true })
       .selectOption('1');

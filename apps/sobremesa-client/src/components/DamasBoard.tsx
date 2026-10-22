@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { t } from '../i18n';
-import { BoardFrame, type BoardProps } from '../ui/GameLayout';
+import { BoardFrame, moveBoardFocus, type BoardProps } from '../ui/GameLayout';
 import { useBoardMotion } from '../hooks/useBoardMotion';
 import type { DamasPublicState, DamasAction } from 'sobremesa-logic';
 export function DamasBoard({
@@ -21,6 +21,8 @@ export function DamasBoard({
   const captures = s.legalMoves.some((m) => Math.abs((m.to % 8) - (m.from % 8)) === 2);
   return (
     <BoardFrame
+      selectionActive={selected !== null && s.forcedFrom === null}
+      onCancelSelection={() => setSelected(null)}
       motionRef={motionRef}
       room={room}
       myPlayerId={myPlayerId}
@@ -39,7 +41,12 @@ export function DamasBoard({
             ? t('Hay una captura obligatoria.')
             : t('Selecciona una ficha y una casilla marcada.')}
       </p>
-      <div className="square-board checkers-board" role="group" aria-label={t('Tablero de Damas')}>
+      <div
+        className="square-board checkers-board"
+        onKeyDown={(event) => moveBoardFocus(event, 8)}
+        role="group"
+        aria-label={t('Tablero de Damas')}
+      >
         {order.map((i) => {
           const p = s.board[i],
             legal = s.legalMoves.some((m) => m.from === selected && m.to === i),
@@ -61,7 +68,9 @@ export function DamasBoard({
               })}
               aria-pressed={selected === i}
               onClick={() =>
-                legal ? onAction({ type: 'MOVE', from: selected!, to: i }) : setSelected(i)
+                legal
+                  ? onAction({ type: 'MOVE', from: selected!, to: i })
+                  : setSelected(selected === i && s.forcedFrom === null ? null : i)
               }
             >
               {p ? (

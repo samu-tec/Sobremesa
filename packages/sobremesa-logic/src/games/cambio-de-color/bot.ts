@@ -63,7 +63,13 @@ export function shuffleDeck(cards: Card[]): Card[] {
 /**
  * Validates whether a specific card can be played against the active color and top discard card.
  */
-export function isCardPlayable(card: Card, activeColor: PlayableColor, topDiscard: Card): boolean {
+export function isCardPlayable(
+  card: Card,
+  activeColor: PlayableColor,
+  topDiscard: Card,
+  pendingDraw = 0,
+): boolean {
+  if (pendingDraw > 0) return card.value === 'draw2' || card.value === 'wild_draw4';
   if (card.color === 'wild') {
     return true;
   }
@@ -118,7 +124,7 @@ export function getBotCambioDeColorAction(
   const topDiscard = state.discardPile[state.discardPile.length - 1];
   const playableCards = botHand.cards.filter(
     (c) =>
-      isCardPlayable(c, state.activeColor, topDiscard) &&
+      isCardPlayable(c, state.activeColor, topDiscard, state.pendingDraw) &&
       (!state.hasDrawnThisTurn || state.drawnCardId === c.id),
   );
 
@@ -166,4 +172,18 @@ export function getBotCambioDeColorAction(
     type: 'PLAY_CARD',
     cardId: selectedCard.id,
   };
+}
+
+/** Seat order comes from the engine, independently of the room and recipient. */
+export function nextColorPlayer(
+  playerOrder: readonly string[],
+  current: string,
+  direction: 1 | -1,
+  steps = 1,
+): string {
+  const index = playerOrder.indexOf(current);
+  if (index < 0 || !playerOrder.length) return playerOrder[0] || '';
+  return playerOrder[
+    (((index + steps * direction) % playerOrder.length) + playerOrder.length) % playerOrder.length
+  ];
 }

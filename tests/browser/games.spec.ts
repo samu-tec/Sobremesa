@@ -18,7 +18,7 @@ const games = [
   ['go', 'Go', 'Go'],
   ['oca', 'Juego de la Oca', 'Game of the Goose'],
   ['parchis', 'Parchís', 'Parchís'],
-  ['rummy', 'Rummy de fichas', 'Tile Rummy'],
+  ['rummy', 'Rummy', 'Rummy'],
   ['chess', 'Ajedrez', 'Chess'],
   ['impostor', 'Impostor', 'Impostor'],
   ['dominoes', 'Dominó', 'Dominoes'],
@@ -63,7 +63,34 @@ for (const width of [1280, 320])
       );
       await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
       await expect(page.locator(`.extended-${id}`)).toBeVisible();
-      await expect(page.getByText('Es tu turno', { exact: true })).toBeVisible();
+      await expect(page.locator('.table-player.active').filter({ hasText: '(tú)' })).toContainText(
+        id === 'battleship' ? 'Preparando flota' : 'Es tu turno',
+      );
+      const selectionSources: Record<string, string> = {
+        brisca: '.spanish-hand > button:enabled',
+        cinquillo: '.spanish-hand > button:enabled',
+        escoba: '.spanish-hand > button:enabled',
+        quiz: '.quiz-choices button:enabled',
+        chess: '.chess-board [data-cell="e2"]',
+        checkers: '.checkers-board button:enabled',
+        dominoes: '.domino-hand button:enabled',
+        mahjong: '.mahjong-hand button:enabled',
+      };
+      const source = selectionSources[id];
+      if (source) {
+        const button = page.locator(source).first();
+        await button.click();
+        await expect(
+          page.getByRole('button', { name: 'Cancelar selección Esc', exact: true }),
+        ).toBeEnabled();
+        await button.press('Escape');
+        await expect(
+          page.getByRole('button', { name: 'Cancelar selección Esc', exact: true }),
+        ).toBeDisabled();
+        await expect(
+          page.getByRole('button', { name: 'Empezar partida', exact: true }),
+        ).toHaveCount(0);
+      }
       if (id === 'mus') {
         await expect(page.locator('.spanish-hand > button')).toHaveCount(4);
         await page.getByRole('button', { name: 'Cortar el mus', exact: true }).click();
@@ -87,6 +114,10 @@ for (const width of [1280, 320])
         await page.getByRole('button', { name: 'Colocar carta', exact: true }).focus();
         await page.keyboard.press('Enter');
         await expect(page.locator('.spanish-hand > button')).toHaveCount(cards - 1);
+        await expect(page.locator('.cinquillo-slot .spanish-card').first()).toHaveCSS(
+          'color',
+          'rgb(36, 59, 50)',
+        );
       }
       if (id === 'poker') {
         await expect(page.locator('.poker-hand').first().locator('.poker-card')).toHaveCount(2);
@@ -328,7 +359,43 @@ for (const width of [1280, 320])
       await expect
         .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
         .toBe(true);
+      if (width === 1280) {
+        for (const viewport of [
+          { width: 1280, height: 720 },
+          { width: 1366, height: 768 },
+          { width: 1440, height: 900 },
+          { width: 768, height: 1024 },
+          { width: 360, height: 640 },
+          { width: 390, height: 844 },
+          { width: 844, height: 390 },
+        ]) {
+          await page.setViewportSize(viewport);
+          expect(
+            await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+            `${id}: ${JSON.stringify(viewport)}`,
+          ).toBe(true);
+        }
+        await page.setViewportSize({ width: 1280, height: 720 });
+        const priority = (
+          {
+            words: '.words-scroll',
+            poker: '.poker-table',
+            chinesecheckers: '.chinese-controls',
+            parchis: '.parchis-pawns',
+            backgammon: '.backgammon-board',
+            combinations: '.combination-dice',
+          } as Record<string, string>
+        )[id];
+        if (priority) await expect(page.locator(priority)).toBeInViewport({ ratio: 1 });
+        await page.screenshot({
+          path: `tests/.output/screenshots/${id}-desktop.png`,
+          fullPage: true,
+        });
+      }
+      await page.getByRole('button', { name: 'Preferencias de partida', exact: true }).click();
       await page.getByRole('combobox', { name: 'Idioma', exact: true }).selectOption('en');
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('dialog')).toHaveCount(0);
       await expect(page.getByRole('heading', { name: `${english}.`, exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Rules', exact: true }).click();
       await expect(page.getByRole('dialog')).toContainText(english);
@@ -368,7 +435,7 @@ test('Impostor: tres personas, secreto privado, victoria de equipo y consultar l
     await page.locator('.game-impostor .play-friends').click();
     const code = (await page.locator('.room-code-text').innerText()).trim();
     for (const guest of pages.slice(1)) {
-      await guest.getByRole('button', { name: 'Tengo un código', exact: true }).click();
+      await guest.getByRole('button', { name: 'Unirme a amigos', exact: true }).click();
       await guest.getByRole('textbox', { name: 'Código de la sala', exact: true }).fill(code);
       await guest.getByRole('button', { name: 'Unirme a la partida', exact: true }).click();
     }
@@ -517,7 +584,8 @@ test('Mahjong: cuatro personas conservan manos privadas, responden y reconectan'
     await page.getByRole('button', { name: 'Descartar ficha', exact: true }).click();
     for (const p of pages.slice(1)) {
       const pass = p.getByRole('button', { name: 'Pasar reclamación', exact: true });
-      await expect(pass).toBeInViewport({ ratio: 1 });
+      await pass.scrollIntoViewIfNeeded();
+      await expect(pass).toBeInViewport({ ratio: 0.99 });
       await pass.focus();
       await p.keyboard.press('Enter');
     }

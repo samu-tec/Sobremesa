@@ -163,6 +163,9 @@ export function MahjongBoard({
   );
   return (
     <BoardFrame
+      actions={actions}
+      selectionActive={selected !== null}
+      onCancelSelection={() => setSelection({ revision: s.revision, tile: null })}
       room={room}
       myPlayerId={myPlayerId}
       turn={s.currentTurnPlayerId}
@@ -198,7 +201,7 @@ export function MahjongBoard({
           </div>
         </div>
       )}
-      {s.phase !== 'discard' && actions}
+
       <section className="mahjong-own" aria-label={t('Tu mano de Mahjong')}>
         <h2>{t('Tu mano')}</h2>
         <p>
@@ -215,7 +218,9 @@ export function MahjongBoard({
                 disabled={!can || s.phase !== 'discard'}
                 aria-pressed={selected === tile}
                 aria-label={t('{0}, copia {1}', { '0': tileName(tile), '1': (tile % 4) + 1 })}
-                onClick={() => setSelection({ revision: s.revision, tile })}
+                onClick={() =>
+                  setSelection({ revision: s.revision, tile: selected === tile ? null : tile })
+                }
               >
                 <TileFace tile={tile} motion />
               </button>
@@ -230,8 +235,8 @@ export function MahjongBoard({
           <p role="status">{t('Ficha seleccionada: {0}', { '0': tileName(selected) })}</p>
         )}
       </section>
-      {s.phase === 'discard' && actions}
-      <div className="mahjong-table">
+
+      <div className="mahjong-table" role="group" tabIndex={0} aria-label={t('Mesa de Mahjong')}>
         <div className="mahjong-wall">
           <span aria-hidden="true">東</span>
           <div>

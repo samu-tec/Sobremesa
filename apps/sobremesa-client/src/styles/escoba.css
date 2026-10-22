@@ -79,3 +79,9 @@
     border-width: 5px;
   }
 }
+
+@media (min-width: 1100px) {
+  .extended-escoba > .escoba-table {
+    margin-top: 0;
+  }
+}

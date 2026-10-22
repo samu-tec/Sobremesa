@@ -26,6 +26,7 @@ const copy = {
       heading: 'Qué guarda el servidor y durante cuánto tiempo',
       paragraphs: [
         'La aplicación no tiene cuentas, base de datos de perfiles ni historial de partidas. El estado de las salas y los datos de juego se mantienen en la memoria RAM mientras hacen falta; la aplicación no los escribe en sus propios archivos. Reiniciar el servidor borra ese estado temporal.',
+        'La confirmación de presencia solo guarda temporalmente en RAM quién tiene una decisión pendiente, un identificador de confirmación y su plazo. No registra foco, pestañas, hábitos ni un historial de actividad. Caduca al responder o cambiar de turno, abandonar o cerrar la sala. Si no respondes en 15 segundos, se aplica el abandono; confirmar concede una única prórroga de 30 segundos para jugar. Los plazos propios de las reglas y la reserva de reconexión se mantienen.',
         'Una sala se elimina cuando se va la última persona o tras seis horas sin actividad humana. Si se corta tu conexión, reservamos tu sitio durante cinco minutos por defecto; quien administra el servidor puede cambiar ese plazo.',
         'Para limitar conexiones, la IP se mantiene mientras la conexión está activa y hasta que vence su ventana de control. Los contadores de creación de salas caducan al terminar su ventana —un minuto por defecto— y se purgan en un barrido periódico, como máximo en el siguiente barrido de un minuto. La web funciona en un servidor propio, expuesto mediante Cloudflare Tunnel. Sobremesa no genera registros de acceso. Cloudflare puede tratar datos técnicos conforme a la configuración del servicio y sus condiciones.',
       ],
@@ -33,7 +34,7 @@ const copy = {
     {
       heading: 'Qué queda en tu navegador',
       paragraphs: [
-        'El apodo, la confirmación del perfil, el idioma y los favoritos se guardan en el navegador hasta que los borres. Para que puedas volver a una partida, sessionStorage conserva en esa pestaña un secreto de sesión, su identificador y el código de sala. El secreto se envía al servidor para reconocer la sesión, pero no se muestra a los demás jugadores.',
+        'El apodo, la confirmación del perfil, el idioma, los favoritos y tus preferencias de sonido (activación y volumen) se guardan en el navegador hasta que los borres. Para que puedas volver a una partida, sessionStorage conserva en esa pestaña un secreto de sesión, su identificador y el código de sala. El secreto se envía al servidor para reconocer la sesión, pero no se muestra a los demás jugadores.',
         'Algunos navegadores copian datos de sesión al duplicar una pestaña. Sobremesa comprueba entre pestañas del mismo navegador si comparten sesión y te avisa antes de sustituir una conexión. Esa comprobación intercambia temporalmente una huella derivada del secreto entre pestañas; no se guarda ni se envía al servidor. Si abres una invitación distinta y no hay otra pestaña activa, se inicia una sesión nueva para que puedas entrar con ese enlace.',
         'El botón de esta página borra el apodo y las preferencias guardadas en este navegador. Si borras los datos de sesión mientras juegas, no podremos recuperar ese sitio.',
       ],
@@ -90,6 +91,7 @@ const copy = {
       heading: 'Server storage and retention',
       paragraphs: [
         'The app has no accounts, profile database or game history. Room state and game data stay in RAM while they are needed; the app does not write them to its own files. Restarting the server clears this temporary state.',
+        'Presence confirmation temporarily keeps only the pending player, a confirmation identifier and its deadline in RAM. It does not track focus, tabs, habits or activity history. It expires on response, turn change, departure or room closure. No response within 15 seconds counts as leaving; confirmation grants one 30-second extension to play. Rule deadlines and reconnection reservations remain separate.',
         'A room is deleted when the last person leaves or after six hours without human activity. If your connection drops, your seat is held for five minutes by default; the server administrator can change that period.',
         'For connection limits, an IP entry remains while the connection is active and until its control window expires. Room-creation counters expire at the end of their window — one minute by default — and are cleared in a periodic sweep, no later than the next one-minute sweep. The website runs on a self-hosted server exposed through Cloudflare Tunnel. Sobremesa does not generate access logs. Cloudflare may process technical data according to service settings and terms.',
       ],
@@ -97,7 +99,7 @@ const copy = {
     {
       heading: 'What stays in your browser',
       paragraphs: [
-        'Your nickname, profile confirmation, language and favourites stay in your browser until you delete them. To let you return to a game, sessionStorage keeps a session secret, its identifier and the room code in that tab. The secret is sent to the server to recognise your session, but is never shown to other players.',
+        'Your nickname, profile confirmation, language, favourites and sound preferences (enabled state and volume) stay in your browser until you delete them. To let you return to a game, sessionStorage keeps a session secret, its identifier and the room code in that tab. The secret is sent to the server to recognise your session, but is never shown to other players.',
         'Some browsers copy session data when you duplicate a tab. Sobremesa checks whether tabs in the same browser share a session and warns you before replacing a connection. That check briefly exchanges a fingerprint derived from the secret between tabs; it is not saved or sent to the server. If you open a different invitation and no other active tab is found, a new guest session starts so you can use that link.',
         'The button on this page clears your nickname and saved preferences from this browser. If you clear session data while playing, we cannot restore your seat.',
       ],
@@ -133,7 +135,7 @@ const copy = {
 export function Privacy() {
   const { locale } = useLocale();
   const clear = () => {
-    for (const key of ['name', 'profileConfirmed', 'locale', 'favorites']) {
+    for (const key of ['name', 'profileConfirmed', 'locale', 'favorites', 'sound']) {
       try {
         localStorage.removeItem(`sobremesa.${key}`);
       } catch {

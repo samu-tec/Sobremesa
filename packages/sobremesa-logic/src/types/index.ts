@@ -79,6 +79,7 @@ export type RoomStatus = 'waiting' | 'in_game' | 'finished';
 /** Validated scalar options; economic and card options retain their specific types. */
 export type RoomRules = Partial<CiudadFortunaCustomRules> & {
   startingCards?: number;
+  stackDrawCards?: boolean;
   [key: string]: number | boolean | null | undefined;
 };
 
@@ -91,6 +92,7 @@ export interface Player {
 }
 
 export interface RoomInfo {
+  matchId: string;
   code: string;
   gameType: GameType;
   hostId: string;
@@ -101,6 +103,7 @@ export interface RoomInfo {
   customRules?: RoomRules;
   turnSeconds: number;
   turnDeadline: number | null;
+  presence?: { playerId: string; challengeId: string; deadline: number };
   serverNow: number;
   reconnectGraceMs: number;
 }

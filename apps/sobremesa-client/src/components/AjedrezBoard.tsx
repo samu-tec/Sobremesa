@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { t } from '../i18n';
-import { BoardFrame, type BoardProps } from '../ui/GameLayout';
+import { BoardFrame, moveBoardFocus, type BoardProps } from '../ui/GameLayout';
 import { Modal } from '../ui/Modal';
 import { useBoardMotion } from '../hooks/useBoardMotion';
 import type { AjedrezPublicState, AjedrezAction } from 'sobremesa-logic';
@@ -52,11 +52,62 @@ export function AjedrezBoard({
       else onAction({ type: 'MOVE', from: selected!, to: square });
     } else {
       const p = s.board.find((p) => p?.square === square);
-      setSelected(p && p.color === (side === 0 ? 'w' : 'b') ? square : null);
+      setSelected(square !== selected && p && p.color === (side === 0 ? 'w' : 'b') ? square : null);
     }
   };
+  const actions = (
+    <>
+      <div className="board-actions">
+        {s.canClaimDraw && (
+          <button
+            className="button primary"
+            disabled={!can}
+            onClick={() => onAction({ type: 'CLAIM_DRAW' })}
+          >
+            {t('Reclamar tablas')}
+          </button>
+        )}
+        <button
+          className="button secondary"
+          disabled={!can || !!s.drawOffer}
+          onClick={() => onAction({ type: 'OFFER_DRAW' })}
+        >
+          {t('Ofrecer tablas')}
+        </button>
+        <button
+          className="button secondary"
+          disabled={busy || !!s.winner || s.isDraw}
+          onClick={() => setResign(true)}
+        >
+          {t('Rendirse')}
+        </button>
+      </div>
+      {resign && (
+        <Modal title={t('¿Quieres rendirte?')} onClose={() => setResign(false)}>
+          <p>{t('Tu rival ganará esta partida.')}</p>
+          <div className="board-actions">
+            <button className="button secondary" onClick={() => setResign(false)}>
+              {t('Seguir jugando')}
+            </button>
+            <button
+              className="button danger"
+              disabled={busy}
+              onClick={() => {
+                setResign(false);
+                onAction({ type: 'RESIGN' });
+              }}
+            >
+              {t('Rendirse')}
+            </button>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
   return (
     <BoardFrame
+      selectionActive={selected !== null}
+      onCancelSelection={() => setSelected(null)}
       motionRef={motionRef}
       room={room}
       myPlayerId={myPlayerId}
@@ -64,6 +115,7 @@ export function AjedrezBoard({
       values={Object.fromEntries(
         s.players.map((p, i) => [p.id, i === 0 ? t('Blancas') : t('Negras')]),
       )}
+      actions={actions}
     >
       <div className="board-topline">
         <span className="eyebrow">
@@ -73,7 +125,12 @@ export function AjedrezBoard({
           {s.inCheck ? t('¡Jaque!') : t('Selecciona una pieza y su destino.')}
         </span>
       </div>
-      <div className="square-board chess-board" role="group" aria-label={t('Tablero de Ajedrez')}>
+      <div
+        className="square-board chess-board"
+        onKeyDown={(event) => moveBoardFocus(event, 8)}
+        role="group"
+        aria-label={t('Tablero de Ajedrez')}
+      >
         {squares.map((p, index) => {
           const original = side === 1 ? 63 - index : index,
             square = `${'abcdefgh'[original % 8]}${8 - Math.floor(original / 8)}`,
@@ -112,31 +169,7 @@ export function AjedrezBoard({
           </button>
         </div>
       )}
-      <div className="board-actions">
-        {s.canClaimDraw && (
-          <button
-            className="button primary"
-            disabled={!can}
-            onClick={() => onAction({ type: 'CLAIM_DRAW' })}
-          >
-            {t('Reclamar tablas')}
-          </button>
-        )}
-        <button
-          className="button secondary"
-          disabled={!can || !!s.drawOffer}
-          onClick={() => onAction({ type: 'OFFER_DRAW' })}
-        >
-          {t('Ofrecer tablas')}
-        </button>
-        <button
-          className="button secondary"
-          disabled={busy || !!s.winner || s.isDraw}
-          onClick={() => setResign(true)}
-        >
-          {t('Rendirse')}
-        </button>
-      </div>
+
       <details className="move-history">
         <summary>
           {t('Historial de jugadas')} · {s.history.length}
@@ -161,26 +194,6 @@ export function AjedrezBoard({
                 {pieceName(p)}
               </button>
             ))}
-          </div>
-        </Modal>
-      )}
-      {resign && (
-        <Modal title={t('¿Quieres rendirte?')} onClose={() => setResign(false)}>
-          <p>{t('Tu rival ganará esta partida.')}</p>
-          <div className="board-actions">
-            <button className="button secondary" onClick={() => setResign(false)}>
-              {t('Seguir jugando')}
-            </button>
-            <button
-              className="button danger"
-              disabled={busy}
-              onClick={() => {
-                setResign(false);
-                onAction({ type: 'RESIGN' });
-              }}
-            >
-              {t('Rendirse')}
-            </button>
           </div>
         </Modal>
       )}

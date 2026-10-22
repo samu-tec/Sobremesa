@@ -7,7 +7,7 @@ import {
   type WordsPublicState,
 } from 'sobremesa-logic';
 import { t, gameText } from '../i18n';
-import { BoardFrame, type BoardProps } from '../ui/GameLayout';
+import { BoardFrame, moveBoardFocus, type BoardProps } from '../ui/GameLayout';
 import { useBoardMotion } from '../hooks/useBoardMotion';
 import '../styles/words.css';
 export function WordsBoard({
@@ -53,68 +53,8 @@ export function WordsBoard({
         exchange: [],
       });
     };
-  return (
-    <BoardFrame
-      room={room}
-      myPlayerId={myPlayerId}
-      turn={s.currentTurnPlayerId}
-      motionRef={motionRef}
-      values={Object.fromEntries(
-        s.players.map((p) => [
-          p.id,
-          t('{0} puntos · {1} letras', { '0': p.score, '1': p.handCount }),
-        ]),
-      )}
-    >
-      <p className="board-instruction" role="status">
-        {gameText(s.message)}
-      </p>
-      <p>
-        {t('Diccionario: {0} · bolsa: {1}', {
-          '0': s.language === 'es' ? t('Español') : t('Inglés'),
-          '1': s.bagCount,
-        })}
-      </p>
-      <h2>{t('Tu atril privado')}</h2>
-      <div className="words-rack">
-        {s.hand.map((letter, i) => {
-          const placed = active.tiles.some((p) => p.rackIndex === i);
-          return (
-            <div key={i}>
-              <button
-                disabled={!can || placed}
-                aria-pressed={active.selected === i}
-                aria-label={t('Letra {0}, valor {1}', { '0': letter, '1': letterPoints(letter) })}
-                onClick={() => setDraft({ ...active, selected: active.selected === i ? null : i })}
-              >
-                {letter}
-                <small>{letterPoints(letter)}</small>
-              </button>
-              <label>
-                <input
-                  type="checkbox"
-                  disabled={!can || placed || s.bagCount < 7}
-                  checked={active.exchange.includes(i)}
-                  onChange={() =>
-                    setDraft({
-                      ...active,
-                      exchange: active.exchange.includes(i)
-                        ? active.exchange.filter((n) => n !== i)
-                        : [...active.exchange, i],
-                    })
-                  }
-                />
-                <span className="sr-only">
-                  {t('Cambiar letra {0} del puesto {1}', { '0': letter, '1': i + 1 })}
-                </span>
-              </label>
-            </div>
-          );
-        })}
-      </div>
-      <p className="board-caption">
-        {t('Elige una letra y su casilla. Para retirarla del borrador, pulsa la casilla otra vez.')}
-      </p>
+  const actions = (
+    <>
       <form
         className="words-coordinates"
         onSubmit={(e) => {
@@ -193,13 +133,80 @@ export function WordsBoard({
           {t('Pasar')}
         </button>
       </div>
+    </>
+  );
+  return (
+    <BoardFrame
+      actions={actions}
+      selectionActive={active.selected !== null || active.exchange.length > 0}
+      onCancelSelection={() => setDraft({ ...active, selected: null, exchange: [] })}
+      room={room}
+      myPlayerId={myPlayerId}
+      turn={s.currentTurnPlayerId}
+      motionRef={motionRef}
+      values={Object.fromEntries(
+        s.players.map((p) => [
+          p.id,
+          t('{0} puntos · {1} letras', { '0': p.score, '1': p.handCount }),
+        ]),
+      )}
+    >
+      <p className="board-instruction" role="status">
+        {gameText(s.message)}
+      </p>
+      <p>
+        {t('Diccionario: {0} · bolsa: {1}', {
+          '0': s.language === 'es' ? t('Español') : t('Inglés'),
+          '1': s.bagCount,
+        })}
+      </p>
+      <h2>{t('Tu atril privado')}</h2>
+      <div className="words-rack">
+        {s.hand.map((letter, i) => {
+          const placed = active.tiles.some((p) => p.rackIndex === i);
+          return (
+            <div key={i}>
+              <button
+                disabled={!can || placed}
+                aria-pressed={active.selected === i}
+                aria-label={t('Letra {0}, valor {1}', { '0': letter, '1': letterPoints(letter) })}
+                onClick={() => setDraft({ ...active, selected: active.selected === i ? null : i })}
+              >
+                {letter}
+                <small>{letterPoints(letter)}</small>
+              </button>
+              <label>
+                <input
+                  type="checkbox"
+                  disabled={!can || placed || s.bagCount < 7}
+                  checked={active.exchange.includes(i)}
+                  onChange={() =>
+                    setDraft({
+                      ...active,
+                      exchange: active.exchange.includes(i)
+                        ? active.exchange.filter((n) => n !== i)
+                        : [...active.exchange, i],
+                    })
+                  }
+                />
+                <span className="sr-only">
+                  {t('Cambiar letra {0} del puesto {1}', { '0': letter, '1': i + 1 })}
+                </span>
+              </label>
+            </div>
+          );
+        })}
+      </div>
+      <p className="board-caption">
+        {t('Elige una letra y su casilla. Para retirarla del borrador, pulsa la casilla otra vez.')}
+      </p>
       <div
         className="words-scroll"
         tabIndex={0}
         role="group"
         aria-label={t('Tablero de palabras, once filas y once columnas')}
       >
-        <div className="words-grid">
+        <div className="words-grid" role="group" onKeyDown={(event) => moveBoardFocus(event, 11)}>
           {s.board.map((letter, pos) => {
             const tile = active.tiles.find((p) => p.row * 11 + p.col === pos),
               shown = tile ? s.hand[tile.rackIndex] : letter;

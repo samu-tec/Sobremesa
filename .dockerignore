@@ -17,3 +17,7 @@ playwright.config.ts
 
 .local
 .aws
+
+AGENTS.md
+.agents
+.codex

@@ -396,17 +396,11 @@
     grid-template-columns: 1fr 1fr;
     gap: 15px;
   }
-  .game-mini-rules {
-    display: none;
-  }
   .players-panel {
     padding: 20px;
   }
   .play-area {
     min-height: 480px;
-  }
-  .game-tip {
-    align-self: start;
   }
   .waiting-grid {
     gap: 18px;
@@ -899,16 +893,6 @@
   .game-heading h1 {
     font-size: 29px;
   }
-  .turn-badge {
-    padding: 9px 10px;
-    font-size: 9px;
-    max-width: 45%;
-    line-height: 1.6;
-    gap: 6px;
-  }
-  .turn-badge > svg {
-    display: none;
-  }
   .table-layout {
     gap: 18px;
   }
@@ -926,9 +910,6 @@
   }
   .table-player > .player-value {
     font-size: 14px;
-  }
-  .game-tip {
-    display: none;
   }
   .play-area {
     padding: 24px 18px;

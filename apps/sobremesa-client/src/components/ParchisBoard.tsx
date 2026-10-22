@@ -54,25 +54,8 @@ export function ParchisBoard({
   const own = s.players.find((p) => p.id === myPlayerId)!;
   const can =
     s.currentTurnPlayerId === myPlayerId && !s.winner && !s.isDraw && !busy && !own.withdrawn;
-  return (
-    <BoardFrame
-      room={room}
-      myPlayerId={myPlayerId}
-      turn={s.currentTurnPlayerId}
-      motionRef={motionRef}
-      values={Object.fromEntries(
-        s.players.map((p) => [
-          p.id,
-          t('{0}/4 en meta · {1}', {
-            '0': p.pawns.filter((n) => n === 71).length,
-            '1': t(names[p.color]),
-          }),
-        ]),
-      )}
-    >
-      <p className="board-instruction" role="status">
-        {gameText(s.message)}
-      </p>
+  const actions = (
+    <>
       <div className="parchis-toolbar">
         <DiceFace value={s.lastRoll ?? 1} />
         <button
@@ -88,6 +71,47 @@ export function ParchisBoard({
           </strong>
         )}
       </div>
+      <div className="parchis-pawns" role="group" aria-label={t('Tus cuatro fichas')}>
+        {own.pawns.map((progress, pawn) => {
+          const legal = can && s.legalPawns.includes(pawn);
+          const destination = progress === -1 ? 0 : progress + s.steps;
+          return (
+            <button
+              key={pawn}
+              className="button secondary parchis-pawn-choice"
+              disabled={!legal}
+              onClick={() => onAction({ type: 'MOVE', pawn })}
+            >
+              <strong>{t('Ficha {0}', { '0': pawn + 1 })}</strong>
+              <span>{place(own.color, progress)}</span>
+              {legal && <span>→ {place(own.color, destination)}</span>}
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+  return (
+    <BoardFrame
+      room={room}
+      myPlayerId={myPlayerId}
+      turn={s.currentTurnPlayerId}
+      motionRef={motionRef}
+      values={Object.fromEntries(
+        s.players.map((p) => [
+          p.id,
+          t('{0}/4 en meta · {1}', {
+            '0': p.pawns.filter((n) => n === 71).length,
+            '1': t(names[p.color]),
+          }),
+        ]),
+      )}
+      actions={actions}
+    >
+      <p className="board-instruction" role="status">
+        {gameText(s.message)}
+      </p>
+
       <svg
         className="parchis-board"
         viewBox="0 0 570 570"
@@ -227,24 +251,7 @@ export function ParchisBoard({
           { '0': t(names[own.color]) },
         )}
       </p>
-      <div className="parchis-pawns" role="group" aria-label={t('Tus cuatro fichas')}>
-        {own.pawns.map((progress, pawn) => {
-          const legal = can && s.legalPawns.includes(pawn);
-          const destination = progress === -1 ? 0 : progress + s.steps;
-          return (
-            <button
-              key={pawn}
-              className="button secondary parchis-pawn-choice"
-              disabled={!legal}
-              onClick={() => onAction({ type: 'MOVE', pawn })}
-            >
-              <strong>{t('Ficha {0}', { '0': pawn + 1 })}</strong>
-              <span>{place(own.color, progress)}</span>
-              {legal && <span>→ {place(own.color, destination)}</span>}
-            </button>
-          );
-        })}
-      </div>
+
       <details className="parchis-positions">
         <summary>{t('Estado de todas las fichas')}</summary>
         {s.players.map((p) => (

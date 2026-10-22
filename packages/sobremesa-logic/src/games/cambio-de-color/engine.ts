@@ -8,14 +8,27 @@ import {
   PlayableColor,
   PlayerHand,
 } from './types.js';
-import { createDeck, getBotCambioDeColorAction, isCardPlayable, shuffleDeck } from './bot.js';
+import {
+  createDeck,
+  getBotCambioDeColorAction,
+  isCardPlayable,
+  nextColorPlayer,
+  shuffleDeck,
+} from './bot.js';
 
 export class CambioDeColorEngine implements IGameEngine<
   CambioDeColorState,
   CambioDeColorAction,
   CambioDeColorPublicState
 > {
-  constructor(private startingCards = 7) {}
+  constructor(
+    private startingCards = 7,
+    private stackDrawCards = false,
+  ) {}
+  setRules(rules: { startingCards?: number; stackDrawCards?: boolean }) {
+    this.startingCards = rules.startingCards ?? 7;
+    this.stackDrawCards = rules.stackDrawCards ?? false;
+  }
   setStartingCards(value: number) {
     this.startingCards = value;
   }
@@ -44,6 +57,10 @@ export class CambioDeColorEngine implements IGameEngine<
     const activeColor = initialCard.color as PlayableColor;
 
     return {
+      stackDrawCards: this.stackDrawCards,
+      pendingDraw: 0,
+      actionNumber: 0,
+      lastEvent: 'start',
       players: playerHands,
       drawPile: deck,
       discardPile: [initialCard],
@@ -85,7 +102,7 @@ export class CambioDeColorEngine implements IGameEngine<
       }
       if (state.hasDrawnThisTurn && state.drawnCardId !== card.id) return false;
 
-      if (!isCardPlayable(card, state.activeColor, topDiscard)) {
+      if (!isCardPlayable(card, state.activeColor, topDiscard, state.pendingDraw)) {
         return false;
       }
 
@@ -106,7 +123,7 @@ export class CambioDeColorEngine implements IGameEngine<
     }
 
     if (action.type === 'PASS_TURN') {
-      return state.hasDrawnThisTurn;
+      return state.hasDrawnThisTurn && !state.pendingDraw;
     }
 
     return false;
@@ -120,6 +137,7 @@ export class CambioDeColorEngine implements IGameEngine<
     if (!this.validateAction(state, playerId, action)) return state;
     const newState: CambioDeColorState = {
       ...state,
+      actionNumber: state.actionNumber + 1,
       players: state.players.map((p) => ({ ...p, cards: [...p.cards] })),
       drawPile: [...state.drawPile],
       discardPile: [...state.discardPile],
@@ -133,7 +151,20 @@ export class CambioDeColorEngine implements IGameEngine<
     const topDiscard = newState.discardPile[newState.discardPile.length - 1];
 
     if (action.type === 'DRAW_CARD') {
+      newState.lastEvent = 'draw';
       newState.drawnCardId = null;
+      if (newState.pendingDraw > 0) {
+        const count = newState.pendingDraw;
+        this.drawCardsForPlayer(newState, playerId, count);
+        newState.pendingDraw = 0;
+        newState.hasDrawnThisTurn = false;
+        newState.currentTurnPlayerId = this.getNextPlayerId(newState, 1);
+        newState.lastActionDescription = msg(
+          'Aceptó la penalización de {0} cartas y perdió el turno.',
+          count,
+        );
+        return newState;
+      }
       this.ensureDrawPile(newState);
       if (newState.drawPile.length > 0) {
         const drawnCard = newState.drawPile.pop()!;
@@ -160,6 +191,7 @@ export class CambioDeColorEngine implements IGameEngine<
     }
 
     if (action.type === 'PASS_TURN') {
+      newState.lastEvent = 'pass';
       newState.hasDrawnThisTurn = false;
       newState.drawnCardId = null;
       newState.currentTurnPlayerId = this.getNextPlayerId(newState, 1);
@@ -173,21 +205,32 @@ export class CambioDeColorEngine implements IGameEngine<
       const [playedCard] = player.cards.splice(cardIndex, 1);
       newState.discardPile.push(playedCard);
 
-      // Check win condition immediately
+      newState.lastEvent = 'card';
+      newState.hasDrawnThisTurn = false;
+      newState.activeColor = playedCard.color === 'wild' ? action.chosenColor! : playedCard.color;
+      // The existing immediate-win rule also ends an optional penalty chain.
       if (player.cards.length === 0) {
         newState.winner = playerId;
+        newState.pendingDraw = 0;
+        newState.lastEvent = 'win';
         newState.lastActionDescription = msg('¡Ha ganado la partida!');
         return newState;
       }
 
-      // Update active color
-      if (playedCard.color === 'wild') {
-        newState.activeColor = action.chosenColor!;
-      } else {
-        newState.activeColor = playedCard.color as PlayableColor;
+      if (
+        newState.stackDrawCards &&
+        (playedCard.value === 'draw2' || playedCard.value === 'wild_draw4')
+      ) {
+        newState.pendingDraw += playedCard.value === 'draw2' ? 2 : 4;
+        newState.lastEvent = 'stack';
+        newState.currentTurnPlayerId = this.getNextPlayerId(newState, 1);
+        newState.lastActionDescription = msg(
+          'Jugó {0}: +{1} pendientes.',
+          playedCard.value === 'draw2' ? '+2' : '+4',
+          newState.pendingDraw,
+        );
+        return newState;
       }
-
-      newState.hasDrawnThisTurn = false;
 
       // Handle card special effects
       if (playedCard.value === 'draw2') {
@@ -206,15 +249,17 @@ export class CambioDeColorEngine implements IGameEngine<
           term(action.chosenColor!),
         );
       } else if (playedCard.value === 'skip') {
+        newState.lastEvent = 'skip';
         newState.currentTurnPlayerId = this.getNextPlayerId(newState, 2);
         newState.lastActionDescription = msg('Jugó Salto (el siguiente pierde turno)');
       } else if (playedCard.value === 'reverse') {
+        newState.lastEvent = 'reverse';
+        newState.turnDirection = (newState.turnDirection * -1) as 1 | -1;
         if (newState.players.length === 2) {
           // In 2 player games, reverse acts as a skip (current player plays again)
           newState.currentTurnPlayerId = playerId;
           newState.lastActionDescription = msg('Jugó Cambio de Sentido (juega de nuevo)');
         } else {
-          newState.turnDirection = (newState.turnDirection * -1) as 1 | -1;
           newState.currentTurnPlayerId = this.getNextPlayerId(newState, 1);
           newState.lastActionDescription = msg('Cambio de sentido de la ronda');
         }
@@ -251,6 +296,11 @@ export class CambioDeColorEngine implements IGameEngine<
     const topDiscardCard = state.discardPile[state.discardPile.length - 1];
 
     return {
+      playerOrder: state.players.map((p) => p.playerId),
+      stackDrawCards: state.stackDrawCards,
+      pendingDraw: state.pendingDraw,
+      actionNumber: state.actionNumber,
+      lastEvent: state.lastEvent,
       myHand,
       drawnCardId:
         state.hasDrawnThisTurn && state.currentTurnPlayerId === playerId ? state.drawnCardId : null,
@@ -281,6 +331,9 @@ export class CambioDeColorEngine implements IGameEngine<
     return {
       ...state,
       players,
+      actionNumber: state.actionNumber + 1,
+      lastEvent: 'leave',
+      pendingDraw: players.length === 1 ? 0 : state.pendingDraw,
       drawPile: shuffleDeck([...state.drawPile, ...(departed?.cards ?? [])]),
       currentTurnPlayerId: nextId,
       winner: players.length === 1 ? players[0].playerId : null,
@@ -298,13 +351,12 @@ export class CambioDeColorEngine implements IGameEngine<
    * Helper: Calculates next player index based on turn direction and step count.
    */
   private getNextPlayerId(state: CambioDeColorState, steps: number): string {
-    const currentIndex = state.players.findIndex((p) => p.playerId === state.currentTurnPlayerId);
-    if (currentIndex === -1) return state.players[0].playerId;
-
-    const total = state.players.length;
-    const delta = steps * state.turnDirection;
-    const nextIndex = (((currentIndex + delta) % total) + total) % total;
-    return state.players[nextIndex].playerId;
+    return nextColorPlayer(
+      state.players.map((p) => p.playerId),
+      state.currentTurnPlayerId,
+      state.turnDirection,
+      steps,
+    );
   }
 
   /**

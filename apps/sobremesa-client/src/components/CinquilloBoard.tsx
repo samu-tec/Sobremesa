@@ -21,33 +21,8 @@ export function CinquilloBoard({
     selected = draft?.revision === s.revision ? draft.card : null,
     can = !busy && !s.winner && !s.isDraw && s.currentTurnPlayerId === myPlayerId,
     motionRef = useBoardMotion(s.revision);
-  return (
-    <BoardFrame
-      room={room}
-      myPlayerId={myPlayerId}
-      turn={s.currentTurnPlayerId}
-      motionRef={motionRef}
-      values={Object.fromEntries(
-        s.players.map((p) => [p.id, t('{0} cartas', { '0': p.handCount })]),
-      )}
-    >
-      <p className="board-instruction" role="status">
-        {gameText(s.message)}
-      </p>
-      <h2>{t('Tu mano')}</h2>
-      <div className="spanish-hand">
-        {s.hand.map((card) => (
-          <button
-            key={card}
-            disabled={!can || !s.legalCards.includes(card)}
-            aria-label={spanishCardLabel(card)}
-            aria-pressed={selected === card}
-            onClick={() => setDraft({ revision: s.revision, card })}
-          >
-            <SpanishCardFace card={card} motion />
-          </button>
-        ))}
-      </div>
+  const actions = (
+    <>
       <div className="board-actions">
         <button
           className="button primary"
@@ -66,6 +41,39 @@ export function CinquilloBoard({
           {t('Pasar')}
         </button>
       </div>
+    </>
+  );
+  return (
+    <BoardFrame
+      selectionActive={selected !== null}
+      onCancelSelection={() => setDraft(null)}
+      room={room}
+      myPlayerId={myPlayerId}
+      turn={s.currentTurnPlayerId}
+      motionRef={motionRef}
+      values={Object.fromEntries(
+        s.players.map((p) => [p.id, t('{0} cartas', { '0': p.handCount })]),
+      )}
+      actions={actions}
+    >
+      <p className="board-instruction" role="status">
+        {gameText(s.message)}
+      </p>
+      <h2>{t('Tu mano')}</h2>
+      <div className="spanish-hand">
+        {s.hand.map((card) => (
+          <button
+            key={card}
+            disabled={!can || !s.legalCards.includes(card)}
+            aria-label={spanishCardLabel(card)}
+            aria-pressed={selected === card}
+            onClick={() => setDraft(selected === card ? null : { revision: s.revision, card })}
+          >
+            <SpanishCardFace card={card} motion />
+          </button>
+        ))}
+      </div>
+
       <p className="board-caption">
         {t('Debes colocar una carta si puedes. El siete continúa con la sota.')}
       </p>

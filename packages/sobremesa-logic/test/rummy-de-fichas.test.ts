@@ -14,7 +14,7 @@ const tile = (id: number) =>
   id >= 104
     ? { id, value: 0, color: 4, joker: true }
     : { id, value: (id % 13) + 1, color: Math.floor(id / 13) % 4, joker: false };
-test('Rummy de fichas: 106 fichas, grupos, escaleras, comodines y apertura de 30', () => {
+test('Rummy: 106 fichas, grupos, escaleras, comodines y apertura de 30', () => {
   const e = new RummyDeFichasEngine();
   let s = e.initGame(players.slice(0, 3));
   assert.equal(s.players[0].hand.length, 14);
@@ -63,7 +63,7 @@ test('Rummy de fichas: 106 fichas, grupos, escaleras, comodines y apertura de 30
   );
 });
 
-test('Rummy de fichas: reorganización, dividir escaleras, liberar comodín y protección de mesa', () => {
+test('Rummy: reorganización, dividir escaleras, liberar comodín y protección de mesa', () => {
   const e = new RummyDeFichasEngine();
   let s = e.initGame(players.slice(0, 2));
   s.players[0].opened = true;
@@ -135,7 +135,7 @@ test('Rummy de fichas: reorganización, dividir escaleras, liberar comodín y pr
   assert.equal(e.validateAction(s, 'p0', bad), false);
 });
 
-test('Rummy de fichas: robo termina turno, pozo agotado, puntuación y abandono', () => {
+test('Rummy: robo termina turno, pozo agotado, puntuación y abandono', () => {
   const e = new RummyDeFichasEngine();
   let s = e.initGame(players.slice(0, 2));
   const before = s.players[0].hand.length;

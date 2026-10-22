@@ -81,36 +81,8 @@ export function PokerBoard({
       (to >= s.minRaiseTo || to === s.maxRaiseTo),
     name = (id: string) => room.players.find((p) => p.id === id)?.name ?? id,
     motionRef = useBoardMotion(s.revision);
-  return (
-    <BoardFrame
-      room={room}
-      myPlayerId={myPlayerId}
-      turn={s.currentTurnPlayerId}
-      motionRef={motionRef}
-      values={Object.fromEntries(
-        s.players.map((p) => [p.id, t('{0} fichas de póker', { '0': p.score })]),
-      )}
-    >
-      <p className="board-caption">{t('Solo fichas ficticias, sin valor económico.')}</p>
-      <p className="board-instruction" role="status">
-        {gameText(s.message)}
-      </p>
-      <p>
-        {t('Mano {0} · ciegas {1}/{2}', {
-          '0': s.handNumber,
-          '1': s.bigBlind / 2,
-          '2': s.bigBlind,
-        })}
-      </p>
-      <h2>{t('Tus cartas privadas')}</h2>
-      <div className="poker-hand">
-        {s.hand.map((card) => (
-          <Card key={card} card={card} motion />
-        ))}
-      </div>
-      {s.hand.length === 2 && s.board.length >= 3 && (
-        <p>{categoryName(pokerEvaluate([...s.hand, ...s.board]))}</p>
-      )}
+  const actions = (
+    <>
       {s.phase === 'hand_end' ? (
         <button
           className="button primary"
@@ -170,7 +142,40 @@ export function PokerBoard({
           </>
         )
       )}
-      <section className="poker-table" aria-label={t('Mesa de póker')}>
+    </>
+  );
+  return (
+    <BoardFrame
+      actions={actions}
+      room={room}
+      myPlayerId={myPlayerId}
+      turn={s.currentTurnPlayerId}
+      motionRef={motionRef}
+      values={Object.fromEntries(
+        s.players.map((p) => [p.id, t('{0} fichas de póker', { '0': p.score })]),
+      )}
+    >
+      <p className="board-caption">{t('Solo fichas ficticias, sin valor económico.')}</p>
+      <p className="board-instruction" role="status">
+        {gameText(s.message)}
+      </p>
+      <p>
+        {t('Mano {0} · ciegas {1}/{2}', {
+          '0': s.handNumber,
+          '1': s.bigBlind / 2,
+          '2': s.bigBlind,
+        })}
+      </p>
+      <h2>{t('Tus cartas privadas')}</h2>
+      <div className="poker-hand">
+        {s.hand.map((card) => (
+          <Card key={card} card={card} motion />
+        ))}
+      </div>
+      {s.hand.length === 2 && s.board.length >= 3 && (
+        <p>{categoryName(pokerEvaluate([...s.hand, ...s.board]))}</p>
+      )}
+      <section className="poker-table" tabIndex={0} aria-label={t('Mesa de póker')}>
         <h2>{t('Bote: {0}', { '0': s.pot })}</h2>
         <div className="poker-community">
           {Array.from({ length: 5 }, (_, i) => (

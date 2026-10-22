@@ -55,7 +55,7 @@ export function Modal({
       ].filter(
         (e) => e.tabIndex >= 0 && !e.closest('[inert],[hidden]') && e.getClientRects().length > 0,
       );
-    (focusable()[0] || node).focus();
+    (focusable()[0] || node).focus({ preventScroll: true });
     const key = (event: KeyboardEvent) => {
       if (openDialogs[openDialogs.length - 1] !== node) return;
       if (event.key === 'Escape' && dismissable) {
@@ -78,7 +78,7 @@ export function Modal({
     };
     const containFocus = (event: FocusEvent) => {
       if (openDialogs.at(-1) === node && !node.contains(event.target as Node))
-        (focusable()[0] || node).focus();
+        (focusable()[0] || node).focus({ preventScroll: true });
     };
     document.addEventListener('focusin', containFocus);
     document.addEventListener('keydown', key);
@@ -89,7 +89,8 @@ export function Modal({
       openDialogs.splice(openDialogs.indexOf(node), 1);
       updateVisibility();
       if (!openDialogs.length) document.body.style.overflow = unlockedOverflow;
-      if (wasTop && previous?.isConnected && !previous.closest('[inert]')) previous.focus();
+      if (wasTop && previous?.isConnected && !previous.closest('[inert]'))
+        previous.focus({ preventScroll: true });
     };
   }, [dismissable]);
   return createPortal(

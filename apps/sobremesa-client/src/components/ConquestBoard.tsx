@@ -49,26 +49,8 @@ export function ConquestBoard({
       id === null ? t('Neutral') : (room.players.find((p) => p.id === id)?.name ?? id),
     territoryLabel = (i: number) =>
       `${i + 1}. ${t(CONQUEST_MAP[i].name)} (${s.territories[i].armies})`;
-  return (
-    <BoardFrame
-      room={room}
-      myPlayerId={myPlayerId}
-      turn={s.currentTurnPlayerId}
-      values={Object.fromEntries(
-        s.players.map((p) => [p.id, t('{0} puntos de control', { '0': p.score })]),
-      )}
-    >
-      <p className="board-instruction" role="status">
-        {gameText(s.message)}
-      </p>
-      <p>
-        {t('Ronda {0}/{1} · combates {2}/3 · refuerzos {3}', {
-          '0': s.round,
-          '1': s.maxRounds,
-          '2': s.attacks,
-          '3': s.reinforcements,
-        })}
-      </p>
+  const actions = (
+    <>
       {can && (
         <section className="conquest-controls">
           <h2>
@@ -169,6 +151,30 @@ export function ConquestBoard({
           </div>
         </section>
       )}
+    </>
+  );
+  return (
+    <BoardFrame
+      room={room}
+      myPlayerId={myPlayerId}
+      turn={s.currentTurnPlayerId}
+      values={Object.fromEntries(
+        s.players.map((p) => [p.id, t('{0} puntos de control', { '0': p.score })]),
+      )}
+      actions={actions}
+    >
+      <p className="board-instruction" role="status">
+        {gameText(s.message)}
+      </p>
+      <p>
+        {t('Ronda {0}/{1} · combates {2}/3 · refuerzos {3}', {
+          '0': s.round,
+          '1': s.maxRounds,
+          '2': s.attacks,
+          '3': s.reinforcements,
+        })}
+      </p>
+
       <button
         className="button secondary"
         aria-pressed={enlarged}
@@ -268,29 +274,32 @@ export function ConquestBoard({
           </p>
         </section>
       )}
-      <section className="conquest-regions">
-        {CONQUEST_REGIONS.map((region, r) => (
-          <div key={region}>
-            <h3>{t(region)}</h3>
-            <ul>
-              {CONQUEST_MAP.slice(r * 6, r * 6 + 6).map((ter, j) => {
-                const i = r * 6 + j;
-                return (
-                  <li key={i}>
-                    <strong>
-                      {i + 1}. {t(ter.name)}
-                    </strong>
-                    <span>
-                      {name(s.territories[i].owner)} ·{' '}
-                      {t('{0} unidades', { '0': s.territories[i].armies })}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
-      </section>
+      <details className="conquest-territories">
+        <summary>{t('Territorios y control')}</summary>
+        <section className="conquest-regions">
+          {CONQUEST_REGIONS.map((region, r) => (
+            <div key={region}>
+              <h3>{t(region)}</h3>
+              <ul>
+                {CONQUEST_MAP.slice(r * 6, r * 6 + 6).map((ter, j) => {
+                  const i = r * 6 + j;
+                  return (
+                    <li key={i}>
+                      <strong>
+                        {i + 1}. {t(ter.name)}
+                      </strong>
+                      <span>
+                        {name(s.territories[i].owner)} ·{' '}
+                        {t('{0} unidades', { '0': s.territories[i].armies })}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </section>
+      </details>
     </BoardFrame>
   );
 }

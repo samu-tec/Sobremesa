@@ -230,3 +230,24 @@
 .mobile-logo {
   display: none;
 }
+.topbar .join-friends {
+  min-height: 44px;
+  margin: 0 12px;
+}
+@media (max-width: 800px) {
+  .topbar {
+    height: auto;
+    min-height: 73px;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  .topbar .join-friends {
+    margin: 0;
+  }
+  .topbar .topbar-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

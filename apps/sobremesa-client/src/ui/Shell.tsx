@@ -96,6 +96,9 @@ export function Shell({
             </span>
             {t('Tu sala de juegos')}{' '}
           </span>
+          <button className="button primary small join-friends" onClick={onJoin}>
+            {t('Unirme a amigos')} <ArrowUpRight size={17} />
+          </button>
           <div className="topbar-right">
             <LanguageSelector />
             <span className={`connection ${connected ? '' : 'offline'}`}>

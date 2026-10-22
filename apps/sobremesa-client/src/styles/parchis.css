@@ -65,3 +65,13 @@
 .parchis-positions p {
   margin-top: 12px;
 }
+
+@media (min-width: 1100px) {
+  .extended-parchis > .parchis-board {
+    width: min(100%, max(300px, calc(100svh - 270px)));
+    justify-self: center;
+  }
+  .extended-parchis > .board-caption {
+    margin-top: 0;
+  }
+}

@@ -25,6 +25,44 @@ export function GoBoard({
     if (s.phase === 'play' && s.legalMoves.includes(i)) onAction({ type: 'PLACE', index: i });
     else if (s.phase === 'score' && s.board[i]) onAction({ type: 'MARK_DEAD', index: i });
   };
+  const actions = (
+    <>
+      <div className="board-actions">
+        {s.phase === 'play' && (
+          <button
+            className="button secondary"
+            disabled={!can}
+            onClick={() => onAction({ type: 'PASS' })}
+          >
+            {t('Pasar')}
+          </button>
+        )}
+        {s.phase === 'score' && (
+          <>
+            <button
+              className="button primary"
+              disabled={!can}
+              onClick={() => onAction({ type: 'ACCEPT_SCORE' })}
+            >
+              {t('Aceptar puntuación')}
+            </button>
+            <button
+              className="button secondary"
+              disabled={!can}
+              onClick={() => onAction({ type: 'RESUME' })}
+            >
+              {t('Reanudar el juego')}
+            </button>
+          </>
+        )}
+        {!s.winner && (
+          <button className="button secondary" disabled={busy} onClick={() => setResigning(true)}>
+            {t('Rendirse')}
+          </button>
+        )}
+      </div>
+    </>
+  );
   return (
     <BoardFrame
       room={room}
@@ -37,6 +75,7 @@ export function GoBoard({
           t(i === 0 ? 'Negras · capturas: {0}' : 'Blancas · capturas: {0}', { '0': s.captured[i] }),
         ]),
       )}
+      actions={actions}
     >
       <p className="board-instruction" role="status">
         {gameText(s.message)}
@@ -119,40 +158,7 @@ export function GoBoard({
           {t('No puedes colocar aquí: casilla ocupada, suicidio o repetición de posición.')}
         </p>
       )}
-      <div className="board-actions">
-        {s.phase === 'play' && (
-          <button
-            className="button secondary"
-            disabled={!can}
-            onClick={() => onAction({ type: 'PASS' })}
-          >
-            {t('Pasar')}
-          </button>
-        )}
-        {s.phase === 'score' && (
-          <>
-            <button
-              className="button primary"
-              disabled={!can}
-              onClick={() => onAction({ type: 'ACCEPT_SCORE' })}
-            >
-              {t('Aceptar puntuación')}
-            </button>
-            <button
-              className="button secondary"
-              disabled={!can}
-              onClick={() => onAction({ type: 'RESUME' })}
-            >
-              {t('Reanudar el juego')}
-            </button>
-          </>
-        )}
-        {!s.winner && (
-          <button className="button secondary" disabled={busy} onClick={() => setResigning(true)}>
-            {t('Rendirse')}
-          </button>
-        )}
-      </div>
+
       {resigning && (
         <Modal title={t('¿Rendirse en Go?')} onClose={() => setResigning(false)}>
           <p>{t('El rival ganará la partida. Puedes seguir en la sala para la revancha.')}</p>

@@ -24,7 +24,7 @@ test('Catálogo: treinta juegos, búsqueda por nombres propios y reglas', () => 
     ['ciudad fortuna', 'monopoly'],
     ['CAMBIO DE COLOR', 'colorclash'],
     ['cuatro en linea', 'connect4'],
-    ['rummy de fichas', 'rummy'],
+    ['rummy', 'rummy'],
     ['reversi', 'reversi'],
     ['parchis', 'parchis'],
   ])

@@ -11,30 +11,36 @@ async function ready(page: Page) {
   await expect(page.getByText('Listo para jugar', { exact: true })).toBeVisible();
 }
 
-test('Ciudad Fortuna sincroniza el tamaño aunque cambie antes de suscribirse', async ({ page }) => {
+test('Ciudad Fortuna adapta sus zonas por CSS al cambiar de orientación y conserva los controles', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 320, height: 568 });
-  await page.addInitScript(() => {
-    const original = window.matchMedia.bind(window);
-    let first = true;
-    window.matchMedia = (query: string) => {
-      const result = original(query);
-      if (query === '(max-width: 900px)' && first) {
-        first = false;
-        // Reproduce a stale render snapshot before the effect subscribes at the new width.
-        Object.defineProperty(result, 'matches', { value: false });
-      }
-      return result;
-    };
-  });
   await ready(page);
   await page
     .getByRole('button', { name: 'Jugar a Ciudad Fortuna contra un bot', exact: true })
     .click();
   await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
-  await expect(page.locator('.city-mobile-players > button')).toHaveCount(2);
-  await expect(page.getByRole('button', { name: 'Tirar dados', exact: true })).toBeInViewport({
-    ratio: 1,
-  });
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 1280, height: 720 },
+    { width: 844, height: 390 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect(page.locator('.players-panel .table-player')).toHaveCount(2);
+    await expect(page.locator('.city-tile')).toHaveCount(40);
+    const board = (await page.locator('.city-board').boundingBox())!;
+    expect(Math.abs(board.width - board.height)).toBeLessThan(2);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
+      true,
+    );
+    const roll = page.getByRole('button', { name: 'Tirar dados', exact: true });
+    await roll.scrollIntoViewIfNeeded();
+    await expect(roll).toBeInViewport({ ratio: 0.99 });
+    await page.getByRole('button', { name: 'Propiedades y tratos', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('Tu estrategia');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  }
 });
 
 test('Un protocolo incompatible informa y solo recarga por decisión del jugador', async ({

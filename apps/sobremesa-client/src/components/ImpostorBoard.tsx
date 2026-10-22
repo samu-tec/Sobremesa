@@ -16,6 +16,18 @@ export function ImpostorBoard({
     [reveal, setReveal] = useState(false),
     [word, setWord] = useState(''),
     can = s.currentTurnPlayerId === myPlayerId && !s.winner && !busy;
+  useEffect(() => {
+    const hide = () => setReveal(false);
+    const visibility = () => {
+      if (document.hidden) hide();
+    };
+    window.addEventListener('blur', hide);
+    document.addEventListener('visibilitychange', visibility);
+    return () => {
+      window.removeEventListener('blur', hide);
+      document.removeEventListener('visibilitychange', visibility);
+    };
+  }, []);
   useEffect(() => setWord(''), [s.phase, s.currentTurnPlayerId, s.clueRound]);
   const motionRef = useBoardMotion(s.clues.length);
   const submit = () => {
@@ -29,6 +41,60 @@ export function ImpostorBoard({
     s.phase === 'guess'
       ? word.trim().length >= 2 && word.trim().length <= 40
       : /^[\p{L}]{2,30}$/u.test(word.trim());
+  const actions = (
+    <>
+      {s.mode === 'physical' && (
+        <PhysicalImpostorControls
+          state={s}
+          myPlayerId={myPlayerId}
+          onAction={onAction}
+          busy={busy}
+        />
+      )}
+      {s.mode === 'online' && (s.phase === 'clue' || s.phase === 'guess') && (
+        <form
+          className="impostor-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (can && valid) submit();
+          }}
+        >
+          <label className="field">
+            <span>{s.phase === 'guess' ? t('¿Cuál es la palabra secreta?') : t('Tu pista')}</span>
+            <input
+              autoComplete="off"
+              value={word}
+              maxLength={s.phase === 'guess' ? 40 : 30}
+              disabled={!can}
+              onChange={(e) => setWord(e.target.value)}
+              placeholder={
+                s.phase === 'guess' ? t('Escribe la palabra secreta') : t('Una sola palabra…')
+              }
+            />
+          </label>
+          <button className="button primary" disabled={!can || !valid}>
+            {s.phase === 'guess' ? t('Confirmar respuesta') : t('Enviar pista')}
+          </button>
+        </form>
+      )}
+      {s.phase === 'vote' && !s.physicalVoting && (
+        <div className="vote-options">
+          {s.players
+            .filter((p) => p.id !== myPlayerId)
+            .map((p) => (
+              <button
+                className="button secondary"
+                key={p.id}
+                disabled={!can || (!!s.runoff && !s.runoff.includes(p.id))}
+                onClick={() => onAction({ type: 'VOTE', target: p.id })}
+              >
+                {t('Votar a {0}', { '0': p.name || room.players.find((v) => v.id === p.id)?.name })}
+              </button>
+            ))}
+        </div>
+      )}
+    </>
+  );
   return (
     <BoardFrame
       motionRef={motionRef}
@@ -45,6 +111,7 @@ export function ImpostorBoard({
             : '',
         ]),
       )}
+      actions={actions}
     >
       <div className="impostor-secret">
         <span className="eyebrow">{t('TU PAPEL SECRETO')}</span>
@@ -109,56 +176,7 @@ export function ImpostorBoard({
           </div>
         ))}
       </div>
-      {s.mode === 'physical' && (
-        <PhysicalImpostorControls
-          state={s}
-          myPlayerId={myPlayerId}
-          onAction={onAction}
-          busy={busy}
-        />
-      )}
-      {s.mode === 'online' && (s.phase === 'clue' || s.phase === 'guess') && (
-        <form
-          className="impostor-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (can && valid) submit();
-          }}
-        >
-          <label className="field">
-            <span>{s.phase === 'guess' ? t('¿Cuál es la palabra secreta?') : t('Tu pista')}</span>
-            <input
-              autoComplete="off"
-              value={word}
-              maxLength={s.phase === 'guess' ? 40 : 30}
-              disabled={!can}
-              onChange={(e) => setWord(e.target.value)}
-              placeholder={
-                s.phase === 'guess' ? t('Escribe la palabra secreta') : t('Una sola palabra…')
-              }
-            />
-          </label>
-          <button className="button primary" disabled={!can || !valid}>
-            {s.phase === 'guess' ? t('Confirmar respuesta') : t('Enviar pista')}
-          </button>
-        </form>
-      )}
-      {s.phase === 'vote' && !s.physicalVoting && (
-        <div className="vote-options">
-          {s.players
-            .filter((p) => p.id !== myPlayerId)
-            .map((p) => (
-              <button
-                className="button secondary"
-                key={p.id}
-                disabled={!can || (!!s.runoff && !s.runoff.includes(p.id))}
-                onClick={() => onAction({ type: 'VOTE', target: p.id })}
-              >
-                {t('Votar a {0}', { '0': p.name || room.players.find((v) => v.id === p.id)?.name })}
-              </button>
-            ))}
-        </div>
-      )}
+
       <p className="board-caption">
         {t(
           s.mode === 'physical'

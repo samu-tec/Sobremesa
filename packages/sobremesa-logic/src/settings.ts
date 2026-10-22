@@ -26,6 +26,12 @@ const toggle = (
 export const GAME_SETTINGS: Record<GameType, readonly GameSetting[]> = {
   monopoly: [], // The legacy economic settings have their own typed schema and UI.
   colorclash: [
+    toggle(
+      'stackDrawCards',
+      'Permitir acumular +2 y +4',
+      'Regla de la casa: responde con cualquier +2 o +4, sin importar el color, o roba el total y pierde el turno. Desactivada por defecto.',
+      false,
+    ),
     number(
       'startingCards',
       'Cartas iniciales',

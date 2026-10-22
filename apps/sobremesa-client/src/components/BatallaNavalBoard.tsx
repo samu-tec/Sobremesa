@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { BatallaNavalPublicState, BatallaNavalAction } from 'sobremesa-logic';
 import { FLEET_LENGTHS } from 'sobremesa-logic';
 import { t } from '../i18n';
-import { BoardFrame, type BoardProps } from '../ui/GameLayout';
+import { BoardFrame, moveBoardFocus, type BoardProps } from '../ui/GameLayout';
 const coordinate = (i: number) => `${String.fromCharCode(65 + (i % 10))}${Math.floor(i / 10) + 1}`;
 
 export function BatallaNavalBoard({
@@ -38,22 +38,8 @@ export function BatallaNavalBoard({
       shot = s.incoming.find((v) => v.index === index);
     return shot ? (shot.hit ? 'hit' : 'miss') : ship ? 'ship' : '';
   };
-  return (
-    <BoardFrame
-      room={room}
-      myPlayerId={myPlayerId}
-      turn={s.currentTurnPlayerId}
-      values={Object.fromEntries(
-        s.players.map((p) => [
-          p.id,
-          placing
-            ? p.ready
-              ? t('Flota lista')
-              : t('{0}/5 barcos', { '0': p.shipCount })
-            : t('{0}/5 hundidos', { '0': p.sunkCount }),
-        ]),
-      )}
-    >
+  const actions = (
+    <>
       {placing ? (
         <>
           <p className="board-instruction">{t('Coloca tus cinco barcos y confirma la flota.')}</p>
@@ -108,12 +94,46 @@ export function BatallaNavalBoard({
             : t('Elige una coordenada de la flota rival.')}
         </p>
       )}
+      {placing && (
+        <div className="board-actions">
+          {s.ships.map((ship, index) => (
+            <button
+              className="button small secondary"
+              key={index}
+              disabled={!can}
+              onClick={() => onAction({ type: 'REMOVE', index })}
+            >
+              {t('Retirar barco de {0}', { '0': ship.cells.length })} · {coordinate(ship.cells[0])}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+  return (
+    <BoardFrame
+      room={room}
+      myPlayerId={myPlayerId}
+      turn={s.currentTurnPlayerId}
+      values={Object.fromEntries(
+        s.players.map((p) => [
+          p.id,
+          placing
+            ? p.ready
+              ? t('Flota lista')
+              : t('{0}/5 barcos', { '0': p.shipCount })
+            : t('{0}/5 hundidos', { '0': p.sunkCount }),
+        ]),
+      )}
+      actions={actions}
+    >
       <div className="fleet-boards">
         {[true, ...(placing ? [] : [false])].map((isOwn) => (
           <section className="fleet-board-section" key={String(isOwn)}>
             <h2>{isOwn ? t('Tu flota') : t('Flota rival')}</h2>
             <div
               className="naval-grid"
+              onKeyDown={(event) => moveBoardFocus(event, 10)}
               role="group"
               aria-label={isOwn ? t('Tu flota') : t('Flota rival')}
             >
@@ -174,20 +194,7 @@ export function BatallaNavalBoard({
           </section>
         ))}
       </div>
-      {placing && (
-        <div className="board-actions">
-          {s.ships.map((ship, index) => (
-            <button
-              className="button small secondary"
-              key={index}
-              disabled={!can}
-              onClick={() => onAction({ type: 'REMOVE', index })}
-            >
-              {t('Retirar barco de {0}', { '0': ship.cells.length })} · {coordinate(ship.cells[0])}
-            </button>
-          ))}
-        </div>
-      )}
+
       <p className="board-caption">
         {placing
           ? t('Los barcos pueden tocarse, pero no solaparse. Tu rival no ve sus posiciones.')

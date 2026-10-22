@@ -1,6 +1,6 @@
 # Sobremesa
 
-Juegos de mesa para compartir con amigos desde el navegador. Incluye treinta juegos: Ciudad Fortuna, Cambio de Color, Cuatro en Línea, Reversi, Tres en Raya, Dados al 100, Rummy de fichas, Ajedrez, Impostor, Dominó, Damas, Backgammon, Batalla naval, Mancala, Dados de combinaciones, Parchís, Juego de la Oca, Go, Damas chinas, Mahjong tradicional, Brisca, Mus, Escoba del 15, Cinquillo, Texas Hold’em, Palabras cruzadas, Preguntas y respuestas, Dibuja y adivina, Misterio y deducción y Conquista de territorios. Puedes crear una sala, compartir su código o jugar contra un bot, sin registrarte. La interfaz, reglas y partidas están disponibles en español e inglés. Dibuja y adivina requiere participantes humanos. Impostor conserva el modo online y añade partidas presenciales con varios móviles o un solo dispositivo, sin grabaciones ni persistencia de papeles.
+Juegos de mesa para compartir con amigos desde el navegador. Incluye treinta juegos: Ciudad Fortuna, Cambio de Color, Cuatro en Línea, Reversi, Tres en Raya, Dados al 100, Rummy, Ajedrez, Impostor, Dominó, Damas, Backgammon, Batalla naval, Mancala, Dados de combinaciones, Parchís, Juego de la Oca, Go, Damas chinas, Mahjong tradicional, Brisca, Mus, Escoba del 15, Cinquillo, Texas Hold’em, Palabras cruzadas, Preguntas y respuestas, Dibuja y adivina, Misterio y deducción y Conquista de territorios. Puedes crear una sala, compartir su código o jugar contra un bot, sin registrarte. La interfaz, reglas y partidas están disponibles en español e inglés. Dibuja y adivina requiere participantes humanos. Impostor conserva el modo online y añade partidas presenciales con varios móviles o un solo dispositivo, sin grabaciones ni persistencia de papeles.
 
 **Dirección pública prevista:** [games.samuelciocan.com](https://games.samuelciocan.com). El proyecto se llama **Sobremesa**; `games.samuelciocan.com` es su dirección web.
 
@@ -34,7 +34,7 @@ La [guía de pruebas](docs/TESTING.md) explica qué revisar en cada juego, cómo
 
 | Juego                  | Modalidad incluida                                                                                   |
 | ---------------------- | ---------------------------------------------------------------------------------------------------- |
-| Rummy de fichas        | 106 fichas, apertura de 30 puntos, grupos, escaleras, comodines y reorganización completa de la mesa |
+| Rummy                  | 106 fichas, apertura de 30 puntos, grupos, escaleras, comodines y reorganización completa de la mesa |
 | Ajedrez                | Enroque, captura al paso, cuatro promociones, mate, tablas automáticas o pactadas y rendición        |
 | Impostor               | 3–10 personas, palabra privada, dos vueltas de pistas, voto secreto, desempate e intento final       |
 | Dominó                 | Doble seis individual con robo, apertura reglada, bloqueo y puntuación por rondas                    |
@@ -120,3 +120,5 @@ Copyright © 2026 Samuel Ciocan. Código propio con derechos reservados: puedes 
 
 - `generate-notices.mjs` se ejecuta al compilar: conserva las licencias de las dependencias y publica las condiciones del código propio.
 - `test-docker.mjs` comprueba la imagen con un contenedor local temporal y elimina únicamente sus propios recursos.
+
+La partida comparte una cabecera con título centrado, controles de acción a la izquierda cuando hacen falta y participantes a la derecha. En móvil se prioriza la superficie de juego. Las opciones de sala se reúnen en un desplegable; el grupo y código se conservan al cambiar de juego. Ciudad Fortuna utiliza un tablero completo sin zoom específico y gestión económica en diálogo. Las decisiones humanas pendientes tienen confirmación de presencia finita; los plazos propios de reglas y la reconexión se mantienen separados. Consulta [arquitectura](docs/ARCHITECTURE.md), [reglas](docs/GAME_RULES.md) y [pruebas](docs/TESTING.md).

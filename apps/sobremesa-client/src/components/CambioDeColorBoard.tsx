@@ -1,15 +1,19 @@
 import { useBoardMotion } from '../hooks/useBoardMotion';
-import { getGame, t, gameText } from '../i18n';
+import { t, gameText } from '../i18n';
 import { useEffect, useState, useRef } from 'react';
 import {
   isCardPlayable,
+  nextColorPlayer,
   type Card,
   type CambioDeColorAction,
+  type CambioDeColorEvent,
   type CambioDeColorPublicState,
   type PlayableColor,
 } from 'sobremesa-logic';
-import { ArrowRight, Layers3, Repeat2, CircleSlash2 } from 'lucide-react';
-import { PlayersPanel, GameTip, type BoardProps } from '../ui/GameLayout';
+import { ArrowRight, ArrowLeft, Check, Layers3, Repeat2, CircleSlash2 } from 'lucide-react';
+import { PlayersPanel, type BoardProps } from '../ui/GameLayout';
+import { playSound, type SoundCue } from '../services/sound';
+import '../styles/cambio-de-color.css';
 const colorNames: Record<string, string> = {
   red: 'Rojo',
   blue: 'Azul',
@@ -67,7 +71,19 @@ export function CambioDeColorBoard({
     JSON.stringify([state.myHand.map((c) => c.id), state.topDiscardCard.id]),
   );
   const colourPanel = useRef<HTMLElement>(null);
-  const handZone = useRef<HTMLDivElement>(null);
+  const previousAction = useRef(state.actionNumber);
+  useEffect(() => {
+    if (previousAction.current === state.actionNumber) return;
+    previousAction.current = state.actionNumber;
+    const cue: Partial<Record<CambioDeColorEvent, SoundCue>> = {
+      card: 'card',
+      draw: 'draw',
+      reverse: 'reverse',
+      skip: 'skip',
+      stack: 'stack',
+    };
+    if (cue[state.lastEvent]) playSound(cue[state.lastEvent]!);
+  }, [state.actionNumber, state.lastEvent]);
   const selectedButton = useRef<HTMLButtonElement | null>(null);
   const [wild, setWild] = useState<Card | null>(null);
   const closeChooser = () => {
@@ -79,23 +95,25 @@ export function CambioDeColorBoard({
   }, [state.currentTurnPlayerId, state.winner]);
   useEffect(() => {
     const cancel = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && colourPanel.current && !document.querySelector('[role="dialog"]'))
+      if (e.key === 'Escape' && colourPanel.current && !document.querySelector('[role="dialog"]')) {
+        e.preventDefault();
+        e.stopPropagation();
         closeChooser();
+      }
     };
-    window.addEventListener('keydown', cancel);
-    return () => window.removeEventListener('keydown', cancel);
+    document.addEventListener('keydown', cancel, true);
+    return () => document.removeEventListener('keydown', cancel, true);
   }, []);
   useEffect(() => {
     if (wild) {
       colourPanel.current
         ?.querySelector<HTMLButtonElement>('.color-choices button')
         ?.focus({ preventScroll: true });
-      handZone.current?.scrollIntoView({ block: 'end', behavior: 'instant' });
     }
   }, [wild]);
   const canPlay = state.currentTurnPlayerId === myPlayerId && !state.winner && !busy;
   const playable = (card: Card) =>
-    isCardPlayable(card, state.activeColor, state.topDiscardCard) &&
+    isCardPlayable(card, state.activeColor, state.topDiscardCard, state.pendingDraw) &&
     (!state.hasDrawnThisTurn || state.drawnCardId === card.id);
   const values: Record<string, string> = {
     [myPlayerId]: t(state.myHand.length === 1 ? '{0} carta' : '{0} cartas', {
@@ -108,50 +126,30 @@ export function CambioDeColorBoard({
         '0': p.cardCount,
       })),
   );
+  const nextId = nextColorPlayer(state.playerOrder, state.currentTurnPlayerId, state.turnDirection);
+  const nextName = room.players.find((p) => p.id === nextId)?.name || t('Tu rival');
+  const direction = state.turnDirection === 1 ? t('Sentido horario') : t('Sentido antihorario');
   const play = (card: Card) => {
     if (card.color === 'wild') setWild(card);
     else onAction({ type: 'PLAY_CARD', cardId: card.id });
   };
   return (
-    <div className="table-layout animated-table" ref={motionRef}>
-      <section className="panel color-table">
-        <div className="opponents-hands">
-          {state.opponents.map((p) => (
-            <div
-              key={p.playerId}
-              className={state.currentTurnPlayerId === p.playerId ? 'active' : ''}
-            >
-              <div className="mini-cards">
-                {Array.from({ length: Math.min(p.cardCount, 7) }, (_, i) => (
-                  <span
-                    key={i}
-                    style={{
-                      transform: `translateX(${(i - (Math.min(p.cardCount, 7) - 1) / 2) * 10}px) rotate(${(i - 3) * 5}deg)`,
-                    }}
-                  >
-                    ✳
-                  </span>
-                ))}
-              </div>
-              <strong>{room.players.find((v) => v.id === p.playerId)?.name}</strong>
-              <small>
-                {p.cardCount === 1
-                  ? t('¡Última carta!')
-                  : t(p.cardCount === 1 ? '{0} carta' : '{0} cartas', { '0': p.cardCount })}
-              </small>
-            </div>
-          ))}
-        </div>
-        <div className="card-table-center">
+    <div className="table-layout animated-table color-match" ref={motionRef}>
+      <section className="panel color-table" data-action-number={state.actionNumber}>
+        <div className={`card-table-center ${wild ? 'choosing-color' : ''}`}>
           <div className="deck-area">
             <button
-              className="draw-deck"
-              aria-label={t('Robar una carta. Quedan {0}', { '0': state.drawPileCount })}
-              disabled={!canPlay || state.hasDrawnThisTurn}
+              className={`draw-deck ${canPlay && !state.hasDrawnThisTurn && !wild ? `draw-available ${state.pendingDraw ? 'draw-penalty' : !state.myHand.some(playable) ? 'draw-required' : ''}` : ''}`}
+              aria-label={
+                state.pendingDraw
+                  ? t('Robar {0} cartas y perder el turno', { '0': state.pendingDraw })
+                  : t('Robar una carta. Quedan {0}', { '0': state.drawPileCount })
+              }
+              disabled={!canPlay || state.hasDrawnThisTurn || !!wild}
               onClick={() => onAction({ type: 'DRAW_CARD' })}
             >
               <Layers3 size={25} />
-              <span>{t('ROBAR')}</span>
+              <span>{state.pendingDraw ? `+${state.pendingDraw}` : t('ROBAR')}</span>
             </button>
             <small>
               {state.drawPileCount} {t('en el mazo')}
@@ -165,11 +163,6 @@ export function CambioDeColorBoard({
               ● {t(colorNames[state.activeColor])}
             </span>
           </div>
-        </div>
-        <div className="card-action-status" aria-live="polite">
-          {gameText(state.lastActionDescription)}
-        </div>
-        <div className="hand-zone" ref={handZone}>
           {wild && (
             <section
               ref={colourPanel}
@@ -200,11 +193,29 @@ export function CambioDeColorBoard({
               </div>
             </section>
           )}
+        </div>
+        <div className={`color-penalty ${state.pendingDraw ? 'pending' : ''}`} role="status">
+          {state.pendingDraw ? (
+            <>
+              <strong>{t('+{0} pendientes', { '0': state.pendingDraw })}</strong>
+              <span>{t('Responde con +2 o +4, o acepta el robo.')}</span>
+            </>
+          ) : (
+            <span>{gameText(state.lastActionDescription)}</span>
+          )}
+        </div>
+        <div className="hand-zone">
           <div className="your-hand-heading">
             <strong>
               {t('Tu mano')} <span>{state.myHand.length}</span>
             </strong>
-            <small>{canPlay ? t('Elige una carta válida') : t('Esperando tu turno')}</small>
+            <small>
+              {canPlay
+                ? state.pendingDraw
+                  ? t('Solo +2 o +4')
+                  : t('Elige una carta válida')
+                : t('Esperando tu turno')}
+            </small>
           </div>
           <div className="your-hand" tabIndex={0} role="group" aria-label={t('Tus cartas')}>
             {state.myHand.map((card) => (
@@ -223,23 +234,33 @@ export function CambioDeColorBoard({
                 })}
               >
                 <CardFace card={card} />
+                {canPlay && playable(card) && (
+                  <span className="card-play-marker" aria-hidden="true">
+                    <Check size={13} />
+                  </span>
+                )}
               </button>
             ))}
           </div>
         </div>
-        {canPlay && state.hasDrawnThisTurn && (
-          <button
-            className="button secondary pass-button"
-            onClick={() => onAction({ type: 'PASS_TURN' })}
-          >
-            {t('Pasar turno')} <ArrowRight size={17} />
-          </button>
-        )}
-        <p className="board-caption">
-          {state.hasDrawnThisTurn
-            ? t('Puedes jugar la carta recién robada o pasar.')
-            : t('Combina el color o el valor de la carta central. Los comodines siempre sirven.')}
-        </p>
+        <div className="color-turn-controls">
+          {canPlay && state.hasDrawnThisTurn ? (
+            <button
+              className="button secondary pass-button"
+              onClick={() => onAction({ type: 'PASS_TURN' })}
+            >
+              {t('Pasar turno')} <ArrowRight size={17} />
+            </button>
+          ) : (
+            <p className="board-caption">
+              {state.pendingDraw
+                ? t('Acepta la penalización desde el mazo o continúa con +2 o +4.')
+                : state.playerOrder.length === 2
+                  ? t('Con dos jugadores, Cambio de Sentido permite jugar de nuevo.')
+                  : t('Combina color o valor; los comodines permiten elegir color.')}
+            </p>
+          )}
+        </div>
       </section>
       <aside className="table-sidebar">
         <PlayersPanel
@@ -248,11 +269,46 @@ export function CambioDeColorBoard({
           currentTurn={state.currentTurnPlayerId}
           values={values}
         />
-        <GameTip text={getGame('colorclash').tip} />
-        <div className="game-mini-rules">
-          <span className="eyebrow">{t('EL OBJETIVO')}</span>
-          <p>{t('Quédate sin cartas antes que el resto. No se acumulan los +2 y +4.')}</p>
+        <div className="color-direction" aria-label={t('Orden de juego')}>
+          <span key={state.turnDirection} className="color-direction-label">
+            {state.turnDirection === 1 ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}
+            {direction}
+          </span>
+          <span>{t('Siguiente: {0}', { '0': nextName })}</span>
         </div>
+        <ol className="color-player-order" tabIndex={0} aria-label={t('Orden de juego')}>
+          {state.playerOrder.map((id, index) => {
+            const player = room.players.find((p) => p.id === id);
+            const count =
+              id === myPlayerId
+                ? state.myHand.length
+                : state.opponents.find((p) => p.playerId === id)?.cardCount || 0;
+            return (
+              <li
+                key={id}
+                className={`${state.currentTurnPlayerId === id ? 'active' : ''} ${nextId === id ? 'next' : ''}`}
+                aria-current={state.currentTurnPlayerId === id ? 'step' : undefined}
+              >
+                <span className="color-seat-number">{index + 1}</span>
+                <div>
+                  <strong>
+                    {player?.name}
+                    {id === myPlayerId ? t(' (tú)') : ''}
+                  </strong>
+                  <small>
+                    {count === 1 ? t('¡Última carta!') : t('{0} cartas', { '0': count })}
+                    {player?.isBot ? ' · Bot' : ''}
+                  </small>
+                </div>
+                {state.turnDirection === 1 ? (
+                  <ArrowRight className="color-order-arrow" size={16} />
+                ) : (
+                  <ArrowLeft className="color-order-arrow" size={16} />
+                )}
+              </li>
+            );
+          })}
+        </ol>
       </aside>
     </div>
   );

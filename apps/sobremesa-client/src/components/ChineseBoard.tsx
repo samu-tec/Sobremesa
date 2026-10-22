@@ -49,8 +49,77 @@ export function ChineseBoard({
   };
   const progress = (id: string, arm: number) =>
     s.board.filter((p, i) => p?.owner === id && CHINESE_HOLES[i].arm === (arm + 3) % 6).length;
+  const actions = (
+    <>
+      <div className="chinese-controls">
+        <label>
+          {t('Ficha')}
+          <select
+            disabled={!can}
+            value={from ?? ''}
+            onChange={(e) =>
+              setSelection({
+                revision: s.revision,
+                from: e.target.value === '' ? null : Number(e.target.value),
+                to: null,
+              })
+            }
+          >
+            <option value="">{t('Seleccionar ficha')}</option>
+            {own.map((i) => (
+              <option key={i} value={i}>
+                {t('Ficha {0} · hueco {1}', { '0': s.board[i]!.number, '1': i + 1 })}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t('Destino')}
+          <select
+            disabled={!can || from === null}
+            value={to ?? ''}
+            onChange={(e) =>
+              setSelection({
+                revision: s.revision,
+                from,
+                to: e.target.value === '' ? null : Number(e.target.value),
+              })
+            }
+          >
+            <option value="">{t('Seleccionar destino')}</option>
+            {routes.map((p) => (
+              <option key={p.at(-1)} value={p.at(-1)}>
+                {t('Hueco {0} · {1} tramo(s)', { '0': p.at(-1)! + 1, '1': p.length - 1 })}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          className="button primary"
+          disabled={!can || !route}
+          onClick={() => {
+            if (route) onAction({ type: 'MOVE', path: route });
+          }}
+        >
+          {t('Confirmar movimiento')}
+        </button>
+        {can && !paths.length && (
+          <button className="button secondary" onClick={() => onAction({ type: 'PASS' })}>
+            {t('Pasar')}
+          </button>
+        )}
+      </div>
+      {route && (
+        <p className="board-caption" role="status">
+          {t('Recorrido: {0}', { '0': route.map((i) => i + 1).join(' → ') })}
+        </p>
+      )}
+    </>
+  );
   return (
     <BoardFrame
+      selectionActive={from !== null}
+      onCancelSelection={() => setSelection({ revision: s.revision, from: null, to: null })}
       room={room}
       myPlayerId={myPlayerId}
       turn={s.currentTurnPlayerId}
@@ -58,6 +127,7 @@ export function ChineseBoard({
       values={Object.fromEntries(
         s.players.map((p) => [p.id, t('{0}/10 en destino', { '0': progress(p.id, p.arm) })]),
       )}
+      actions={actions}
     >
       <p className="board-instruction" role="status">
         {gameText(s.message)}
@@ -162,69 +232,7 @@ export function ChineseBoard({
           })}
         </div>
       </div>
-      <div className="chinese-controls">
-        <label>
-          {t('Ficha')}
-          <select
-            disabled={!can}
-            value={from ?? ''}
-            onChange={(e) =>
-              setSelection({
-                revision: s.revision,
-                from: e.target.value === '' ? null : Number(e.target.value),
-                to: null,
-              })
-            }
-          >
-            <option value="">{t('Seleccionar ficha')}</option>
-            {own.map((i) => (
-              <option key={i} value={i}>
-                {t('Ficha {0} · hueco {1}', { '0': s.board[i]!.number, '1': i + 1 })}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {t('Destino')}
-          <select
-            disabled={!can || from === null}
-            value={to ?? ''}
-            onChange={(e) =>
-              setSelection({
-                revision: s.revision,
-                from,
-                to: e.target.value === '' ? null : Number(e.target.value),
-              })
-            }
-          >
-            <option value="">{t('Seleccionar destino')}</option>
-            {routes.map((p) => (
-              <option key={p.at(-1)} value={p.at(-1)}>
-                {t('Hueco {0} · {1} tramo(s)', { '0': p.at(-1)! + 1, '1': p.length - 1 })}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          className="button primary"
-          disabled={!can || !route}
-          onClick={() => {
-            if (route) onAction({ type: 'MOVE', path: route });
-          }}
-        >
-          {t('Confirmar movimiento')}
-        </button>
-        {can && !paths.length && (
-          <button className="button secondary" onClick={() => onAction({ type: 'PASS' })}>
-            {t('Pasar')}
-          </button>
-        )}
-      </div>
-      {route && (
-        <p className="board-caption" role="status">
-          {t('Recorrido: {0}', { '0': route.map((i) => i + 1).join(' → ') })}
-        </p>
-      )}
+
       <ul className="chinese-legend">
         {s.players.map((p) => (
           <li key={p.id}>

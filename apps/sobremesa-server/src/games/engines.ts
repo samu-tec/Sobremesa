@@ -55,10 +55,12 @@ export const gameFactories = {
   words: () => defineGame(new WordsEngine(secureRandom, wordDictionaries)),
   quiz: () =>
     defineGame(new QuizEngine(secureRandom, quizQuestions), {
+      requiresPresence: () => false,
       timeoutAction: (s) => ({ type: s.phase === 'review' ? 'NEXT' : 'SKIP' }),
     }),
   drawing: () =>
     defineGame(new DrawingEngine(secureRandom, drawingWords), {
+      requiresPresence: (s) => s.phase === 'choose',
       completed: (s, a) => a.type === 'CHOOSE' || a.type === 'NEXT' || s.phase === 'review',
       timeoutSeconds: (s) => (s.phase === 'choose' ? 20 : s.phase === 'review' ? 8 : s.drawSeconds),
       timeoutAction: (s) =>
@@ -103,6 +105,7 @@ export const gameFactories = {
     const engine = new MahjongEngine(secureRandom);
     return defineGame(engine, {
       completed: (_s, a) => a.type !== 'DRAW' && a.type !== 'KONG',
+      requiresPresence: (s) => s.phase !== 'claim',
       timeoutSeconds: (s) => (s.phase === 'claim' ? 8 : null),
       timeoutAction: (s, id) =>
         s.phase === 'claim' ? ({ type: 'PASS' } as const) : engine.getBotAction(s, id),
@@ -112,6 +115,7 @@ export const gameFactories = {
   chinesecheckers: () => defineGame(new ChineseEngine()),
   go: () =>
     defineGame(new GoEngine(), {
+      requiresPresence: (s) => s.phase !== 'score',
       completed: (_s, a) => a.type !== 'MARK_DEAD',
       timeoutAction: (s) => ({ type: s.phase === 'score' ? 'RESUME' : 'PASS' }) as const,
     }),
@@ -126,12 +130,13 @@ export const gameFactories = {
     const engine = new CambioDeColorEngine();
     return {
       ...defineGame(engine, {
+        requiresPresence: (s) => !s.pendingDraw && !s.hasDrawnThisTurn,
         completed: (s, a) =>
           a.type === 'PLAY_CARD' || a.type === 'PASS_TURN' || !s.hasDrawnThisTurn,
         timeoutAction: (s) => ({ type: s.hasDrawnThisTurn ? 'PASS_TURN' : 'DRAW_CARD' }) as const,
         continueTimeout: () => true,
       }),
-      configureRules: (rules: RoomRules) => engine.setStartingCards(rules.startingCards ?? 7),
+      configureRules: (rules: RoomRules) => engine.setRules(rules),
     };
   },
   monopoly: () => {

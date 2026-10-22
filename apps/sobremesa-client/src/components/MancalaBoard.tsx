@@ -1,5 +1,5 @@
 import { t, quantity } from '../i18n';
-import { BoardFrame, type BoardProps } from '../ui/GameLayout';
+import { BoardFrame, moveBoardFocus, type BoardProps } from '../ui/GameLayout';
 import { useBoardMotion } from '../hooks/useBoardMotion';
 import type { MancalaState, MancalaAction } from 'sobremesa-logic';
 export function MancalaBoard({
@@ -39,7 +39,12 @@ export function MancalaBoard({
         <div className="mancala-rows">
           {[[5, 4, 3, 2, 1, 0].map((i) => other + i), [0, 1, 2, 3, 4, 5].map((i) => own + i)].map(
             (row, r) => (
-              <div className="mancala-row" key={r}>
+              <div
+                className="mancala-row"
+                role="group"
+                onKeyDown={(event) => moveBoardFocus(event, 6)}
+                key={r}
+              >
                 {row.map((i) => (
                   <button
                     key={i}

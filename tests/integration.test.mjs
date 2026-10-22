@@ -46,18 +46,48 @@ after(async () => {
 afterEach(() => {
   for (const socket of clients.splice(0)) socket.disconnect();
 });
-const ack = (socket, event, ...data) =>
-  new Promise((resolve, reject) => {
-    socket
-      .timeout(3000)
-      .emit(event, ...data, (err, result) => (err ? reject(err) : resolve(result)));
-  });
+const ack = (socket, event, ...data) => {
+  if (
+    [
+      'game:action',
+      'room:update_rules',
+      'room:add_bot',
+      'room:remove_bot',
+      'room:start_game',
+      'room:restart_game',
+      'room:remove_player',
+      'room:change_game',
+      'room:confirm_presence',
+    ].includes(event) &&
+    !data[0]?.matchId
+  ) {
+    data = [
+      event === 'game:action'
+        ? { matchId: socket.matchId, action: data[0] }
+        : event === 'room:update_rules'
+          ? { matchId: socket.matchId, rules: data[0] }
+          : { ...data[0], matchId: socket.matchId },
+    ];
+  }
+  return new Promise((resolve, reject) =>
+    socket.timeout(3000).emit(event, ...data, (error, result) => {
+      if (error) reject(error);
+      else {
+        if (result?.room) socket.matchId = result.room.matchId;
+        resolve(result);
+      }
+    }),
+  );
+};
 async function connect(token = secret(), extra = {}) {
   const socket = io(url, {
     auth: { sessionToken: token, protocolVersion: PROTOCOL_VERSION },
     transports: ['websocket'],
     reconnection: false,
     ...extra,
+  });
+  socket.on('room:updated', (room) => {
+    socket.matchId = room.matchId;
   });
   clients.push(socket);
   const { playerId } = await new Promise((resolve, reject) => {
@@ -362,7 +392,7 @@ test('Ciudad Fortuna: todos pueden pujar y una oferta renueva la ventana de 15 s
 });
 
 test(
-  'El servidor resuelve turnos agotados en los seis juegos sin depender del navegador',
+  'Presencia autenticada y abandono real en los seis primeros juegos',
   { timeout: 45000 },
   async () => {
     const sessions = [];
@@ -390,24 +420,76 @@ test(
     }
     await wait(31200);
     for (const session of sessions) {
-      const { latest, updates } = session.read();
-      assert.ok(updates > 0, `No terminó el turno de ${session.game}`);
-      const actor = latest.currentTurn || latest.currentTurnPlayerId;
-      if (session.game === 'monopoly' && latest.auction) {
-        assert.equal(latest.auction.highestBidderId, null);
-      } else {
-        assert.equal(actor, session.guest.playerId, `Turno bloqueado en ${session.game}`);
-      }
       const recovered = await ack(session.host.socket, 'game:reconnect', {
         roomCode: session.room.code,
       });
-      assert.equal(recovered.room.turnSeconds, 30);
-      assert.ok(recovered.room.turnDeadline > Date.now());
-      if (session.game === 'monopoly' && latest.auction)
-        assert.ok(recovered.room.turnDeadline - recovered.room.serverNow <= 15000);
-      if (session.game === 'tictactoe') assert.equal(latest.board.filter(Boolean).length, 1);
-      if (session.game === 'colorclash') assert.equal('drawPile' in latest, false);
-      await ack(session.host.socket, 'room:leave');
+      const pending = recovered.room.presence;
+      assert.equal(pending.playerId, session.host.playerId);
+      assert.ok(pending.deadline > recovered.room.serverNow);
+      assert.equal(
+        (
+          await ack(session.guest.socket, 'room:confirm_presence', {
+            challengeId: pending.challengeId,
+            stay: true,
+            playerId: session.host.playerId,
+          })
+        ).success,
+        false,
+      );
+      if (session.game === 'tictactoe') {
+        assert.equal(
+          recovered.state.board.filter(Boolean).length,
+          0,
+          'Nadie decide estratégicamente por el ausente',
+        );
+        assert.equal(
+          (
+            await ack(session.host.socket, 'room:confirm_presence', {
+              challengeId: pending.challengeId,
+              stay: true,
+            })
+          ).success,
+          true,
+        );
+        assert.equal(
+          (
+            await ack(session.host.socket, 'room:confirm_presence', {
+              challengeId: pending.challengeId,
+              stay: true,
+            })
+          ).success,
+          false,
+        );
+        assert.equal(
+          (await ack(session.host.socket, 'game:action', { type: 'MAKE_MOVE', index: 0 })).success,
+          true,
+        );
+        await ack(session.host.socket, 'room:leave');
+      } else {
+        assert.equal(
+          (
+            await ack(session.host.socket, 'room:confirm_presence', {
+              challengeId: pending.challengeId,
+              stay: false,
+            })
+          ).success,
+          true,
+        );
+        assert.equal(
+          (
+            await ack(session.host.socket, 'room:confirm_presence', {
+              challengeId: pending.challengeId,
+              stay: true,
+            })
+          ).success,
+          false,
+        );
+      }
+      const remaining = await ack(session.guest.socket, 'game:reconnect', {
+        roomCode: session.room.code,
+      });
+      assert.equal(remaining.room.status, 'finished');
+      assert.equal(remaining.state.winner, session.guest.playerId);
       await ack(session.guest.socket, 'room:leave');
       session.host.socket.disconnect();
       session.guest.socket.disconnect();
@@ -572,7 +654,7 @@ test('Nuevos juegos: dos salas independientes, proyección privada y reconexión
 });
 
 test(
-  'Los juegos ampliados completan decisiones agotadas con acciones legales',
+  'Los juegos ampliados confirman al actor humano real sin decisiones estratégicas automáticas',
   { timeout: 80000 },
   async () => {
     // El catálogo ampliado usa más handshakes: respetamos la ventana de 120/minuto.
@@ -613,15 +695,35 @@ test(
     }
     await wait(31500);
     for (const s of sessions) {
-      const { latest, updates } = s.read();
-      assert.ok(updates > 0, `Sin progreso en ${s.game}`);
-      assert.notDeepEqual(latest, s.initial, `Decisión bloqueada: ${s.game}`);
       const recovered = await ack(s.host.socket, 'game:reconnect', { roomCode: s.room.code });
       assert.equal(recovered.success, true);
-      assert.ok(recovered.room.turnDeadline > Date.now());
-      if (s.game === 'rummy') assert.equal(latest.lastAction, 'draw');
-      if (s.game === 'battleship') assert.ok(latest.players[0].ready);
-      await ack(s.host.socket, 'room:leave');
+      const pendingHuman = [s.host, s.guest].find(
+        (p) => p.playerId === recovered.room.presence.playerId,
+      );
+      assert.ok(pendingHuman, `Presencia pendiente de un humano: ${s.game}`);
+      const remainingHuman = pendingHuman === s.host ? s.guest : s.host;
+      assert.deepEqual(
+        recovered.state,
+        s.initial,
+        'No hay jugadas estratégicas automáticas por humanos',
+      );
+      assert.equal(
+        (
+          await ack(pendingHuman.socket, 'room:confirm_presence', {
+            challengeId: recovered.room.presence.challengeId,
+            stay: false,
+          })
+        ).success,
+        true,
+      );
+      const remaining = await ack(remainingHuman.socket, 'game:reconnect', {
+        roomCode: s.room.code,
+      });
+      assert.equal(remaining.success, true);
+      assert.equal(
+        remaining.room.players.some((p) => p.id === pendingHuman.playerId),
+        false,
+      );
       await ack(s.guest.socket, 'room:leave');
       s.host.socket.disconnect();
       s.guest.socket.disconnect();
@@ -685,12 +787,28 @@ test(
     }
     await wait(31500);
     for (const session of sessions) {
-      assert.ok(session.updates() > 0, `Sin progreso en ${session.game}`);
       const recovered = await ack(session.host.socket, 'game:reconnect', {
         roomCode: session.room.code,
       });
       assert.equal(recovered.success, true);
-      assert.ok(recovered.room.turnDeadline > Date.now());
+      if (session.game === 'quiz') {
+        assert.equal(recovered.room.presence, undefined);
+        assert.ok(session.updates() > 0, 'Las preguntas mantienen su plazo propio');
+      } else {
+        const pendingHuman = [session.host, session.guest, ...session.extra].find(
+          (p) => p.playerId === recovered.room.presence.playerId,
+        );
+        assert.ok(pendingHuman, session.game);
+        assert.equal(
+          (
+            await ack(pendingHuman.socket, 'room:confirm_presence', {
+              challengeId: recovered.room.presence.challengeId,
+              stay: false,
+            })
+          ).success,
+          true,
+        );
+      }
       for (const human of [session.host, session.guest, ...session.extra]) {
         await ack(human.socket, 'room:leave');
         human.socket.disconnect();
@@ -698,3 +816,58 @@ test(
     }
   },
 );
+
+test('Grupo multijuego: código pegado, permisos, expulsión y contextos antiguos por Socket.IO', async () => {
+  const a = await connect(),
+    b = await connect();
+  const room = await create(a, 'colorclash');
+  const pasted = room.code.toLowerCase().split('').join(' ');
+  assert.equal(
+    (await ack(b.socket, 'room:join', { roomCode: ` ${pasted} `, playerName: 'Bruno' })).success,
+    true,
+  );
+  assert.equal((await ack(b.socket, 'room:change_game', { gameType: 'pig' })).success, false);
+  assert.equal(
+    (await ack(b.socket, 'room:remove_player', { playerId: a.playerId })).success,
+    false,
+  );
+  assert.equal((await ack(a.socket, 'room:update_rules', { stackDrawCards: true })).success, true);
+  const oldMatchId = a.socket.matchId;
+  assert.equal((await ack(a.socket, 'room:change_game', { gameType: 'tictactoe' })).success, true);
+  const currentMatchId = a.socket.matchId;
+  assert.notEqual(currentMatchId, oldMatchId);
+  for (const [event, data] of [
+    ['room:change_game', { gameType: 'pig' }],
+    ['room:update_rules', { rules: { turnSeconds: 30 } }],
+    ['room:remove_player', { playerId: b.playerId }],
+    ['room:start_game', {}],
+    ['game:action', { action: { type: 'MAKE_MOVE', index: 0 } }],
+  ])
+    assert.equal((await ack(a.socket, event, { ...data, matchId: oldMatchId })).success, false);
+  const recovered = await ack(b.socket, 'game:reconnect', { roomCode: room.code });
+  assert.equal(recovered.room.code, room.code);
+  assert.equal(recovered.room.gameType, 'tictactoe');
+  assert.equal(recovered.room.players.length, 2);
+  assert.equal(recovered.state, null);
+  const removed = new Promise((resolve) => b.socket.once('room:removed', resolve));
+  assert.equal((await ack(a.socket, 'room:remove_player', { playerId: b.playerId })).success, true);
+  assert.match(await removed, /retirado/);
+  assert.equal((await ack(b.socket, 'game:reconnect', { roomCode: room.code })).success, false);
+  assert.equal((await ack(b.socket, 'room:add_bot')).success, false);
+  // Entrar de nuevo exige una acción explícita, nunca restaura una reserva antigua.
+  assert.equal(
+    (await ack(b.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' })).success,
+    true,
+  );
+  assert.equal((await ack(a.socket, 'room:start_game')).success, true);
+  const statePromise = new Promise((resolve) => b.socket.once('game:state_update', resolve));
+  assert.equal((await ack(a.socket, 'game:action', { type: 'MAKE_MOVE', index: 0 })).success, true);
+  const state = await statePromise;
+  assert.equal(state.matchId, a.socket.matchId);
+  assert.equal(state.gameType, 'tictactoe');
+  assert.equal((await ack(a.socket, 'room:change_game', { gameType: 'pig' })).success, false);
+  assert.equal(
+    (await ack(a.socket, 'room:remove_player', { playerId: b.playerId })).success,
+    false,
+  );
+});

@@ -112,3 +112,29 @@
   opacity: 1;
   cursor: default;
 }
+
+@media (min-width: 901px) {
+  .chinese-board:not(.enlarged) {
+    width: min(100%, 660px, max(320px, calc((100svh - 350px) / 1.08)));
+  }
+}
+
+@media (min-width: 1100px) {
+  .extended-chinesecheckers > .board-caption,
+  .extended-chinesecheckers > .chinese-zoom,
+  .extended-chinesecheckers > .chinese-controls,
+  .extended-chinesecheckers > .chinese-legend,
+  .extended-chinesecheckers > .board-selection-controls {
+    margin-top: 0;
+  }
+  .extended-chinesecheckers > .chinese-scroll {
+    max-height: max(320px, calc(100svh - 220px));
+  }
+  .extended-chinesecheckers .chinese-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .extended-chinesecheckers .chinese-controls label {
+    flex: auto;
+  }
+}

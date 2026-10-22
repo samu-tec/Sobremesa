@@ -63,3 +63,26 @@
 .conquest-regions li span {
   font-size: 0.9rem;
 }
+
+@media (min-width: 1100px) {
+  .extended-conquest > .conquest-map {
+    margin: 0;
+  }
+  .extended-conquest > button {
+    justify-self: start;
+  }
+  .extended-conquest .conquest-map:not(.enlarged) svg {
+    max-height: max(280px, calc(100svh - 340px));
+  }
+}
+
+.conquest-territories summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: list-item;
+  padding: 12px 0;
+}
+.conquest-territories summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}

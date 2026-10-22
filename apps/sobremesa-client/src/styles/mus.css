@@ -78,3 +78,15 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+@media (min-width: 1100px) {
+  .extended-mus > .mus-score {
+    margin: 0;
+  }
+  .extended-mus > .mus-betting {
+    margin: 0;
+  }
+  .extended-mus .mus-own h2 {
+    margin-top: 0;
+  }
+}

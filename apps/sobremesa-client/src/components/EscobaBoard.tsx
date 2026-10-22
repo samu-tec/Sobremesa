@@ -32,46 +32,8 @@ export function EscobaBoard({
     valid = active.card !== null && (active.take.length ? sum === 15 : !options.length),
     motionRef = useBoardMotion(s.revision),
     name = (id: string) => room.players.find((p) => p.id === id)?.name ?? id;
-  return (
-    <BoardFrame
-      room={room}
-      myPlayerId={myPlayerId}
-      turn={s.currentTurnPlayerId}
-      motionRef={motionRef}
-      values={Object.fromEntries(
-        s.players.map((p) => [
-          p.id,
-          t('{0} puntos · {1} escobas', { '0': p.score, '1': p.sweeps }),
-        ]),
-      )}
-    >
-      <p className="board-instruction" role="status">
-        {gameText(s.message)}
-      </p>
-      <p className="board-caption">
-        {t('Reparto {0} · mazo: {1} · objetivo: {2}', {
-          '0': s.round,
-          '1': s.stockCount,
-          '2': s.targetScore,
-        })}
-      </p>
-      <h2 className="escoba-title">{t('Tu mano')}</h2>
-      <div className="spanish-hand">
-        {s.hand.map((card) => (
-          <button
-            key={card}
-            disabled={!can}
-            aria-label={spanishCardLabel(card)}
-            aria-pressed={active.card === card}
-            onClick={() => setDraft({ revision: s.revision, card, take: [] })}
-          >
-            <SpanishCardFace card={card} motion />
-          </button>
-        ))}
-      </div>
-      <p className="board-caption">
-        {t('Sota suma 8, caballo 9 y rey 10. Selecciona tu carta y las cartas que capturas.')}
-      </p>
+  const actions = (
+    <>
       <p className="escoba-sum" role="status">
         {t('Suma seleccionada: {0}/15', { '0': sum })}
       </p>
@@ -117,6 +79,54 @@ export function EscobaBoard({
           </button>
         )}
       </div>
+    </>
+  );
+  return (
+    <BoardFrame
+      selectionActive={active.card !== null}
+      onCancelSelection={() => setDraft({ revision: s.revision, card: null, take: [] })}
+      room={room}
+      myPlayerId={myPlayerId}
+      turn={s.currentTurnPlayerId}
+      motionRef={motionRef}
+      values={Object.fromEntries(
+        s.players.map((p) => [
+          p.id,
+          t('{0} puntos · {1} escobas', { '0': p.score, '1': p.sweeps }),
+        ]),
+      )}
+      actions={actions}
+    >
+      <p className="board-instruction" role="status">
+        {gameText(s.message)}
+      </p>
+      <p className="board-caption">
+        {t('Reparto {0} · mazo: {1} · objetivo: {2}', {
+          '0': s.round,
+          '1': s.stockCount,
+          '2': s.targetScore,
+        })}
+      </p>
+      <h2 className="escoba-title">{t('Tu mano')}</h2>
+      <div className="spanish-hand">
+        {s.hand.map((card) => (
+          <button
+            key={card}
+            disabled={!can}
+            aria-label={spanishCardLabel(card)}
+            aria-pressed={active.card === card}
+            onClick={() =>
+              setDraft({ revision: s.revision, card: active.card === card ? null : card, take: [] })
+            }
+          >
+            <SpanishCardFace card={card} motion />
+          </button>
+        ))}
+      </div>
+      <p className="board-caption">
+        {t('Sota suma 8, caballo 9 y rey 10. Selecciona tu carta y las cartas que capturas.')}
+      </p>
+
       <section className="escoba-table" aria-label={t('Mesa de Escoba')}>
         <h2>{t('Cartas de la mesa')}</h2>
         <div>

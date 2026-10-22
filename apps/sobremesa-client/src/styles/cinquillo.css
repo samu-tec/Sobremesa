@@ -34,10 +34,22 @@
   height: 100%;
   min-width: 0;
 }
-.cinquillo-slot > span {
+.cinquillo-slot > span:not(.spanish-card) {
   font-weight: 700;
   color: #ffffffa8;
 }
 .cinquillo-slot .spanish-card > small {
   display: none;
+}
+
+@media (min-width: 1100px) {
+  .extended-cinquillo > .cinquillo-table {
+    max-height: max(320px, calc(100svh - 220px));
+    overflow: auto;
+  }
+  .extended-cinquillo > .spanish-hand {
+    max-height: max(220px, calc(100svh - 380px));
+    overflow: auto;
+    padding: 4px;
+  }
 }

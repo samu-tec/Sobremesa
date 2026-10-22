@@ -24,46 +24,8 @@ export function MysteryBoard({
     name = (id: string) => room.players.find((p) => p.id === id)?.name ?? id,
     known = new Set([...s.hand, ...s.proofs.map((p) => p.card)]),
     categories = [t('Personaje'), t('Lugar'), t('Objeto')];
-  return (
-    <BoardFrame
-      room={room}
-      myPlayerId={myPlayerId}
-      turn={s.currentTurnPlayerId}
-      values={Object.fromEntries(
-        s.players.map((p) => [
-          p.id,
-          p.eliminated ? t('Solo muestra pistas') : t('{0} pistas privadas', { '0': p.handCount }),
-        ]),
-      )}
-    >
-      <p className="board-instruction" role="status">
-        {gameText(s.message)}
-      </p>
-      <p>{t('Investigación {0} · investiga {1}', { '0': s.turn, '1': name(s.investigatorId) })}</p>
-      <section className="mystery-private">
-        <h2>{t('Tus pistas privadas')}</h2>
-        <ul>
-          {s.hand.map((c) => (
-            <li key={c}>{t(MYSTERY_CARDS[c])}</li>
-          ))}
-        </ul>
-        {s.proofs.length > 0 && (
-          <>
-            <h3>{t('Pistas que te han mostrado')}</h3>
-            <ul>
-              {s.proofs.map((proof) => (
-                <li key={proof.card}>
-                  {t('{0} mostró {1} en la investigación {2}', {
-                    '0': name(proof.by),
-                    '1': t(MYSTERY_CARDS[proof.card]),
-                    '2': proof.turn,
-                  })}
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </section>
+  const actions = (
+    <>
       {s.phase === 'refute' && can && (
         <section>
           <h2>{t('Elige una carta para mostrar solo a {0}', { '0': name(s.investigatorId) })}</h2>
@@ -79,22 +41,6 @@ export function MysteryBoard({
               </button>
             ))}
           </div>
-        </section>
-      )}
-      {s.hypothesis && (
-        <section className="mystery-hypothesis">
-          <h2>{t('Hipótesis pública')}</h2>
-          <p>{s.hypothesis.cards.map((c) => t(MYSTERY_CARDS[c])).join(' · ')}</p>
-          <p>
-            {t('No pudieron refutar: {0}', {
-              '0': s.hypothesis.passedIds.map(name).join(', ') || t('Nadie todavía'),
-            })}
-          </p>
-          <p>
-            {s.hypothesis.refuterId
-              ? t('Muestra una pista: {0}', { '0': name(s.hypothesis.refuterId) })
-              : t('Ninguna otra mano contiene esas cartas.')}
-          </p>
         </section>
       )}
       {investigate && (
@@ -142,6 +88,67 @@ export function MysteryBoard({
           </div>
         </section>
       )}
+    </>
+  );
+  return (
+    <BoardFrame
+      room={room}
+      myPlayerId={myPlayerId}
+      turn={s.currentTurnPlayerId}
+      values={Object.fromEntries(
+        s.players.map((p) => [
+          p.id,
+          p.eliminated ? t('Solo muestra pistas') : t('{0} pistas privadas', { '0': p.handCount }),
+        ]),
+      )}
+      actions={actions}
+    >
+      <p className="board-instruction" role="status">
+        {gameText(s.message)}
+      </p>
+      <p>{t('Investigación {0} · investiga {1}', { '0': s.turn, '1': name(s.investigatorId) })}</p>
+      <section className="mystery-private">
+        <h2>{t('Tus pistas privadas')}</h2>
+        <ul>
+          {s.hand.map((c) => (
+            <li key={c}>{t(MYSTERY_CARDS[c])}</li>
+          ))}
+        </ul>
+        {s.proofs.length > 0 && (
+          <>
+            <h3>{t('Pistas que te han mostrado')}</h3>
+            <ul>
+              {s.proofs.map((proof) => (
+                <li key={proof.card}>
+                  {t('{0} mostró {1} en la investigación {2}', {
+                    '0': name(proof.by),
+                    '1': t(MYSTERY_CARDS[proof.card]),
+                    '2': proof.turn,
+                  })}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+
+      {s.hypothesis && (
+        <section className="mystery-hypothesis">
+          <h2>{t('Hipótesis pública')}</h2>
+          <p>{s.hypothesis.cards.map((c) => t(MYSTERY_CARDS[c])).join(' · ')}</p>
+          <p>
+            {t('No pudieron refutar: {0}', {
+              '0': s.hypothesis.passedIds.map(name).join(', ') || t('Nadie todavía'),
+            })}
+          </p>
+          <p>
+            {s.hypothesis.refuterId
+              ? t('Muestra una pista: {0}', { '0': name(s.hypothesis.refuterId) })
+              : t('Ninguna otra mano contiene esas cartas.')}
+          </p>
+        </section>
+      )}
+
       <section>
         <h2>{t('Cuaderno de deducción')}</h2>
         <p>

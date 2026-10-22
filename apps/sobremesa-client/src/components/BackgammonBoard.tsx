@@ -23,6 +23,7 @@ export function BackgammonBoard({
   const render = (i: number) => {
     const n = s.points[i],
       legal = s.legalMoves.some((m) => m.from === i);
+
     return (
       <button
         key={i}
@@ -43,38 +44,8 @@ export function BackgammonBoard({
       </button>
     );
   };
-  return (
-    <BoardFrame
-      motionRef={motionRef}
-      room={room}
-      myPlayerId={myPlayerId}
-      turn={s.currentTurnPlayerId}
-      values={Object.fromEntries(
-        s.players.map((p, i) => [
-          p.id,
-          t('{0}/15 fuera · {1} barra', { '0': s.off[i], '1': s.bar[i] }),
-        ]),
-      )}
-    >
-      <p className="board-instruction">
-        {side === 0
-          ? t('Llevas las fichas claras: avanzan del punto 24 al 1.')
-          : t('Llevas las fichas oscuras: avanzan del punto 1 al 24.')}
-      </p>
-      <div className="backgammon-board" role="group" aria-label={t('Tablero de Backgammon')}>
-        <div className="bg-row">{Array.from({ length: 12 }, (_, i) => render(i + 12))}</div>
-        <div className="bg-bar" data-cell="-1">
-          <span>
-            {t('Barra')} · ⚪ {s.bar[0]} / ⚫ {s.bar[1]}
-          </span>
-          <span>
-            {t('Fuera')} · ⚪ {s.off[0]} / ⚫ {s.off[1]}
-          </span>
-        </div>
-        <div className="bg-row bg-bottom">
-          {Array.from({ length: 12 }, (_, i) => render(11 - i))}
-        </div>
-      </div>
+  const actions = (
+    <>
       <div className="dice-row">
         {(s.dice.length ? s.dice : s.lastDice).map((d, i) => (
           <DiceFace key={i} value={d} />
@@ -126,6 +97,43 @@ export function BackgammonBoard({
           </div>
         </>
       )}
+    </>
+  );
+  return (
+    <BoardFrame
+      actions={actions}
+      selectionActive={from !== null}
+      onCancelSelection={() => setFrom(null)}
+      motionRef={motionRef}
+      room={room}
+      myPlayerId={myPlayerId}
+      turn={s.currentTurnPlayerId}
+      values={Object.fromEntries(
+        s.players.map((p, i) => [
+          p.id,
+          t('{0}/15 fuera · {1} barra', { '0': s.off[i], '1': s.bar[i] }),
+        ]),
+      )}
+    >
+      <p className="board-instruction">
+        {side === 0
+          ? t('Llevas las fichas claras: avanzan del punto 24 al 1.')
+          : t('Llevas las fichas oscuras: avanzan del punto 1 al 24.')}
+      </p>
+      <div className="backgammon-board" role="group" aria-label={t('Tablero de Backgammon')}>
+        <div className="bg-row">{Array.from({ length: 12 }, (_, i) => render(i + 12))}</div>
+        <div className="bg-bar" data-cell="-1">
+          <span>
+            {t('Barra')} · ⚪ {s.bar[0]} / ⚫ {s.bar[1]}
+          </span>
+          <span>
+            {t('Fuera')} · ⚪ {s.off[0]} / ⚫ {s.off[1]}
+          </span>
+        </div>
+        <div className="bg-row bg-bottom">
+          {Array.from({ length: 12 }, (_, i) => render(11 - i))}
+        </div>
+      </div>
     </BoardFrame>
   );
 }

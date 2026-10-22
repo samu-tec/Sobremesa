@@ -66,9 +66,7 @@ export function Rules({
           </p>
           <p>
             {t(
-              room.gameType === 'rummy'
-                ? 'Si se agota el tiempo, se cancela tu borrador y robas una ficha o pasas.'
-                : 'Si se agota el tiempo, el juego completa tu turno automáticamente.',
+              'Cuando tu decisión bloquee la partida, tendrás 15 segundos para confirmar tu presencia y una única prórroga de 30 segundos. Los plazos propios de las reglas se mantienen.',
             )}
           </p>
           {room.gameType === 'monopoly' && (

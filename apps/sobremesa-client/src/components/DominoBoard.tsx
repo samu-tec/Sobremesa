@@ -26,59 +26,24 @@ export function DominoBoard({
     onAction(a);
     setSelected(null);
   };
-  return (
-    <BoardFrame
-      motionRef={motionRef}
-      room={room}
-      myPlayerId={myPlayerId}
-      turn={s.currentTurnPlayerId}
-      values={Object.fromEntries(
-        s.players.map((p) => [
-          p.id,
-          t('{0} · {1}', {
-            '0': quantity(p.score, 'puntos'),
-            '1': quantity(p.handCount, 'fichas'),
-          }),
-        ]),
-      )}
-    >
-      <div className="board-topline">
-        <span className="eyebrow">{t('Ronda {0} de {1}', { '0': s.round, '1': s.maxRounds })}</span>
-        <strong>{t('Objetivo: {0} puntos', { '0': s.targetScore })}</strong>
-        <strong>{t('Pozo: {0}', { '0': quantity(s.stockCount, 'fichas') })}</strong>
-      </div>
-      {s.phase === 'round_end' ? (
-        <RoundNotice
-          round={s.round}
-          winner={s.roundWinner}
-          room={room}
-          disabled={!can}
-          onNext={() => send({ type: 'NEXT_ROUND' })}
-        />
-      ) : (
-        <p className="board-instruction">
-          {s.chain.length
-            ? t('Elige una ficha y el extremo donde colocarla.')
-            : t('Empieza con la ficha marcada: el doble más alto o la de mayor suma.')}
-        </p>
-      )}
-      <div className="domino-table">
-        <div className="domino-ends">
-          <span>
-            {t('Izquierda')} · {s.chain[0]?.a ?? '—'}
-          </span>
-          <span>
-            {t('Derecha')} · {s.chain.at(-1)?.b ?? '—'}
-          </span>
-        </div>
-        <div className="domino-chain" aria-label={t('Cadena de dominó')}>
-          {s.chain.map((tile) => (
-            <DominoTile key={tile.id} tile={tile} />
-          ))}
-          {!s.chain.length && (
-            <span className="domino-empty">{t('Coloca aquí la primera ficha.')}</span>
-          )}
-        </div>
+  const actions = (
+    <>
+      <div className="domino-round-status">
+        {s.phase === 'round_end' ? (
+          <RoundNotice
+            round={s.round}
+            winner={s.roundWinner}
+            room={room}
+            disabled={!can}
+            onNext={() => send({ type: 'NEXT_ROUND' })}
+          />
+        ) : (
+          <p className="board-instruction">
+            {s.chain.length
+              ? t('Elige una ficha y el extremo donde colocarla.')
+              : t('Empieza con la ficha marcada: el doble más alto o la de mayor suma.')}
+          </p>
+        )}
       </div>
       <div className="board-actions">
         {(['left', 'right'] as const).map((end) => (
@@ -109,6 +74,52 @@ export function DominoBoard({
           {t('Pasar')}
         </button>
       </div>
+    </>
+  );
+  return (
+    <BoardFrame
+      selectionActive={selected !== null}
+      onCancelSelection={() => setSelected(null)}
+      motionRef={motionRef}
+      room={room}
+      myPlayerId={myPlayerId}
+      turn={s.currentTurnPlayerId}
+      values={Object.fromEntries(
+        s.players.map((p) => [
+          p.id,
+          t('{0} · {1}', {
+            '0': quantity(p.score, 'puntos'),
+            '1': quantity(p.handCount, 'fichas'),
+          }),
+        ]),
+      )}
+      actions={actions}
+    >
+      <div className="board-topline">
+        <span className="eyebrow">{t('Ronda {0} de {1}', { '0': s.round, '1': s.maxRounds })}</span>
+        <strong>{t('Objetivo: {0} puntos', { '0': s.targetScore })}</strong>
+        <strong>{t('Pozo: {0}', { '0': quantity(s.stockCount, 'fichas') })}</strong>
+      </div>
+
+      <div className="domino-table">
+        <div className="domino-ends">
+          <span>
+            {t('Izquierda')} · {s.chain[0]?.a ?? '—'}
+          </span>
+          <span>
+            {t('Derecha')} · {s.chain.at(-1)?.b ?? '—'}
+          </span>
+        </div>
+        <div className="domino-chain" aria-label={t('Cadena de dominó')}>
+          {s.chain.map((tile) => (
+            <DominoTile key={tile.id} tile={tile} />
+          ))}
+          {!s.chain.length && (
+            <span className="domino-empty">{t('Coloca aquí la primera ficha.')}</span>
+          )}
+        </div>
+      </div>
+
       <section className="new-hand">
         <h2>
           {t('Tus fichas')} · {s.hand.length}
@@ -123,7 +134,7 @@ export function DominoBoard({
               className={selected === tile.id ? 'selected-tile' : ''}
               aria-label={t('Ficha {0} y {1}', { '0': tile.a, '1': tile.b })}
               aria-pressed={selected === tile.id}
-              onClick={() => setSelected(tile.id)}
+              onClick={() => setSelected(selected === tile.id ? null : tile.id)}
             >
               <DominoTile tile={tile} />
             </button>

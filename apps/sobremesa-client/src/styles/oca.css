@@ -57,3 +57,10 @@
     border-width: 3px;
   }
 }
+
+@media (min-width: 1100px) {
+  .extended-oca > .oca-board {
+    width: min(100%, max(300px, calc(100svh - 280px)));
+    justify-self: center;
+  }
+}

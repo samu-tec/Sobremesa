@@ -33,50 +33,8 @@ export function MusBoard({
     name = (id: string) => room.players.find((p) => p.id === id)?.name ?? id,
     minimum = s.bet && s.bet.offer !== 'ordago' ? s.bet.offer + 1 : 2,
     bid = Math.max(minimum, amount);
-  return (
-    <BoardFrame
-      room={room}
-      myPlayerId={myPlayerId}
-      turn={s.currentTurnPlayerId}
-      motionRef={motionRef}
-      values={Object.fromEntries(
-        s.players.map((p) => [
-          p.id,
-          t('Bando {0} · {1} piedras', { '0': p.team + 1, '1': s.teamPoints[p.team] }),
-        ]),
-      )}
-    >
-      <p className="board-instruction" role="status">
-        {gameText(s.message)}
-      </p>
-      <div className="mus-score">
-        {[0, 1].map((team) => (
-          <div key={team}>
-            <strong>{t('Bando {0}', { '0': team + 1 })}</strong>
-            <p>
-              {s.players
-                .filter((p) => p.team === team)
-                .map((p) => name(p.id))
-                .join(' + ')}
-            </p>
-            <b>
-              {s.teamPoints[team]} / {s.targetPoints}
-            </b>
-            <span>
-              {t('{0} amarrakos y {1} piedras', {
-                '0': Math.floor(s.teamPoints[team] / 5),
-                '1': s.teamPoints[team] % 5,
-              })}
-            </span>
-          </div>
-        ))}
-      </div>
-      <p className="board-caption">
-        {t('Mano {0} · es mano: {1} · ocho reyes y ocho ases', {
-          '0': s.handNumber,
-          '1': name(s.players[s.mano].id),
-        })}
-      </p>
+  const actions = (
+    <>
       {s.phase === 'mus' && (
         <div className="board-actions">
           <button
@@ -113,46 +71,6 @@ export function MusBoard({
           )}
         </button>
       )}
-      <section className="mus-own">
-        <h2>{t('Tu mano')}</h2>
-        <div className="spanish-hand">
-          {s.hand.map((card) => (
-            <button
-              key={card}
-              disabled={!can || s.phase !== 'discard'}
-              aria-label={spanishCardLabel(card)}
-              aria-pressed={selected.includes(card)}
-              onClick={() =>
-                setDraft({
-                  revision: s.revision,
-                  cards: selected.includes(card)
-                    ? selected.filter((c) => c !== card)
-                    : [...selected, card],
-                })
-              }
-            >
-              <SpanishCardFace card={card} motion />
-            </button>
-          ))}
-        </div>
-        {s.summary && (
-          <p className="board-caption">
-            {t('Tu juego suma {0}; valor de pares: {1}. Los treses son reyes y los doses, ases.', {
-              '0': s.summary.sum,
-              '1': s.summary.pairBonus,
-            })}
-          </p>
-        )}
-        {s.phase === 'discard' && (
-          <button
-            className="button primary"
-            disabled={!can || !selected.length}
-            onClick={() => onAction({ type: 'DISCARD', cards: selected })}
-          >
-            {t('Descartar {0} carta(s)', { '0': selected.length })}
-          </button>
-        )}
-      </section>
       {(s.phase === 'bet' || s.phase === 'declare') && (
         <section className="mus-betting">
           <h2>{t('Lance: {0}', { '0': lanceName(s.lance) })}</h2>
@@ -246,6 +164,106 @@ export function MusBoard({
           )}
         </section>
       )}
+      {s.phase === 'hand_end' && (
+        <button
+          className="button primary"
+          disabled={!can}
+          onClick={() => onAction({ type: 'NEXT_HAND' })}
+        >
+          {t('Siguiente mano')}
+        </button>
+      )}
+    </>
+  );
+  return (
+    <BoardFrame
+      selectionActive={selected.length > 0}
+      onCancelSelection={() => setDraft({ revision: s.revision, cards: [] })}
+      room={room}
+      myPlayerId={myPlayerId}
+      turn={s.currentTurnPlayerId}
+      motionRef={motionRef}
+      values={Object.fromEntries(
+        s.players.map((p) => [
+          p.id,
+          t('Bando {0} · {1} piedras', { '0': p.team + 1, '1': s.teamPoints[p.team] }),
+        ]),
+      )}
+      actions={actions}
+    >
+      <p className="board-instruction" role="status">
+        {gameText(s.message)}
+      </p>
+      <div className="mus-score">
+        {[0, 1].map((team) => (
+          <div key={team}>
+            <strong>{t('Bando {0}', { '0': team + 1 })}</strong>
+            <p>
+              {s.players
+                .filter((p) => p.team === team)
+                .map((p) => name(p.id))
+                .join(' + ')}
+            </p>
+            <b>
+              {s.teamPoints[team]} / {s.targetPoints}
+            </b>
+            <span>
+              {t('{0} amarrakos y {1} piedras', {
+                '0': Math.floor(s.teamPoints[team] / 5),
+                '1': s.teamPoints[team] % 5,
+              })}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="board-caption">
+        {t('Mano {0} · es mano: {1} · ocho reyes y ocho ases', {
+          '0': s.handNumber,
+          '1': name(s.players[s.mano].id),
+        })}
+      </p>
+
+      <section className="mus-own">
+        <h2>{t('Tu mano')}</h2>
+        <div className="spanish-hand">
+          {s.hand.map((card) => (
+            <button
+              key={card}
+              disabled={!can || s.phase !== 'discard'}
+              aria-label={spanishCardLabel(card)}
+              aria-pressed={selected.includes(card)}
+              onClick={() =>
+                setDraft({
+                  revision: s.revision,
+                  cards: selected.includes(card)
+                    ? selected.filter((c) => c !== card)
+                    : [...selected, card],
+                })
+              }
+            >
+              <SpanishCardFace card={card} motion />
+            </button>
+          ))}
+        </div>
+        {s.summary && (
+          <p className="board-caption">
+            {t('Tu juego suma {0}; valor de pares: {1}. Los treses son reyes y los doses, ases.', {
+              '0': s.summary.sum,
+              '1': s.summary.pairBonus,
+            })}
+          </p>
+        )}
+        {s.phase === 'discard' && (
+          <button
+            className="button primary"
+            disabled={!can || !selected.length}
+            onClick={() => onAction({ type: 'DISCARD', cards: selected })}
+          >
+            {t('Descartar {0} carta(s)', { '0': selected.length })}
+          </button>
+        )}
+      </section>
+
       {ordago === s.revision && (
         <Modal title={t('Confirmar órdago')} onClose={() => setOrdago(null)}>
           <p>
@@ -306,15 +324,7 @@ export function MusBoard({
           ))}
         </section>
       )}
-      {s.phase === 'hand_end' && (
-        <button
-          className="button primary"
-          disabled={!can}
-          onClick={() => onAction({ type: 'NEXT_HAND' })}
-        >
-          {t('Siguiente mano')}
-        </button>
-      )}
+
       <p className="board-caption">
         {t('Mazo: {0} · descartes: {1}', { '0': s.stockCount, '1': s.discardCount })}
       </p>

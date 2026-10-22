@@ -37,14 +37,8 @@ export function DadosDeCombinacionesBoard({
     rollDice: s.rolls > 0,
   });
   useEffect(() => setKeep([]), [s.currentTurnPlayerId, s.round]);
-  return (
-    <BoardFrame
-      motionRef={motionRef}
-      room={room}
-      myPlayerId={myPlayerId}
-      turn={s.currentTurnPlayerId}
-      values={Object.fromEntries(s.players.map((p) => [p.id, quantity(s.totals[p.id], 'puntos')]))}
-    >
+  const actions = (
+    <>
       <div className="board-topline">
         <span className="eyebrow">{t('Ronda {0} de 13', { '0': s.round })}</span>
         <strong>{t('Tirada {0} de {1}', { '0': s.rolls, '1': s.maxRolls })}</strong>
@@ -80,7 +74,25 @@ export function DadosDeCombinacionesBoard({
         </button>
         <span>{t('Pulsa los dados para guardarlos. Después elige una categoría.')}</span>
       </div>
-      <div className="scorecard-wrap">
+    </>
+  );
+  return (
+    <BoardFrame
+      selectionActive={keep.length > 0 && can && s.rolls < s.maxRolls}
+      onCancelSelection={() => setKeep([])}
+      motionRef={motionRef}
+      room={room}
+      myPlayerId={myPlayerId}
+      turn={s.currentTurnPlayerId}
+      values={Object.fromEntries(s.players.map((p) => [p.id, quantity(s.totals[p.id], 'puntos')]))}
+      actions={actions}
+    >
+      <div
+        className="scorecard-wrap"
+        role="region"
+        tabIndex={0}
+        aria-label={t('Hoja de puntuación')}
+      >
         <table className="combination-scorecard">
           <caption>{t('Hoja de puntuación')}</caption>
           <thead>

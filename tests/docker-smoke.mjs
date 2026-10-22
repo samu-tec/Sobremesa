@@ -7,12 +7,38 @@ const url = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:13000';
 assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(new URL(url).hostname), 'Solo localhost');
 const clients = [];
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const ack = (socket, event, ...data) =>
-  new Promise((resolve, reject) =>
-    socket
-      .timeout(3000)
-      .emit(event, ...data, (error, result) => (error ? reject(error) : resolve(result))),
+const ack = (socket, event, ...data) => {
+  if (
+    [
+      'game:action',
+      'room:update_rules',
+      'room:add_bot',
+      'room:remove_bot',
+      'room:start_game',
+      'room:restart_game',
+      'room:remove_player',
+      'room:change_game',
+    ].includes(event) &&
+    !data[0]?.matchId
+  ) {
+    data = [
+      event === 'game:action'
+        ? { matchId: socket.matchId, action: data[0] }
+        : event === 'room:update_rules'
+          ? { matchId: socket.matchId, rules: data[0] }
+          : { ...data[0], matchId: socket.matchId },
+    ];
+  }
+  return new Promise((resolve, reject) =>
+    socket.timeout(3000).emit(event, ...data, (error, result) => {
+      if (error) reject(error);
+      else {
+        if (result?.room) socket.matchId = result.room.matchId;
+        resolve(result);
+      }
+    }),
   );
+};
 async function connect(token = randomBytes(32).toString('hex'), extra = {}) {
   const socket = io(url, {
     auth: { sessionToken: token, protocolVersion: PROTOCOL_VERSION },
@@ -20,6 +46,9 @@ async function connect(token = randomBytes(32).toString('hex'), extra = {}) {
     reconnection: false,
     timeout: 3000,
     ...extra,
+  });
+  socket.on('room:updated', (room) => {
+    socket.matchId = room.matchId;
   });
   clients.push(socket);
   const ready = await new Promise((resolve, reject) => {

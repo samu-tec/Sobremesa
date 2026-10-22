@@ -22,7 +22,7 @@ Los errores de carga de un tablero y de protocolo necesitan una explicación y u
 
 Prueba catálogo, sala y tableros a 320, 375, 390, 768 y 1280 px. Usa apodos largos, códigos anchos como `WWWWWW` y ambos idiomas. La página completa no debe desbordar horizontalmente; una superficie bidimensional puede desplazarse dentro de su propio contenedor si sus controles y textos siguen disponibles.
 
-Comprueba zoom nativo al 200 % y al 400 %, cambios de orientación, teclado virtual y escalado del sistema. Reducir el viewport no sustituye probar zoom real. En Ciudad Fortuna verifica que el cambio de media query deja accesibles los controles de móvil y que la vista ampliada mantiene acciones y jugadores disponibles.
+Comprueba zoom nativo al 200 % y al 400 %, cambios de orientación, teclado virtual y escalado del sistema. Reducir el viewport no sustituye probar zoom real. En Ciudad Fortuna verifica tablero completo, inspección de casillas mediante teclado, gestión económica en diálogo y acciones accesibles al desplazarse en móvil. No hay zoom específico del juego.
 
 Los controles comunes usan una altura de 44 px. En tableros densos, evalúa también el tamaño y la separación de objetivos conforme al criterio 2.5.8; un valor general en CSS no garantiza cada casilla. Revisa contraste de texto, foco, bordes y estados seleccionados, desactivados o de carga en su contexto real.
 
@@ -39,3 +39,9 @@ Respeta `prefers-reduced-motion`. `useBoardMotion` debe cancelar animaciones al 
 5. Ejecuta las pruebas de navegador y los análisis axe descritos en [TESTING.md](TESTING.md). Las capturas y trazas de `tests/.output/` ayudan a inspeccionar fallos, pero no sustituyen el recorrido manual.
 
 Si una barrera exige cambiar tiempos o interacciones, diseña la solución junto con las políticas autoritativas y las variantes del juego. La interfaz debe facilitar la acción sin alterar silenciosamente sus reglas.
+
+La fila activa identifica el turno con texto, fondo y borde. El título permanece centrado con herramientas laterales de distinto tamaño. Los errores y reconexiones pueden consultarse completos sin una franja vacía. La confirmación de presencia utiliza el diálogo común, no se cierra con Escape y presenta dos respuestas explícitas y un reloj sin anunciar cada segundo. Sus 15 segundos y única prórroga de 30 segundos son parte de la política finita de sala; no equivalen a una verificación completa de los criterios WCAG sobre límites temporales. Mantén pendiente su evaluación manual con tecnologías de apoyo y personas usuarias.
+
+En las comprobaciones locales WebKit consume Escape al salir de pantalla completa nativa antes de enviarlo a la web. El diálogo conserva el foco y se puede cerrar con un segundo Escape o su botón. En la alternativa CSS, Escape cierra primero el diálogo. Esta diferencia depende del navegador y debe comprobarse también con dispositivos reales.
+
+Safari en macOS puede omitir botones al usar Tab según la preferencia nativa de navegación. Opción+Tab incluye los controles nativos; la prueba de configuración utiliza esa combinación en WebKit y verifica foco, activación y restauración de valores. Los diálogos mantienen su recorrido propio con Tab y Shift+Tab, independiente de esa preferencia.

@@ -42,7 +42,7 @@ Para los nueve juegos nuevos:
 
 | Juego                  | Comprobaciones                                                                                                                                           |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Rummy de fichas        | Atril de catorce fichas, apertura de 30 puntos, grupos, escaleras, comodines, división y unión de combinaciones, borradores, deshacer, robo y puntuación |
+| Rummy                  | Atril de catorce fichas, apertura de 30 puntos, grupos, escaleras, comodines, división y unión de combinaciones, borradores, deshacer, robo y puntuación |
 | Ajedrez                | Selección y destinos, enroque, jaque, promoción con cuatro opciones, tablas, historial y rendición                                                       |
 | Impostor               | Tres participantes mínimos, papel ocultable, dos vueltas de pistas, voto secreto, desempate y resultado con todos los ganadores                          |
 | Dominó                 | Apertura forzada, extremos orientados, pozo, pase obligatorio y suma de puntos                                                                           |
@@ -54,7 +54,15 @@ Para los nueve juegos nuevos:
 
 Revisa cada tablero a 320 px, cambia el idioma y recarga durante la partida. Al terminar, comprueba las puntuaciones y «Ver la mesa». En Impostor, asegúrate de que los votos y el secreto se revelan solo al terminar y de que el modal reconoce a todos los ganadores.
 
-El tablero no debe permitir jugar durante el turno del contrario. Al terminar, el anfitrión puede preparar la revancha.
+Las acciones deben respetar la fase y sus permisos, incluidas las decisiones simultáneas. Al terminar, el anfitrión puede preparar la revancha.
+
+### Cabecera, ampliación y audio
+
+- Comprueba que la mesa mantiene su posición al cambiar de turno o desconectarse un compañero. No deben existir «¡Te toca!» ni una franja vacía. Los avisos largos se consultan desde el panel de participantes.
+- Prueba «Ampliar el juego», la salida del navegador y el botón de salida. Si Fullscreen API no está disponible, debe funcionar el modo inmersivo. Escape cierra primero un diálogo y permite salir del modo CSS cuando no hay diálogos.
+- En «Preferencias de partida» cambia idioma, sonido y volumen. Recarga y comprueba las preferencias. Oculta la pestaña y recupera la conexión: no deben reproducirse avisos atrasados. Comprueba el volumen y la suavidad en altavoces y auriculares reales.
+- Revisa 1280×720, 1366×768, 1440×900, 768×1024, 360×640, 390×844 y horizontal. El zoom y los dispositivos físicos requieren comprobación manual adicional.
+- `tests/browser/game-experience.spec.ts` cubre estabilidad con dos humanos, cabecera, tamaños, modo CSS y nativo, accesibilidad, preferencias, audio bloqueado y síntesis real. `tests/client.test.mjs` comprueba límites de ráfagas, ocultación y liberación del audio.
 
 ### Dos jugadores en el mismo ordenador
 
@@ -75,7 +83,7 @@ Prueba a salir de una partida. En un duelo, gana el rival; con más jugadores, e
 
 ### Tamaños de móvil
 
-En las herramientas de desarrollo del navegador activa la vista de dispositivos. Prueba anchos de 320, 390 y 768 px, además del escritorio. En Ciudad Fortuna comprueba la Salida arriba a la izquierda, las figuras, el color de las propiedades, el último movimiento en el centro, los nombres e iconos de las casillas y las acciones visibles sin desplazarte. Durante una subasta confirma que cualquier postor solvente ve el formulario, el nombre de quien va ganando y el contador reiniciado tras una puja. Prueba «Ampliar tablero» y «Jugadores y propiedades». En Cambio de Color abre un comodín: debes ver los cuatro colores, sus cantidades y tus cartas a la vez. Revisa el catálogo, la sala y cada tablero: botones utilizables, formularios visibles y ausencia de desplazamiento horizontal de toda la página.
+En las herramientas de desarrollo del navegador activa la vista de dispositivos. Prueba anchos de 320, 390 y 768 px, además del escritorio. En Ciudad Fortuna comprueba la Salida arriba a la izquierda, las figuras, el color de las propiedades, el último movimiento en el centro, los nombres e iconos de las casillas y las acciones accesibles al desplazarte por la página en móvil. Durante una subasta confirma que cualquier postor solvente ve el formulario, el nombre de quien va ganando y el contador reiniciado tras una puja. Comprueba que no hay zoom específico y abre «Propiedades y tratos»; inspecciona una casilla con teclado. En Cambio de Color abre un comodín: debes ver los cuatro colores, sus cantidades y tus cartas a la vez. Revisa el catálogo, la sala y cada tablero: botones utilizables, formularios visibles y ausencia de desplazamiento horizontal de toda la página.
 
 Recorre los controles con `Tab`. Los diálogos deben mantener el foco y cerrarse con `Escape` cuando no requieran elegir una acción final.
 
@@ -127,9 +135,9 @@ Abre **http://127.0.0.1:3000** y repite una partida entre dos ventanas. **http:/
 
 Las pruebas de navegador emulan tamaños de móvil en Chrome. Antes de publicar conviene probar también los dispositivos y navegadores que vayan a usar tus amigos. No hay una prueba de carga que garantice una cifra de jugadores simultáneos.
 
-Para comprobar el reloj sin jugar, crea una sala de dos personas, configura 30 segundos y deja pasar el turno sin tocar nada: ambos navegadores deben recibir la misma jugada automática. Repite en dos salas distintas y comprueba que sus acciones no se mezclan.
+Para comprobar presencia, crea una sala de dos personas, configura 30 segundos y espera: solo quien tiene una decisión pendiente recibe el diálogo. Confirma una vez y juega; repite sin responder para comprobar abandono por motor. Usa dos salas para verificar aislamiento y prueba aparte las excepciones de reglas y la reserva de reconexión.
 
-Ciudad Fortuna incluye regresiones de rutas de movimiento, cárcel, alquileres compartidos, cambios de hipoteca durante tratos y valoración de bots. El navegador comprueba seis fichas sin solaparse con nombres ni precios en las cuatro orientaciones, movimiento reducido y la apertura móvil ampliada. La vista completa puede requerir desplazamiento vertical: se prioriza conservar texto legible frente a reducir todo el tablero a la altura de la pantalla.
+Ciudad Fortuna incluye regresiones de rutas de movimiento, cárcel, alquileres compartidos, cambios de hipoteca durante tratos y valoración de bots. El navegador comprueba seis fichas sin solaparse con nombres ni precios en las cuatro orientaciones, movimiento reducido y la inspección móvil de casillas sin zoom específico. Los detalles completos se leen en el inspector y la gestión económica se abre desde acciones.
 
 `game-contract.test.ts` simula partidas completas y verifica inmutabilidad, conservación de cartas/fichas/semillas y abandono. Los casos especiales de cada juego están en `<juego>.test.ts`, siguiendo el patrón de las pruebas de Ciudad Fortuna. `settings.test.ts` comprueba las variantes configurables y su efecto real en los motores. Las pruebas de integración cubren salas independientes, proyecciones privadas, permisos, validación de opciones y agotamiento real de turnos de 30 segundos. `server.test.mjs` comprueba que las acciones parciales no reinicien el plazo.
 
@@ -198,12 +206,65 @@ Las pruebas de Damas chinas (`packages/sobremesa-logic/test/chinese.test.ts`) cu
 
 La validación automatizada no sustituye la revisión manual con lectores de pantalla, zoom nativo y teléfonos físicos. Docker requiere que Docker Desktop esté iniciado; si su daemon no está disponible, se informa del intento fallido y no se declara verificada la imagen actual.
 
-## Última comprobación local: 20 de octubre de 2026
+## Última comprobación local: 22 de octubre de 2026
 
-`PLAYWRIGHT_BROWSER=chromium caffeinate -i pnpm check` terminó correctamente: formato, ESLint, compilación de producción y TypeScript, 205 pruebas de lógica, 3 de localización, 2 de cliente, 122 de servidor/integración/scripts y 113 recorridos de Chromium. `caffeinate` mantuvo despierto el Mac durante los temporizadores reales, sin modificar la configuración del sistema ni los límites del servidor. Los 19 recorridos nuevos de WebKit también pasaron, incluida una repetición del caso de privacidad local tras ocultar el papel al abrir el diálogo de salida.
+`pnpm check:quick` y `PLAYWRIGHT_BROWSER=chromium pnpm check` terminaron correctamente: formato, ESLint, compilación de producción y TypeScript, 249 pruebas de lógica, 3 de localización, 3 de cliente, 200 de servidor/integración/scripts y 142 recorridos de Chromium. La comprobación completa de WebKit también terminó con 142 recorridos correctos. `caffeinate` mantuvo despierto el Mac durante los temporizadores reales sin cambiar ajustes del sistema ni límites de producción.
 
-`pnpm test:docker` terminó correctamente con la imagen real de producción: compilación con el lockfile congelado, pruebas HTTP/WebSocket, permisos, reconexión, bots y los 113 recorridos de Chromium contra el contenedor. Se comprobaron el healthcheck, el usuario sin privilegios, el filesystem de solo lectura, los límites de memoria/CPU/procesos y el apagado con código cero. El contenedor `sobremesa-local-test-6867` y su etiqueta de imagen temporal se eliminaron al finalizar; solo se publicó el puerto de pruebas en loopback.
+`pnpm test:docker` pasó con la imagen de producción: instalación con lockfile congelado, HTTP, assets, CSP, polling, WebSocket, permisos, dos personas, reconexión, bots y los 142 recorridos de Chromium contra el contenedor. Se comprobaron healthcheck, usuario sin privilegios, filesystem de solo lectura, límites de memoria/CPU/procesos y apagado. Se eliminaron el contenedor `sobremesa-local-test-39188` y su etiqueta temporal. Solo se publicó loopback.
 
-La revisión para publicar también validó `docker compose config --quiet`. `pnpm audit --prod --json` y `pnpm audit --json` no detectaron vulnerabilidades conocidas, tanto en producción como en las herramientas de desarrollo. Los artefactos del cliente no contienen archivos de entorno, claves ni sourcemaps; la comprobación de patrones habituales de credenciales no encontró coincidencias en los archivos publicables y los archivos locales de agentes permanecen fuera de Git.
+Después de esas suites se reforzó únicamente el CSS inmersivo para mantener la cabecera accesible al desplazarse y reducir textos secundarios. Se repitieron compilación, `check:quick` y diez recorridos de zonas, tamaños y fullscreen en cada navegador: Chromium y WebKit. No se repitió Docker por este último ajuste de presentación.
 
-No se han encontrado bloqueos técnicos en esta validación local. Los cambios y archivos nuevos siguen sin commit: una publicación desde Git debe incluirlos. La configuración efectiva de Cloudflare, orígenes y proxy debe contrastarse en el entorno administrado según [DEPLOYMENT.md](DEPLOYMENT.md); no se contactó producción ni se realizaron despliegues, commits o push. Firefox no pudo arrancar con su perfil local en las comprobaciones previas. Las revisiones manuales de accesibilidad y los dispositivos físicos continúan pendientes.
+Firefox no pudo arrancar: su binario informó «Could not find profile folder» tanto con la carpeta temporal habitual como con `/private/tmp`; sus recorridos quedan sin validar. Siguen pendientes lectores de pantalla, zoom nativo y dispositivos físicos. Las diferencias nativas de WebKit con Escape y Opción+Tab se comprueban explícitamente, sin desactivar funciones ni pruebas.
+
+No se contactó producción ni Cloudflare real y no hubo despliegues, commits ni push. La configuración externa efectiva, registros, cookies y garantías del servicio deben verificarse por su administrador según [LEGAL.md](LEGAL.md). `AGENTS.md`, `.agents/` y `.codex/` permanecen ignorados localmente, fuera del índice Git y excluidos del contexto Docker.
+
+## Continuación de la mejora de jugabilidad
+
+La base común reúne cabecera centrada, filas activas, acciones izquierdas opcionales, participantes derechos, avisos discretos, pantalla completa y audio. Cambio de Color incluye dirección autoritativa, acumulación opcional, mazo accionable resaltado, selector de color estable y victoria inmediata. El grupo conserva sala, personas y configuraciones al cambiar de juego. Los treinta tableros conservan reglas y sus controles particulares; la tabla siguiente relaciona la cobertura de cada uno.
+
+`server.test.mjs` comprueba confirmación finita, sesión/actor/nonce, abandono por motor en los treinta registros, prórroga única, acciones parciales, reconexión y cancelación por cambios de ciclo de vida. Los tests de excepciones fuerzan explícitamente una política automática para aislar esa ruta del nuevo aviso humano. Las integraciones utilizan Socket.IO real para rechazar confirmaciones de otro miembro y respuestas reutilizadas. Los vencimientos de reglas se prueban por separado.
+
+Ciudad Fortuna se comprueba sin zoom específico: cuarenta casillas, ficha/saldo/posición en participantes, controles izquierdos, inspección de nombres y alquileres a tamaño legible en móvil y separación de seis fichas en las cuatro orientaciones. Las pruebas previas de zoom se sustituyen por estos recorridos. Las muestras de zonas compartidas verifican posición geométrica, título centrado, reloj único, reflujo y axe antes de recorrer las demás familias.
+
+### Grupo entre juegos y controles de los treinta tableros
+
+`tests/browser/groups.spec.ts` recorre con dos navegadores la entrada con minúsculas y espacios, cancelación y confirmación de retirada, recarga sin restaurar una plaza retirada, reentrada explícita, cambio sincronizado de juego, partida completa de Tres en Raya, consulta del resultado, retorno al grupo y recuperación de las reglas de Cambio de Color. También comprueba selección reversible, flechas y Escape dentro del modo inmersivo. Las pruebas de servidor repiten la transición desde una partida terminada hacia los treinta juegos y verifican permisos, reservas, relojes, incompatibilidad de plazas y rechazo de contextos antiguos; integración utiliza Socket.IO real en loopback.
+
+La revisión de jugabilidad conserva las variantes publicadas en `GAME_RULES.md` y el catálogo. Se contrasta cada acción visible con su validador, proyección y pruebas específicas:
+
+| Juego                    | Interacciones y reglas revisadas                                                                                                                                             |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ciudad Fortuna           | Compra, subasta abierta, deuda, hipoteca, construcción, intercambio y bancarrota; acciones trasladadas al panel lateral en escritorio para aprovechar la altura del tablero. |
+| Cambio de Color          | Orden y dirección del motor, cartas legales, robo, comodines, cadena mixta opcional y última carta.                                                                          |
+| Rummy                    | Apertura, comodines, borrador completo, reorganización, deshacer y restaurar; mesa y editor en paralelo y selección cancelable sin perder el borrador.                       |
+| Ajedrez                  | Destinos legales, promoción, enroque, jaque, tablas y rendición; cancelar selección y explorar con flechas.                                                                  |
+| Damas                    | Captura obligatoria, cadena y coronación; cancelar solo la elección libre, sin interrumpir una captura forzada.                                                              |
+| Reversi                  | Capturas en ocho direcciones, pase y recuento final; flechas y previsualización del número de fichas volteadas.                                                              |
+| Dominó                   | Apertura, extremos, orientación, robo y bloqueo; selección reversible y ronda consultable sin desplazar la mesa.                                                             |
+| Backgammon               | Barra, dados obligatorios, dobles, secuencias y salida; cancelación del filtro de origen y lista de movimientos junto al tablero.                                            |
+| Batalla naval            | Colocación y retirada, orientación, flota privada, disparos y hundimientos; navegación con flechas.                                                                          |
+| Mancala                  | Siembra, captura, turno extra y recogida final; flechas por la fila propia.                                                                                                  |
+| Parchís                  | Salida, barreras, captura, premios y llegada exacta; tablero y controles en paralelo en escritorio.                                                                          |
+| Oca                      | Recorrido, saltos, espera, rebote y final; tablero y estado de participantes en paralelo.                                                                                    |
+| Go                       | Suicidio, repetición, pases, grupos muertos y acuerdo de puntuación; altura acotada y desplazamiento interno en tableros grandes.                                            |
+| Damas chinas             | Pasos, saltos, ruta y destino; cancelar la ruta y adaptar el tablero a la altura disponible.                                                                                 |
+| Mahjong                  | Robo, descarte, reclamaciones, kongs, fan y privacidad; selección reversible y confirmación de descarte.                                                                     |
+| Brisca                   | Jerarquía, triunfo, cambio, recogida, parejas y tanteo; cancelar la carta antes de confirmarla.                                                                              |
+| Mus                      | Mus, descarte, declaraciones, lances, envites y órdago; cancelar descartes locales.                                                                                          |
+| Escoba                   | Suma de quince, capturas obligatorias, escobas y mayorías; cancelación conjunta de carta y captura.                                                                          |
+| Cinquillo                | Apertura, secuencias y pase obligatorio; cancelar la carta antes de colocarla.                                                                                               |
+| Póker                    | Ciegas, calles, subidas, all-in, botes secundarios y showdown; comunitarias junto a la mano y apuestas, con preparación previa al envío.                                     |
+| Palabras cruzadas        | Atril, borrador, retirada, diccionario y puntos; cuadrícula junto al atril, flechas y cancelación sin borrar letras colocadas.                                               |
+| Preguntas y respuestas   | Pregunta, respuesta privada, confirmación, revisión y empate; selección reversible.                                                                                          |
+| Dibuja y adivina         | Elección secreta, trazos, formas por teclado, respuestas, plazos y puntuación; presupuesto visible de trazos y limpieza disponible al agotarlo.                              |
+| Misterio y deducción     | Hipótesis, refutación privada, cuaderno, acusación confirmada y eliminación; las marcas permanecen locales.                                                                  |
+| Conquista de territorios | Refuerzos, vecinos, combate, traslado, control y final por rondas; mapa y controles en paralelo.                                                                             |
+| Impostor                 | Pistas, votos secretos, desempates, intento final y modos presenciales; ocultación del papel al perder foco.                                                                 |
+| Cuatro en Línea          | Gravedad, columna llena y líneas ganadoras; navegación de columnas con flechas.                                                                                              |
+| Tres en Raya             | Casillas, victoria y empate; flechas y transición completa al siguiente juego.                                                                                               |
+| Dados al 100             | Tiradas, pérdida del total temporal, guardar y objetivo configurable; bloqueo de guardar sin puntos.                                                                         |
+| Dados de combinaciones   | Dados guardados, categorías, bonificaciones y final; liberar la selección local y consultar la hoja mediante desplazamiento interno con cabecera y total fijos.              |
+
+Las partidas completas de motores, invariantes de cartas/fichas/dinero, variantes, bots, privacidad y abandono se comprueban en las pruebas específicas de lógica y servidor. Los recorridos de navegador añaden acciones reales, idioma, reconexión, accesibilidad y tamaños de pantalla. La inspección automatizada no sustituye revisar dispositivos físicos, lectores de pantalla y audio con altavoces o auriculares.
+
+En WebKit local, Escape en pantalla completa nativa es consumido por el navegador: sale de fullscreen sin entregar `keydown` al documento y conserva el diálogo y su foco. Un segundo Escape cierra el diálogo. El test comprueba ambos pasos; en el modo CSS y en Chromium se mantiene la prioridad de cerrar primero el diálogo. No se desactiva la API nativa para forzar el comportamiento de otro navegador.

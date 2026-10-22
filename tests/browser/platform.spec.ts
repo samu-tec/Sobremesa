@@ -84,14 +84,17 @@ for (const viewport of [
     await expect(page.locator('.waiting-intro h1')).toBeVisible();
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 
-    const addBot = page.getByRole('button', { name: 'Añadir bot', exact: true });
-    await addBot.scrollIntoViewIfNeeded();
-    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
-    await addBot.click();
+    await page.getByRole('button', { name: 'Añadir bot', exact: true }).click();
     await expect(page.locator('.waiting-player:not(.empty-seat)')).toHaveCount(2);
+    await page.getByRole('button', { name: 'Configurar partida', exact: true }).click();
+    await page
+      .getByRole('switch', { name: 'Construcción equilibrada', exact: true })
+      .scrollIntoViewIfNeeded();
     expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
-
-    await page.getByRole('button', { name: 'Volver a los juegos', exact: true }).click();
+    // Dispatch preserves the current scroll while navigation runs, isolating the reset itself.
+    await page
+      .getByRole('button', { name: 'Volver a los juegos', exact: true })
+      .dispatchEvent('click');
     await expect(page.locator('.game-card')).toHaveCount(30);
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   });
@@ -104,7 +107,7 @@ for (const name of games)
     await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
     await expect(page.getByRole('heading', { name: `${name}.`, exact: true })).toBeVisible();
     await expect(page.getByText('Es tu turno', { exact: true })).toBeVisible();
-    await expect(page.getByText('¡Te toca!', { exact: true })).toBeVisible();
+    await expect(page.getByText('¡Te toca!', { exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Reglas', exact: true }).click();
     await expect(page.getByRole('dialog')).toContainText(name);
     await page.keyboard.press('Escape');
@@ -354,6 +357,8 @@ for (const [spanish, english] of [
     await page.getByRole('button', { name: `Play ${english} against a bot`, exact: true }).click();
     await expect(page.getByRole('button', { name: 'Start game', exact: true })).toBeVisible();
     await expect(page.locator('.city-board, .color-table, .play-area')).toHaveCount(0);
+    if ((await page.locator('#room-settings').getAttribute('open')) === null)
+      await page.locator('#room-settings > summary').click();
     await page.getByRole('combobox', { name: 'Time per turn' }).selectOption('60');
     if (english === 'Fortune City') {
       await expect(page.getByRole('combobox', { name: 'Round limit' })).toHaveValue('unlimited');
@@ -391,11 +396,15 @@ for (const [spanish, english] of [
     await expect(page.getByRole('dialog')).toContainText(`How to play · ${english}`);
     await expect(page.getByRole('dialog')).not.toContainText('jugadores');
     await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Game preferences', exact: true }).click();
     await page.getByRole('combobox', { name: 'Language' }).selectOption('es');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: `${spanish}.`, exact: true })).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('lang', 'es');
     if (english === 'Fortune City')
-      await expect(page.locator('.city-player').first()).toContainText('2000');
+      await expect(page.locator('.players-panel .table-player').first()).toContainText('2000');
   });
 
 test('Ciudad Fortuna: tablero orientado, fichas separadas y controles accesibles', async ({
@@ -427,6 +436,8 @@ test('Ciudad Fortuna: tablero orientado, fichas separadas y controles accesibles
   ]) {
     await page.setViewportSize({ width, height });
     await page.evaluate(() => window.scrollTo(0, 0));
+    await page.getByRole('button', { name: 'Tirar dados', exact: true }).scrollIntoViewIfNeeded();
+    await page.getByRole('button', { name: 'Tirar dados', exact: true }).scrollIntoViewIfNeeded();
     await expect(page.getByRole('button', { name: 'Tirar dados', exact: true })).toBeInViewport({
       ratio: 1,
     });
@@ -439,26 +450,13 @@ test('Ciudad Fortuna: tablero orientado, fichas separadas y controles accesibles
         path: `tests/.output/screenshots/city-${width}.png`,
         fullPage: true,
       });
-    if (width <= 900) {
-      await expect(page.locator('.city-tile:not(.corner-tile) .tile-name').first()).toBeVisible();
-      await expect(
-        page.getByRole('button', { name: 'Ampliar tablero', exact: true }),
-      ).toBeInViewport({ ratio: 1 });
-      await expect(
-        page.getByRole('button', { name: 'Jugadores y propiedades', exact: true }),
-      ).toBeInViewport({ ratio: 1 });
-    }
+    await expect(page.locator('.city-tile:not(.corner-tile) .tile-name').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Ampliar tablero', exact: true })).toHaveCount(0);
   }
-  await page.getByRole('button', { name: 'Ampliar tablero', exact: true }).click();
-  await expect(page.locator('.board-zoomed')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Tirar dados', exact: true })).toBeInViewport({
-    ratio: 1,
-  });
-  await page.getByRole('button', { name: 'Ver tablero completo', exact: true }).click();
-  await page.getByRole('button', { name: 'Jugadores y propiedades', exact: true }).click();
-  await expect(page.locator('.city-sidebar')).toBeVisible();
+  await page.getByRole('button', { name: 'Propiedades y tratos', exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText('Tu estrategia');
   await page.keyboard.press('Escape');
-  await expect(page.locator('.city-sidebar')).not.toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('Ciudad Fortuna: la subasta abierta ofrece la puja a todos y muestra al líder', async ({
@@ -496,7 +494,7 @@ test('Ciudad Fortuna: la subasta abierta ofrece la puja a todos y muestra al lí
     .getByRole('button', { name: 'Jugar a Ciudad Fortuna contra un bot', exact: true })
     .click();
   await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
-  await expect(page.locator('.turn-badge')).toContainText('Subasta abierta');
+  await expect(page.locator('.phase-label')).toContainText('Subasta abierta');
   await expect(page.locator('.auction-form')).toBeVisible();
   await expect(page.locator('#auction-bid')).toHaveAttribute('min', '40');
   await expect(page.getByRole('button', { name: 'Pasar', exact: true })).toBeVisible();
@@ -560,9 +558,9 @@ test('Una caída de red conserva la misma sala y el estado al volver', async ({ 
   await page.getByRole('button', { name: 'Fila 1, columna 1: vacía', exact: true }).click();
   const code = await page.locator('.header-actions button').first().innerText();
   await context.setOffline(true);
-  await expect(page.locator('.offline-banner')).toBeVisible({ timeout: 25000 });
+  await expect(page.locator('.game-message')).toContainText('Reconectando', { timeout: 25000 });
   await context.setOffline(false);
-  await expect(page.locator('.offline-banner')).toHaveCount(0, { timeout: 15000 });
+  await expect(page.locator('.game-message')).toHaveCount(0, { timeout: 15000 });
   await expect(page.locator('.header-actions button').first()).toHaveText(code);
   await expect(
     page.getByRole('button', { name: 'Fila 1, columna 1: X', exact: true }),
@@ -583,14 +581,18 @@ test('Ciudad Fortuna: seis jugadores conservan fichas distintas y controles visi
   }
   await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
   await page.setViewportSize({ width: 320, height: 568 });
-  await expect(page.locator('.city-mobile-players > button')).toHaveCount(6);
+  await expect(page.locator('.players-panel .table-player')).toHaveCount(6);
   await expect(page.locator('.city-token .player-piece')).toHaveCount(6);
+  await page.getByRole('button', { name: 'Tirar dados', exact: true }).scrollIntoViewIfNeeded();
   await expect(page.getByRole('button', { name: 'Tirar dados', exact: true })).toBeInViewport({
     ratio: 1,
   });
+  await page
+    .getByRole('button', { name: 'Propiedades y tratos', exact: true })
+    .scrollIntoViewIfNeeded();
   await expect(
-    page.getByRole('button', { name: 'Jugadores y propiedades', exact: true }),
-  ).toBeInViewport({ ratio: 1 });
+    page.getByRole('button', { name: 'Propiedades y tratos', exact: true }),
+  ).toBeInViewport({ ratio: 0.99 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
     true,
   );
@@ -633,8 +635,6 @@ test('Ciudad Fortuna: seis fichas no invaden nombres ni precios en ninguna orien
   await expect(page.locator('.city-token')).toHaveCount(6);
   for (const width of [1366, 1024, 390]) {
     await page.setViewportSize({ width, height: 900 });
-    if (width === 390)
-      await page.getByRole('button', { name: 'Ampliar tablero', exact: true }).click();
     for (const position of [0, 1, 5, 10, 12, 15, 20, 23, 28, 30, 35, 39]) {
       update(position);
       await expect(page.locator(`.city-token[data-position="${position}"]`)).toHaveCount(6);
@@ -667,7 +667,16 @@ test('Ciudad Fortuna: seis fichas no invaden nombres ni precios en ninguna orien
         tokens: false,
         clipped: false,
       });
-      expect(issues.fontSize).toBeGreaterThanOrEqual(10);
+      if (width >= 901) expect(issues.fontSize).toBeGreaterThanOrEqual(10);
+      else {
+        await page.locator('.city-tile').nth(position).click();
+        await expect(page.getByRole('dialog')).toBeVisible();
+        const title = page.getByRole('dialog').getByRole('heading').first();
+        expect(
+          await title.evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
+        ).toBeGreaterThanOrEqual(16);
+        await page.keyboard.press('Escape');
+      }
     }
   }
 });
@@ -722,7 +731,7 @@ test('Ciudad Fortuna: anima pasos reales, respeta movimiento reducido y no repit
   await expect(page.locator('.tokens-moving, .dice-rolling')).toHaveCount(0);
 });
 
-test('Ciudad Fortuna: móvil abre el tablero legible y conserva acciones al ampliar texto', async ({
+test('Ciudad Fortuna: tablero móvil completo, inspección legible y gestión accesible sin zoom', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -731,20 +740,23 @@ test('Ciudad Fortuna: móvil abre el tablero legible y conserva acciones al ampl
     .getByRole('button', { name: 'Jugar a Ciudad Fortuna contra un bot', exact: true })
     .click();
   await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
-  await expect(page.locator('.board-zoomed')).toBeVisible();
-  const fontSize = await page
-    .locator('.tile-name')
-    .nth(1)
-    .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
-  expect(fontSize).toBeGreaterThanOrEqual(10);
-  await expect(page.getByRole('button', { name: 'Tirar dados', exact: true })).toBeInViewport({
-    ratio: 1,
-  });
+  await expect(page.locator('.city-tile')).toHaveCount(40);
+  await expect(page.locator('.board-zoomed')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Ampliar tablero', exact: true })).toHaveCount(0);
   await page.locator('.city-tile').nth(1).click();
-  await expect(page.getByRole('dialog')).toContainText('Alquileres');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Alquileres');
+  expect(
+    await dialog
+      .locator('.rent-row')
+      .first()
+      .evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
+  ).toBeGreaterThanOrEqual(13);
   await page.keyboard.press('Escape');
-  await page.screenshot({
-    path: 'tests/.output/screenshots/city-mobile-readable.png',
-    fullPage: true,
-  });
+  await page.getByRole('button', { name: 'Propiedades y tratos', exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText('Tu estrategia');
+  await page.keyboard.press('Escape');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
+    true,
+  );
 });

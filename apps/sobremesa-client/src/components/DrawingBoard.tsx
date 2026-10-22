@@ -28,7 +28,8 @@ export function DrawingBoard({
     [shape, setShape] = useState('line'),
     [coords, setCoords] = useState([200, 200, 700, 700]),
     drawer = s.currentTurnPlayerId === myPlayerId,
-    canDraw = drawer && s.phase === 'draw' && !s.winner && !s.isDraw && !busy,
+    canDraw =
+      drawer && s.phase === 'draw' && !s.winner && !s.isDraw && !busy && s.strokes.length < 120,
     canGuess =
       !drawer &&
       s.phase === 'draw' &&
@@ -113,23 +114,8 @@ export function DrawingBoard({
       return { points, color, width };
     };
   void tick;
-  return (
-    <BoardFrame
-      room={room}
-      myPlayerId={myPlayerId}
-      turn={s.currentTurnPlayerId}
-      values={Object.fromEntries(s.players.map((p) => [p.id, t('{0} puntos', { '0': p.score })]))}
-    >
-      <p className="board-instruction" role="status">
-        {gameText(s.message)}
-      </p>
-      <p>
-        {t('Dibujo {0} de {1} · dibuja {2}', {
-          '0': s.turnIndex + 1,
-          '1': s.order.length,
-          '2': name(s.currentTurnPlayerId),
-        })}
-      </p>
+  const actions = (
+    <>
       {s.phase === 'choose' && (
         <section>
           <h2>{drawer ? t('Elige tu concepto secreto') : t('El dibujante está eligiendo.')}</h2>
@@ -146,16 +132,6 @@ export function DrawingBoard({
             ))}
           </div>
         </section>
-      )}
-      {s.word && (
-        <p className="drawing-secret">
-          {s.phase === 'draw'
-            ? t('Solo tú ves la palabra: {0}', { '0': s.word[locale] })
-            : t('La palabra era: {0}', { '0': s.word[locale] })}
-        </p>
-      )}
-      {!drawer && s.phase === 'draw' && s.wordLength && (
-        <p>{t('Concepto de {0} caracteres en tu idioma.', { '0': s.wordLength[locale] })}</p>
       )}
       {canGuess && (
         <form
@@ -182,9 +158,6 @@ export function DrawingBoard({
             {t('Adivinar')}
           </button>
         </form>
-      )}
-      {s.guessed.includes(myPlayerId) && s.phase === 'draw' && (
-        <p role="status">{t('¡Has acertado! Espera al resto sin revelar la palabra.')}</p>
       )}
       {drawer && s.phase === 'draw' && (
         <>
@@ -220,7 +193,7 @@ export function DrawingBoard({
             </label>
             <button
               className="button secondary"
-              disabled={!canDraw || !s.strokes.length || Date.now() - lastSent.current < 300}
+              disabled={!drawer || busy || !s.strokes.length || Date.now() - lastSent.current < 300}
               onClick={() => {
                 lastSent.current = Date.now();
                 onAction({ type: 'CLEAR' });
@@ -230,42 +203,10 @@ export function DrawingBoard({
             </button>
           </div>
           <p>
-            {t(
-              'Levanta el puntero para compartir el trazo. Máximo ciento veinte trazos por dibujo.',
-            )}
+            {t('Trazos: {0}/120. Levanta el puntero para compartir.', { '0': s.strokes.length })}
           </p>
         </>
       )}
-      <canvas
-        ref={canvas}
-        width={800}
-        height={500}
-        className={`drawing-canvas ${canDraw ? 'active' : ''}`}
-        role="img"
-        aria-label={t('Lienzo compartido del dibujo actual')}
-        onPointerDown={(e) => {
-          if (!canDraw || s.strokes.length >= 120 || Date.now() - lastSent.current < 300) return;
-          e.currentTarget.setPointerCapture(e.pointerId);
-          path.current = [point(e)];
-          setDraft({ points: [...path.current], color, width });
-        }}
-        onPointerMove={(e) => {
-          if (!path.current.length || !canDraw) return;
-          path.current.push(point(e));
-          if (path.current.length > 48)
-            path.current = path.current.filter(
-              (_p, i) => i % 2 === 0 || i === path.current.length - 1,
-            );
-          setDraft({ points: [...path.current], color, width });
-        }}
-        onPointerUp={finish}
-        onPointerCancel={() => {
-          path.current = [];
-          setDraft(null);
-        }}
-      >
-        {t('Usa las herramientas de coordenadas como alternativa a dibujar con gestos.')}
-      </canvas>
       {drawer && s.phase === 'draw' && (
         <details>
           <summary>{t('Dibujar mediante coordenadas y teclado')}</summary>
@@ -311,15 +252,6 @@ export function DrawingBoard({
           </p>
         </details>
       )}
-      <section className="drawing-guesses" aria-label={t('Respuestas de esta ronda')}>
-        <ul>
-          {s.guesses.map((guess, i) => (
-            <li key={i}>
-              <strong>{name(guess.playerId)}:</strong> {guess.correct ? t('¡Acierto!') : guess.text}
-            </li>
-          ))}
-        </ul>
-      </section>
       {drawer && s.phase === 'review' && (
         <button
           className="button primary"
@@ -329,6 +261,82 @@ export function DrawingBoard({
           {t('Siguiente dibujo')}
         </button>
       )}
+    </>
+  );
+  return (
+    <BoardFrame
+      room={room}
+      myPlayerId={myPlayerId}
+      turn={s.currentTurnPlayerId}
+      values={Object.fromEntries(s.players.map((p) => [p.id, t('{0} puntos', { '0': p.score })]))}
+      actions={actions}
+    >
+      <p className="board-instruction" role="status">
+        {gameText(s.message)}
+      </p>
+      <p>
+        {t('Dibujo {0} de {1} · dibuja {2}', {
+          '0': s.turnIndex + 1,
+          '1': s.order.length,
+          '2': name(s.currentTurnPlayerId),
+        })}
+      </p>
+
+      {s.word && (
+        <p className="drawing-secret">
+          {s.phase === 'draw'
+            ? t('Solo tú ves la palabra: {0}', { '0': s.word[locale] })
+            : t('La palabra era: {0}', { '0': s.word[locale] })}
+        </p>
+      )}
+      {!drawer && s.phase === 'draw' && s.wordLength && (
+        <p>{t('Concepto de {0} caracteres en tu idioma.', { '0': s.wordLength[locale] })}</p>
+      )}
+
+      {s.guessed.includes(myPlayerId) && s.phase === 'draw' && (
+        <p role="status">{t('¡Has acertado! Espera al resto sin revelar la palabra.')}</p>
+      )}
+
+      <canvas
+        ref={canvas}
+        width={800}
+        height={500}
+        className={`drawing-canvas ${canDraw ? 'active' : ''}`}
+        role="img"
+        aria-label={t('Lienzo compartido del dibujo actual')}
+        onPointerDown={(e) => {
+          if (!canDraw || s.strokes.length >= 120 || Date.now() - lastSent.current < 300) return;
+          e.currentTarget.setPointerCapture(e.pointerId);
+          path.current = [point(e)];
+          setDraft({ points: [...path.current], color, width });
+        }}
+        onPointerMove={(e) => {
+          if (!path.current.length || !canDraw) return;
+          path.current.push(point(e));
+          if (path.current.length > 48)
+            path.current = path.current.filter(
+              (_p, i) => i % 2 === 0 || i === path.current.length - 1,
+            );
+          setDraft({ points: [...path.current], color, width });
+        }}
+        onPointerUp={finish}
+        onPointerCancel={() => {
+          path.current = [];
+          setDraft(null);
+        }}
+      >
+        {t('Usa las herramientas de coordenadas como alternativa a dibujar con gestos.')}
+      </canvas>
+
+      <section className="drawing-guesses" aria-label={t('Respuestas de esta ronda')}>
+        <ul>
+          {s.guesses.map((guess, i) => (
+            <li key={i}>
+              <strong>{name(guess.playerId)}:</strong> {guess.correct ? t('¡Acierto!') : guess.text}
+            </li>
+          ))}
+        </ul>
+      </section>
     </BoardFrame>
   );
 }

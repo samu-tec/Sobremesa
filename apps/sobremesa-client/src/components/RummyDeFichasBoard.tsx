@@ -120,8 +120,92 @@ export function RummyDeFichasBoard({
     const candidate = rummyMeldOptions(hand)[0];
     if (candidate) setSelected(candidate);
   };
+  const actions = (
+    <>
+      <div className="tile-draft-tools">
+        <button
+          className="button secondary"
+          disabled={!can || !selected.length}
+          onClick={() => move(null)}
+        >
+          {t('Crear combinación')} {selected.length ? `(${selected.length})` : ''}
+        </button>
+        <button
+          className="button secondary"
+          disabled={
+            !can ||
+            !selected.length ||
+            selected.some((id) => !s.hand.some((tile) => tile.id === id))
+          }
+          onClick={() =>
+            update(
+              safeDraft
+                .map((set) => set.filter((id) => !selected.includes(id)))
+                .filter((set) => set.length),
+            )
+          }
+        >
+          {t('Devolver al atril')}
+        </button>
+        <button
+          className="button secondary"
+          disabled={!can || !undo.length}
+          onClick={() => {
+            setDraft(undo.at(-1)!);
+            setUndo((history) => history.slice(0, -1));
+            setSelected([]);
+          }}
+        >
+          {t('Deshacer')}
+        </button>
+        <button
+          className="button secondary"
+          disabled={!can || !changed}
+          onClick={() => {
+            setDraft(base);
+            setUndo([]);
+            setSelected([]);
+          }}
+        >
+          {t('Restaurar mesa')}
+        </button>
+      </div>
+      <div className="tile-confirm-panel">
+        <p role="status">
+          {changed
+            ? check.reason
+              ? problemText(check.reason, s.rules.openingPoints)
+              : t('Jugada válida: colocarás {0} fichas.', { '0': check.playedIds.length })
+            : t('Selecciona fichas del atril o de la mesa y crea o amplía combinaciones.')}
+        </p>
+        <div className="board-actions">
+          <button
+            className="button primary"
+            disabled={!can || !!check.reason}
+            onClick={() => onAction({ type: 'PLAY_TABLE', sets: safeDraft })}
+          >
+            {t('Confirmar jugada')}
+          </button>
+          <button
+            className="button secondary"
+            disabled={!can}
+            onClick={() => onAction({ type: s.poolCount ? 'DRAW' : 'PASS' })}
+          >
+            {s.poolCount ? t('Robar una ficha y pasar') : t('Pasar sin robar')}
+          </button>
+        </div>
+        <small>
+          {t(
+            'Tus cambios son un borrador hasta confirmar. Robar o agotar el reloj descarta el borrador.',
+          )}
+        </small>
+      </div>
+    </>
+  );
   return (
     <BoardFrame
+      selectionActive={selected.length > 0}
+      onCancelSelection={() => setSelected([])}
       motionRef={motionRef}
       room={room}
       myPlayerId={myPlayerId}
@@ -135,6 +219,7 @@ export function RummyDeFichasBoard({
           }),
         ]),
       )}
+      actions={actions}
     >
       <div className="board-topline">
         <span className="eyebrow">
@@ -175,7 +260,7 @@ export function RummyDeFichasBoard({
           </span>
         )}
       </div>
-      <section className="number-tile-table" aria-label={t('Mesa de Rummy de fichas')}>
+      <section className="number-tile-table" tabIndex={0} aria-label={t('Mesa de Rummy')}>
         <div className="section-row">
           <h2>{t('La mesa')}</h2>
           <span>{quantity(safeDraft.length, 'combinaciones')}</span>
@@ -246,54 +331,7 @@ export function RummyDeFichasBoard({
           </div>
         )}
       </section>
-      <div className="tile-draft-tools">
-        <button
-          className="button secondary"
-          disabled={!can || !selected.length}
-          onClick={() => move(null)}
-        >
-          {t('Crear combinación')} {selected.length ? `(${selected.length})` : ''}
-        </button>
-        <button
-          className="button secondary"
-          disabled={
-            !can ||
-            !selected.length ||
-            selected.some((id) => !s.hand.some((tile) => tile.id === id))
-          }
-          onClick={() =>
-            update(
-              safeDraft
-                .map((set) => set.filter((id) => !selected.includes(id)))
-                .filter((set) => set.length),
-            )
-          }
-        >
-          {t('Devolver al atril')}
-        </button>
-        <button
-          className="button secondary"
-          disabled={!can || !undo.length}
-          onClick={() => {
-            setDraft(undo.at(-1)!);
-            setUndo((history) => history.slice(0, -1));
-            setSelected([]);
-          }}
-        >
-          {t('Deshacer')}
-        </button>
-        <button
-          className="button secondary"
-          disabled={!can || !changed}
-          onClick={() => {
-            setDraft(base);
-            setUndo([]);
-            setSelected([]);
-          }}
-        >
-          {t('Restaurar mesa')}
-        </button>
-      </div>
+
       <section className="tile-rack-section">
         <div className="section-row">
           <h2>
@@ -315,36 +353,6 @@ export function RummyDeFichasBoard({
           {t('Buscar una combinación')}
         </button>
       </section>
-      <div className="tile-confirm-panel">
-        <p role="status">
-          {changed
-            ? check.reason
-              ? problemText(check.reason, s.rules.openingPoints)
-              : t('Jugada válida: colocarás {0} fichas.', { '0': check.playedIds.length })
-            : t('Selecciona fichas del atril o de la mesa y crea o amplía combinaciones.')}
-        </p>
-        <div className="board-actions">
-          <button
-            className="button primary"
-            disabled={!can || !!check.reason}
-            onClick={() => onAction({ type: 'PLAY_TABLE', sets: safeDraft })}
-          >
-            {t('Confirmar jugada')}
-          </button>
-          <button
-            className="button secondary"
-            disabled={!can}
-            onClick={() => onAction({ type: s.poolCount ? 'DRAW' : 'PASS' })}
-          >
-            {s.poolCount ? t('Robar una ficha y pasar') : t('Pasar sin robar')}
-          </button>
-        </div>
-        <small>
-          {t(
-            'Tus cambios son un borrador hasta confirmar. Robar o agotar el reloj descarta el borrador.',
-          )}
-        </small>
-      </div>
     </BoardFrame>
   );
 }

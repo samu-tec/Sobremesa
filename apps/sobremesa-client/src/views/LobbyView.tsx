@@ -136,9 +136,6 @@ export function LobbyView({
             <a className="button light" href="#games">
               {t('Encuentra tu juego')} <ArrowRight size={17} />
             </a>
-            <button className="hero-join" onClick={() => setShowJoin(true)}>
-              {t('Tengo un código')} <ArrowUpRight size={17} />
-            </button>
           </div>
           <div className="hero-note">
             <span className="stacked-avatars">
@@ -405,11 +402,11 @@ export function LobbyView({
               id="room-code"
               className="field code-field"
               placeholder="ABC234"
-              maxLength={6}
+              maxLength={32}
               minLength={6}
               pattern="[A-HJ-NP-Za-hj-np-z2-9]{6}"
               value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value.toUpperCase().replace(/[^A-Z2-9]/g, ''))}
+              onChange={(e) => setRoomCode(e.target.value.toUpperCase().replace(/\s/g, ''))}
               required
             />
             <p className="form-hint">

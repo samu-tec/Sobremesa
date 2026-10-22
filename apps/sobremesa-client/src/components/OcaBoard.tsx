@@ -56,6 +56,20 @@ export function OcaBoard({
   busy,
 }: BoardProps<OcaState, OcaAction>) {
   const motionRef = useBoardMotion(s.revision, { rollDice: true, diceKey: s.rollCount });
+  const actions = (
+    <>
+      <div className="oca-toolbar">
+        <DiceFace value={s.lastRoll ?? 1} />
+        <button
+          className="button primary"
+          disabled={busy || s.currentTurnPlayerId !== myPlayerId || !!s.winner || s.isDraw}
+          onClick={() => onAction({ type: 'ROLL' })}
+        >
+          {t('Tirar dados')}
+        </button>
+      </div>
+    </>
+  );
   return (
     <BoardFrame
       room={room}
@@ -68,20 +82,12 @@ export function OcaBoard({
           t('Casilla {0} · espera {1}', { '0': p.position, '1': p.skippedTurns }),
         ]),
       )}
+      actions={actions}
     >
       <p className="board-instruction" role="status">
         {gameText(s.message)}
       </p>
-      <div className="oca-toolbar">
-        <DiceFace value={s.lastRoll ?? 1} />
-        <button
-          className="button primary"
-          disabled={busy || s.currentTurnPlayerId !== myPlayerId || !!s.winner || s.isDraw}
-          onClick={() => onAction({ type: 'ROLL' })}
-        >
-          {t('Tirar dados')}
-        </button>
-      </div>
+
       <svg
         className="oca-board"
         viewBox="0 0 640 640"

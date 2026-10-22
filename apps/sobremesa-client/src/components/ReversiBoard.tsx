@@ -1,7 +1,7 @@
 import { useBoardMotion } from '../hooks/useBoardMotion';
-import { getGame, t, gameText } from '../i18n';
-import type { ReversiState, ReversiAction } from 'sobremesa-logic';
-import { GameTip, PlayersPanel, type BoardProps } from '../ui/GameLayout';
+import { t, gameText } from '../i18n';
+import { reversiFlips, type ReversiState, type ReversiAction } from 'sobremesa-logic';
+import { PlayersPanel, moveBoardFocus, type BoardProps } from '../ui/GameLayout';
 import { useRef } from 'react';
 export function ReversiBoard({
   room,
@@ -10,7 +10,6 @@ export function ReversiBoard({
   onAction,
   busy,
 }: BoardProps<ReversiState, ReversiAction>) {
-  const game = getGame(room.gameType);
   const turn = s.currentTurnPlayerId;
   const canPlay = turn === myPlayerId && !s.winner && !s.isDraw && !busy;
   const previousBoard = useRef<(string | null)[]>([]);
@@ -32,11 +31,23 @@ export function ReversiBoard({
           <p className="board-instruction" aria-live="polite">
             {gameText(s.message)}
           </p>
-          <div className="reversi-board" role="group" aria-label={t('Tablero de Reversi')}>
+          <div
+            className="reversi-board"
+            onKeyDown={(event) => moveBoardFocus(event, 8)}
+            role="group"
+            aria-label={t('Tablero de Reversi')}
+          >
             {s.board.map((id, index) => (
               <button
                 key={index}
                 data-cell={index}
+                title={
+                  canPlay && s.legalMoves.includes(index)
+                    ? t('Voltea {0} fichas', {
+                        '0': reversiFlips(s.board, myPlayerId, index).length,
+                      })
+                    : undefined
+                }
                 disabled={!canPlay || !s.legalMoves.includes(index)}
                 aria-label={t('Fila {0}, columna {1}: {2}', {
                   '0': Math.floor(index / 8) + 1,
@@ -65,11 +76,6 @@ export function ReversiBoard({
       </section>
       <aside className="table-sidebar">
         <PlayersPanel room={room} myPlayerId={myPlayerId} currentTurn={turn} values={values} />
-        <GameTip text={game.tip} />
-        <div className="game-mini-rules">
-          <span className="eyebrow">{t('EL OBJETIVO')}</span>
-          <p>{t('Termina con más fichas de tu color.')}</p>
-        </div>
       </aside>
     </div>
   );
