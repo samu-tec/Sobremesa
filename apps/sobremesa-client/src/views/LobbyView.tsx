@@ -1,5 +1,4 @@
-import { useLocale, localizeGame, t } from '../i18n';
-import { randomName } from '../ui/Welcome';
+import { localizeGame, t } from '../i18n';
 import { lazy, Suspense, useState } from 'react';
 const LocalImpostor = lazy(() =>
   import('../components/LocalImpostor').then((m) => ({ default: m.LocalImpostor })),
@@ -28,7 +27,6 @@ import { Rules } from '../ui/Rules';
 import { Modal } from '../ui/Modal';
 interface Props {
   playerName: string;
-  onUpdatePlayerName: (value: string) => void;
   connected: boolean;
   onCreateRoom: (game: GameType) => void;
   onJoinRoom: (code: string) => void;
@@ -38,7 +36,6 @@ interface Props {
 }
 export function LobbyView({
   playerName,
-  onUpdatePlayerName,
   connected,
   onCreateRoom,
   onJoinRoom,
@@ -46,7 +43,6 @@ export function LobbyView({
   isConnecting,
   inviteCode,
 }: Props) {
-  const { locale } = useLocale();
   const GAME_CATALOG = BASE_CATALOG.map(localizeGame);
   const [localImpostor, setLocalImpostor] = useState(false);
   const [query, setQuery] = useState(''),
@@ -55,10 +51,8 @@ export function LobbyView({
   const [rules, setRules] = useState<GameType | null>(null),
     [selected, setSelected] = useState<GameType | null>(null);
   const [showJoin, setShowJoin] = useState(!!inviteCode),
-    [showHelp, setShowHelp] = useState(false),
-    [showProfile, setShowProfile] = useState(false);
-  const [roomCode, setRoomCode] = useState(inviteCode || ''),
-    [draftName, setDraftName] = useState(playerName);
+    [showHelp, setShowHelp] = useState(false);
+  const [roomCode, setRoomCode] = useState(inviteCode || '');
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
       const saved: unknown = JSON.parse(localStorage.getItem('sobremesa.favorites') || '[]');
@@ -101,10 +95,6 @@ export function LobbyView({
         setQuery('');
       }}
       onHelp={() => setShowHelp(true)}
-      onProfile={() => {
-        setDraftName(playerName);
-        setShowProfile(true);
-      }}
       onJoin={() => setShowJoin(true)}
     >
       <div className="page-intro">
@@ -418,44 +408,6 @@ export function LobbyView({
               type="submit"
             >
               {isConnecting ? t('Entrando…') : t('Unirme a la partida')} <ArrowRight size={17} />
-            </button>
-          </form>
-        </Modal>
-      )}
-      {showProfile && (
-        <Modal title={t('¿Cómo te llamamos?')} onClose={() => setShowProfile(false)}>
-          <p className="muted">{t('Tus amigos verán este nombre en las partidas.')}</p>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              onUpdatePlayerName(draftName);
-              setShowProfile(false);
-            }}
-          >
-            <label className="field-label" htmlFor="player-name">
-              {t('Tu nombre')}{' '}
-            </label>
-            <input
-              className="field"
-              id="player-name"
-              autoComplete="nickname"
-              maxLength={24}
-              value={draftName}
-              onChange={(e) => setDraftName(e.target.value)}
-              required
-            />
-            <p className="form-hint">
-              {t('Hasta 24 caracteres. Puedes cambiarlo antes de cada partida.')}{' '}
-            </p>
-            <button
-              type="button"
-              className="button secondary full"
-              onClick={() => setDraftName(randomName(locale))}
-            >
-              {t('Nombre aleatorio')}
-            </button>
-            <button className="button primary full" disabled={!draftName.trim()}>
-              {t('Guardar nombre')}{' '}
             </button>
           </form>
         </Modal>

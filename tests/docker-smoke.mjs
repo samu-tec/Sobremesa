@@ -112,20 +112,22 @@ try {
   const recovered = await ack(resumed.socket, 'game:reconnect', { roomCode: room.room.code });
   assert.equal(recovered.state.board[0], 'X');
   assert.equal(resumed.playerId, guest.playerId);
-  for (const [client, index] of [
-    [resumed, 3],
-    [host, 1],
-    [resumed, 4],
-    [host, 2],
-  ])
-    assert.equal(
-      (await ack(client.socket, 'game:action', { type: 'MAKE_MOVE', index })).success,
-      true,
-    );
-  assert.equal(
-    (await ack(host.socket, 'game:reconnect', { roomCode: room.room.code })).state.winner,
-    host.playerId,
+  // A disconnected active player may already have taken an autoplay move.
+  // Continue from the authoritative turn instead of assuming whose turn it is.
+  const currentPlayer = recovered.state.players.find(
+    (player) => player.id === recovered.state.currentTurn,
   );
+  const currentClient = currentPlayer?.id === host.playerId ? host : resumed;
+  assert.ok(currentPlayer, 'El turno recuperado pertenece a un jugador de la sala');
+  const nextIndex = recovered.state.board.findIndex((cell) => cell === null);
+  assert.notEqual(nextIndex, -1, 'La partida recuperada conserva casillas disponibles');
+  const nextMove = await ack(currentClient.socket, 'game:action', {
+    type: 'MAKE_MOVE',
+    index: nextIndex,
+  });
+  assert.equal(nextMove.success, true);
+  const continued = await ack(host.socket, 'game:reconnect', { roomCode: room.room.code });
+  assert.notEqual(continued.state.board[nextIndex], null, 'La jugada posterior se publicó');
   await ack(host.socket, 'room:leave');
   await ack(resumed.socket, 'room:leave');
   const bots = await ack(host.socket, 'room:create', { playerName: 'Ana', gameType: 'tictactoe' });
@@ -137,7 +139,7 @@ try {
   assert.equal(botState.state.board.filter(Boolean).length, 2);
   await ack(host.socket, 'room:leave');
   console.log(
-    'Docker HTTP, assets, CSP, polling, WebSocket, permisos, dos jugadores, reconexión y bots: OK',
+    'Docker HTTP, assets, CSP, polling, WebSocket, permisos, dos jugadores, reconexión, jugada y bots: OK',
   );
 } finally {
   for (const socket of clients) socket.disconnect();

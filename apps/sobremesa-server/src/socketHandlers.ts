@@ -160,17 +160,34 @@ export function registerSocketHandlers(
       ? roomAction(data, (c, id) => manager.removeHuman(c, id, data.playerId as string))
       : { success: false, error: 'Participante no válido.' },
   );
+  on('room:resolve_autoplay', (data) =>
+    record(data) &&
+    typeof data.playerId === 'string' &&
+    (data.decision === 'keep' || data.decision === 'remove')
+      ? roomAction(data, (c, id) =>
+          manager.resolveAutoPlay(
+            c,
+            id,
+            data.playerId as string,
+            data.decision as 'keep' | 'remove',
+          ),
+        )
+      : { success: false, error: 'Decisión no válida.' },
+  );
+  on('room:set_autoplay', (data) =>
+    record(data) && typeof data.enabled === 'boolean'
+      ? roomAction(data, (c, id) => manager.setAutoPlay(c, id, data.enabled as boolean))
+      : { success: false, error: 'Opción de autoplay no válida.' },
+  );
+  on('room:update_name', (data) =>
+    record(data) && name(data.playerName)
+      ? roomAction(data, (c, id) => manager.updatePlayerName(c, id, name(data.playerName)))
+      : { success: false, error: 'Introduce un nombre válido.' },
+  );
   on('room:change_game', (data) =>
     record(data) && GAME_CATALOG.some((g) => g.id === data.gameType)
       ? roomAction(data, (c, id) => manager.changeGame(c, id, data.gameType as GameType))
       : { success: false, error: 'Juego no válido.' },
-  );
-  on('room:confirm_presence', (data) =>
-    record(data) && typeof data.challengeId === 'string' && typeof data.stay === 'boolean'
-      ? roomAction(data, (c, id) =>
-          manager.confirmPresence(c, id, data.challengeId as string, data.stay as boolean),
-        )
-      : { success: false, error: 'Confirmación no válida.' },
   );
   on('room:start_game', (data) => roomAction(data, (c, id) => manager.startGame(c, id)));
   on('room:restart_game', (data) => roomAction(data, (c, id) => manager.restartGame(c, id)));

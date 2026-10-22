@@ -40,7 +40,7 @@ Respeta `prefers-reduced-motion`. `useBoardMotion` debe cancelar animaciones al 
 
 Si una barrera exige cambiar tiempos o interacciones, diseña la solución junto con las políticas autoritativas y las variantes del juego. La interfaz debe facilitar la acción sin alterar silenciosamente sus reglas.
 
-La fila activa identifica el turno con texto, fondo y borde. El título permanece centrado con herramientas laterales de distinto tamaño. Los errores y reconexiones pueden consultarse completos sin una franja vacía. La confirmación de presencia utiliza el diálogo común, no se cierra con Escape y presenta dos respuestas explícitas y un reloj sin anunciar cada segundo. Sus 15 segundos y única prórroga de 30 segundos son parte de la política finita de sala; no equivalen a una verificación completa de los criterios WCAG sobre límites temporales. Mantén pendiente su evaluación manual con tecnologías de apoyo y personas usuarias.
+La fila activa identifica el turno con texto, fondo y borde. El título permanece centrado con herramientas laterales de distinto tamaño. Los errores y reconexiones pueden consultarse completos sin una franja vacía. Al terminar los cinco minutos de autoplay, el anfitrión recibe un diálogo que exige una decisión explícita entre mantener la plaza automatizada o retirar al jugador. Revisa manualmente su foco, anuncio y uso con tecnologías de apoyo.
 
 En las comprobaciones locales WebKit consume Escape al salir de pantalla completa nativa antes de enviarlo a la web. El diálogo conserva el foco y se puede cerrar con un segundo Escape o su botón. En la alternativa CSS, Escape cierra primero el diálogo. Esta diferencia depende del navegador y debe comprobarse también con dispositivos reales.
 

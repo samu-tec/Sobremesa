@@ -120,7 +120,12 @@ export function BackgammonBoard({
           ? t('Llevas las fichas claras: avanzan del punto 24 al 1.')
           : t('Llevas las fichas oscuras: avanzan del punto 1 al 24.')}
       </p>
-      <div className="backgammon-board" role="group" aria-label={t('Tablero de Backgammon')}>
+      <div
+        className="backgammon-board"
+        role="group"
+        aria-label={t('Tablero de Backgammon')}
+        tabIndex={0}
+      >
         <div className="bg-row">{Array.from({ length: 12 }, (_, i) => render(i + 12))}</div>
         <div className="bg-bar" data-cell="-1">
           <span>

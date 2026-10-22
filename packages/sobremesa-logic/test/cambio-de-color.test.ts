@@ -10,8 +10,9 @@ import {
   type CambioDeColorState,
 } from '../src/index.js';
 
-function fixture(count = 4, stacking = true, direction: 1 | -1 = 1) {
+function fixture(count = 4, stacking = true, direction: 1 | -1 = 1, jumpIn = false) {
   const engine = new CambioDeColorEngine(7, stacking);
+  engine.setRules({ startingCards: 7, stackDrawCards: stacking, jumpIn });
   const state = engine.initGame(
     Array.from({ length: count }, (_, i) => ({ id: `p${i}`, isBot: true })),
   );
@@ -209,6 +210,158 @@ test('Cambio de Color: bots responden a penalizaciones mixtas o aceptan el total
   const next = engine.applyAction(state, 'p0', action(card));
   assert.deepEqual(engine.getBotAction(next, 'p1'), { type: 'DRAW_CARD' });
   assert.equal(engine.getBotAction(next, 'p0'), null);
+});
+
+test('Cambio de Color: Jump-In exige una carta idéntica y reanuda el turno desde quien entra', () => {
+  const { engine, state, take } = fixture(4, true, 1, true);
+  const played = take('6', 'red');
+  const identical = take('6', 'red');
+  state.players[0].cards.push(played);
+  state.players[2].cards.push(identical);
+  const first = engine.applyAction(state, 'p0', action(played));
+  assert.equal(first.currentTurnPlayerId, 'p1');
+  assert.equal(first.jumpInWindow, true);
+  assert.equal(engine.validateAction(first, 'p1', action(first.players[1].cards[0])), false);
+  assert.equal(engine.validateAction(first, 'p2', action(identical)), true);
+  const jumped = engine.applyAction(first, 'p2', action(identical));
+  assert.equal(jumped.currentTurnPlayerId, 'p3');
+  assert.equal(jumped.discardPile.at(-1)?.id, identical.id);
+  assert.equal(jumped.jumpInWindow, true);
+  const settled = engine.finishJumpInWindow(jumped);
+  assert.equal(settled.jumpInWindow, false);
+  assert.equal(settled.currentTurnPlayerId, 'p3');
+  conserved(settled);
+});
+
+test('Cambio de Color: Jump-In cancela el efecto anterior y resuelve la segunda acción', () => {
+  for (const value of ['skip', 'reverse', 'draw2', 'wild_draw4'] as const) {
+    const { engine, state, take } = fixture(4, false, 1, true);
+    const color = value === 'wild_draw4' ? 'wild' : 'red';
+    const firstCard = take(value, color);
+    const secondCard = take(value, color);
+    state.players[0].cards.push(firstCard);
+    state.players[2].cards.push(secondCard);
+    const before = state.players[1].cards.length;
+    const first = engine.applyAction(state, 'p0', action(firstCard));
+    assert.equal(first.pendingCardAction, value);
+    const jumped = engine.applyAction(first, 'p2', action(secondCard));
+    assert.equal(jumped.pendingCardAction, value);
+    assert.equal(jumped.pendingDraw, value === 'draw2' ? 2 : value === 'wild_draw4' ? 4 : 0);
+    assert.equal(jumped.players[1].cards.length, before);
+    assert.equal(jumped.turnDirection, 1);
+    assert.equal(jumped.currentTurnPlayerId, value === 'reverse' ? 'p1' : 'p3');
+    const settled = engine.finishJumpInWindow(jumped);
+    if (value === 'skip') assert.equal(settled.currentTurnPlayerId, 'p0');
+    if (value === 'reverse') {
+      assert.equal(settled.turnDirection, -1);
+      assert.equal(settled.currentTurnPlayerId, 'p1');
+    }
+    if (value === 'draw2' || value === 'wild_draw4') {
+      assert.equal(settled.players[3].cards.length, before + (value === 'draw2' ? 2 : 4));
+      assert.equal(settled.currentTurnPlayerId, 'p0');
+      assert.equal(settled.pendingDraw, 0);
+    }
+    conserved(jumped);
+  }
+});
+
+test('Cambio de Color: reverso Jump-In en dos jugadores repite desde quien lo jugó', () => {
+  const { engine, state, take } = fixture(2, false, 1, true);
+  const first = take('reverse', 'red');
+  const second = take('reverse', 'red');
+  state.players[0].cards.push(first);
+  state.players[1].cards.push(second);
+  const opened = engine.applyAction(state, 'p0', action(first));
+  const jumped = engine.applyAction(opened, 'p1', action(second));
+  const settled = engine.finishJumpInWindow(jumped);
+  assert.equal(settled.turnDirection, -1);
+  assert.equal(settled.currentTurnPlayerId, 'p1');
+});
+
+test('Cambio de Color: bot interrumpe solo con carta idéntica y no consulta manos rivales', () => {
+  const { engine, state, take } = fixture(4, true, 1, true);
+  const matching = take('5', 'red');
+  state.players[2].cards.push(matching);
+  state.jumpInWindow = true;
+  const selected = engine.getBotAction(state, 'p2');
+  assert.deepEqual(selected, action(matching));
+  assert.equal(engine.getBotAction(state, 'p1'), null);
+  const altered = structuredClone(state);
+  altered.players[0].cards = [take('8', 'blue')];
+  altered.players[1].cards = [take('9', 'green')];
+  assert.deepEqual(engine.getBotAction(altered, 'p2'), selected);
+});
+
+test('Cambio de Color: el bot conserva comodines y los usa para frenar a quien está a una carta', () => {
+  const { engine, state, take } = fixture(3, true);
+  const wild = take('wild_draw4');
+  state.players[0].cards.push(wild);
+  state.players[1].cards.push(take('2', 'blue'), take('3', 'blue'));
+  state.players[2].cards.push(take('4', 'green'), take('6', 'green'));
+  assert.equal(engine.getBotAction(state, 'p0')?.type, 'PLAY_CARD');
+  assert.equal(
+    (engine.getBotAction(state, 'p0') as { type: string; cardId: string }).cardId,
+    state.players[0].cards[0].id,
+    'prioriza una carta del color disponible sobre guardar un comodín',
+  );
+  state.players[1].cards = [state.players[1].cards[0]];
+  const attack = engine.getBotAction(state, 'p0');
+  assert.equal(attack?.type, 'PLAY_CARD');
+  if (attack?.type === 'PLAY_CARD') assert.equal(attack.cardId, wild.id);
+});
+
+test('Cambio de Color: al cerrar Jump-In se aplican Salto, Cambio y penalizaciones sin acumular', () => {
+  for (const [value, penalty] of [
+    ['skip', 0],
+    ['reverse', 0],
+    ['draw2', 2],
+    ['wild_draw4', 4],
+  ] as const) {
+    const { engine, state, take } = fixture(4, false, 1, true);
+    const card = take(value, value === 'wild_draw4' ? 'wild' : 'red');
+    state.players[0].cards.push(card);
+    const previousVictimSize = state.players[1].cards.length;
+    const played = engine.applyAction(state, 'p0', action(card));
+    const settled = engine.finishJumpInWindow(played);
+    assert.equal(settled.jumpInWindow, false);
+    assert.equal(settled.pendingCardAction, null);
+    if (value === 'skip') assert.equal(settled.currentTurnPlayerId, 'p2');
+    if (value === 'reverse') {
+      assert.equal(settled.turnDirection, -1);
+      assert.equal(settled.currentTurnPlayerId, 'p3');
+    }
+    if (penalty) {
+      assert.equal(settled.players[1].cards.length, previousVictimSize + penalty);
+      assert.equal(settled.pendingDraw, 0);
+      assert.equal(settled.currentTurnPlayerId, 'p2');
+    }
+    conserved(settled);
+  }
+});
+
+test('Cambio de Color: abandono durante Jump-In transfiere el efecto sin atascar el turno', () => {
+  const { engine, state, take } = fixture(4, false, 1, true);
+  const plusTwo = take('draw2', 'red');
+  state.players[0].cards.push(plusTwo);
+  const opened = engine.applyAction(state, 'p0', action(plusTwo));
+  const left = engine.forfeitPlayer(opened, 'p1');
+  assert.equal(left.jumpInWindow, false);
+  assert.equal(left.pendingCardAction, null);
+  assert.equal(left.pendingDraw, 2);
+  assert.equal(left.currentTurnPlayerId, 'p2');
+  assert.equal(engine.validateAction(left, 'p2', { type: 'DRAW_CARD' }), true);
+  const paid = engine.applyAction(left, 'p2', { type: 'DRAW_CARD' });
+  assert.equal(paid.players.find((p) => p.playerId === 'p2')?.cards.length, 3);
+  assert.equal(paid.currentTurnPlayerId, 'p3');
+
+  const reverseFixture = fixture(4, true, 1, true);
+  const reverse = reverseFixture.take('reverse', 'red');
+  reverseFixture.state.players[0].cards.push(reverse);
+  const reversal = reverseFixture.engine.applyAction(reverseFixture.state, 'p0', action(reverse));
+  const afterLeaving = reverseFixture.engine.forfeitPlayer(reversal, reversal.currentTurnPlayerId);
+  assert.equal(afterLeaving.jumpInWindow, false);
+  assert.equal(afterLeaving.turnDirection, -1);
+  assert.equal(afterLeaving.currentTurnPlayerId, 'p2');
 });
 
 for (const count of [2, 3, 4])

@@ -1,4 +1,5 @@
-import { LanguageSelector, t, useLocale } from '../i18n';
+import { t, useLocale } from '../i18n';
+import { PreferencesButton } from './Preferences';
 import { ArrowLeft } from 'lucide-react';
 const copy = {
   es: [
@@ -26,7 +27,7 @@ const copy = {
       heading: 'Qué guarda el servidor y durante cuánto tiempo',
       paragraphs: [
         'La aplicación no tiene cuentas, base de datos de perfiles ni historial de partidas. El estado de las salas y los datos de juego se mantienen en la memoria RAM mientras hacen falta; la aplicación no los escribe en sus propios archivos. Reiniciar el servidor borra ese estado temporal.',
-        'La confirmación de presencia solo guarda temporalmente en RAM quién tiene una decisión pendiente, un identificador de confirmación y su plazo. No registra foco, pestañas, hábitos ni un historial de actividad. Caduca al responder o cambiar de turno, abandonar o cerrar la sala. Si no respondes en 15 segundos, se aplica el abandono; confirmar concede una única prórroga de 30 segundos para jugar. Los plazos propios de las reglas y la reserva de reconexión se mantienen.',
+        'El autoplay conserva temporalmente en RAM quién lo ha activado, ha dejado vencer su turno o se ha desconectado, y el momento en que termina la ventana de revisión de 3 minutos. No registra foco, pestañas ni historial de actividad. Al terminar esa ventana, el anfitrión decide si retira a la persona o mantiene su plaza como bot. La preferencia desaparece al desactivarla, al volver la persona, al resolver la decisión o al cerrar la sala.',
         'Una sala se elimina cuando se va la última persona o tras seis horas sin actividad humana. Si se corta tu conexión, reservamos tu sitio durante cinco minutos por defecto; quien administra el servidor puede cambiar ese plazo.',
         'Para limitar conexiones, la IP se mantiene mientras la conexión está activa y hasta que vence su ventana de control. Los contadores de creación de salas caducan al terminar su ventana —un minuto por defecto— y se purgan en un barrido periódico, como máximo en el siguiente barrido de un minuto. La web funciona en un servidor propio, expuesto mediante Cloudflare Tunnel. Sobremesa no genera registros de acceso. Cloudflare puede tratar datos técnicos conforme a la configuración del servicio y sus condiciones.',
       ],
@@ -91,7 +92,7 @@ const copy = {
       heading: 'Server storage and retention',
       paragraphs: [
         'The app has no accounts, profile database or game history. Room state and game data stay in RAM while they are needed; the app does not write them to its own files. Restarting the server clears this temporary state.',
-        'Presence confirmation temporarily keeps only the pending player, a confirmation identifier and its deadline in RAM. It does not track focus, tabs, habits or activity history. It expires on response, turn change, departure or room closure. No response within 15 seconds counts as leaving; confirmation grants one 30-second extension to play. Rule deadlines and reconnection reservations remain separate.',
+        'Autoplay temporarily keeps in RAM who turned it on, let a turn expire or disconnected, and the end of the three-minute review window. It does not track focus, tabs or activity history. When that window ends, the host chooses whether to remove the player or keep their seat as a bot. The setting is cleared when switched off, the player returns, the host decides or the room closes.',
         'A room is deleted when the last person leaves or after six hours without human activity. If your connection drops, your seat is held for five minutes by default; the server administrator can change that period.',
         'For connection limits, an IP entry remains while the connection is active and until its control window expires. Room-creation counters expire at the end of their window — one minute by default — and are cleared in a periodic sweep, no later than the next one-minute sweep. The website runs on a self-hosted server exposed through Cloudflare Tunnel. Sobremesa does not generate access logs. Cloudflare may process technical data according to service settings and terms.',
       ],
@@ -151,7 +152,9 @@ export function Privacy() {
           <ArrowLeft size={18} />
           {t('Volver a los juegos')}
         </a>
-        <LanguageSelector />
+        <div className="header-actions">
+          <PreferencesButton />
+        </div>
       </header>
       <main className="privacy-content">
         {copy[locale].map(({ heading, paragraphs }, index) => (

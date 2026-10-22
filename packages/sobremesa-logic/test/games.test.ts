@@ -84,6 +84,16 @@ test('El bot de Cuatro en Línea gana y bloquea amenazas', () => {
   state.board[35] = state.board[36] = state.board[37] = 'b';
   assert.deepEqual(engine.getBotAction(state, 'a'), { type: 'DROP', column: 3 });
 });
+test('El bot de Tres en Raya toma la victoria inmediata y bloquea una línea rival', () => {
+  const engine = new TresEnRayaEngine();
+  const state = engine.initGame(players);
+  state.board = ['X', 'X', null, 'O', 'O', null, null, null, null];
+  state.currentTurn = 'a';
+  assert.deepEqual(engine.getBotAction(state, 'a'), { type: 'MAKE_MOVE', index: 2 });
+  state.board = ['X', 'X', null, null, 'O', null, null, null, null];
+  state.currentTurn = 'b';
+  assert.deepEqual(engine.getBotAction(state, 'b'), { type: 'MAKE_MOVE', index: 2 });
+});
 test('Reversi: apertura, captura, bordes e inmutabilidad', () => {
   const engine = new ReversiEngine(),
     state = engine.initGame(players);
@@ -441,6 +451,42 @@ test('Ciudad Fortuna paga Salida y manda a la cárcel tras tres dobles', () => {
     assert.equal(third.players[0].cash, 1500);
   } finally {
     Math.random = random;
+  }
+});
+test('Ciudad Fortuna: salario doble por pasar y bonus independiente por dobles de uno', () => {
+  const originalRandom = Math.random;
+  try {
+    Math.random = () => 0.34; // dados 3 y 3: pasa por Salida desde la casilla 37
+    const passing = new CiudadFortunaEngine();
+    passing.setRules({ doubleGoSalaryOnPass: true });
+    const passState = passing.initGame(players);
+    passState.players[0].position = 37;
+    const passed = passing.applyAction(passState, 'a', { type: 'ROLL_DICE' });
+    assert.equal(passed.players[0].position, 3);
+    assert.equal(passed.players[0].cash, 1900);
+    const defaultPassing = new CiudadFortunaEngine().initGame(players);
+    defaultPassing.players[0].position = 37;
+    assert.equal(
+      new CiudadFortunaEngine().applyAction(defaultPassing, 'a', { type: 'ROLL_DICE' }).players[0]
+        .cash,
+      1700,
+    );
+
+    Math.random = () => 0;
+    const snake = new CiudadFortunaEngine();
+    snake.setRules({ snakeEyesBonus: true });
+    const snakeState = snake.initGame(players);
+    snakeState.players[0].position = 1;
+    assert.equal(snake.applyAction(snakeState, 'a', { type: 'ROLL_DICE' }).players[0].cash, 2000);
+    const withoutBonus = new CiudadFortunaEngine().initGame(players);
+    withoutBonus.players[0].position = 1;
+    assert.equal(
+      new CiudadFortunaEngine().applyAction(withoutBonus, 'a', { type: 'ROLL_DICE' }).players[0]
+        .cash,
+      1500,
+    );
+  } finally {
+    Math.random = originalRandom;
   }
 });
 test('Reversi pasa automáticamente al mismo jugador y resuelve el empate final', () => {

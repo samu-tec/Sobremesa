@@ -32,7 +32,6 @@ import {
   History,
   Home,
   Gavel,
-  Wallet,
   ShieldAlert,
   ChevronRight,
 } from 'lucide-react';
@@ -119,6 +118,10 @@ export function CiudadFortunaBoard({
   const tradeable = (tile: BoardTile) =>
     state.properties[tile.index]?.houses === 0 &&
     (!tile.group || !PROPERTY_GROUPS[tile.group].some((i) => state.properties[i]?.houses > 0));
+  const openManagement = (nextTab: 'properties' | 'trade' | 'history') => {
+    setTab(nextTab);
+    setManagementOpen(true);
+  };
   const actions = (
     <section className="panel city-action-panel" aria-live="polite">
       <div className="city-action-info">
@@ -233,15 +236,6 @@ export function CiudadFortunaBoard({
         )}
         {debt && (
           <>
-            <button
-              className="button secondary"
-              onClick={() => {
-                setTab('properties');
-                setManagementOpen(true);
-              }}
-            >
-              {t('Gestionar bienes')}{' '}
-            </button>
             <button className="text-button danger-text" onClick={() => setBankruptcy(true)}>
               {t('Bancarrota')}{' '}
             </button>
@@ -302,293 +296,264 @@ export function CiudadFortunaBoard({
     </section>
   );
   const management = (
-    <>
-      <section className="panel city-management" id="city-management">
-        <div className="section-row">
-          <h2>{t('Tu estrategia')}</h2>
-          <Wallet size={20} />
+    <section className="panel city-management">
+      {tab === 'properties' && (
+        <div className="portfolio">
+          <div className="section-row">
+            <span className="muted">{t('Mi cartera')}</span>
+            <strong>
+              {properties.length} {t('propiedades')}
+            </strong>
+          </div>
+          {!properties.length && (
+            <div className="portfolio-empty">
+              <Building2 size={32} />
+              <h3>{t('Tu ciudad empieza aquí')}</h3>
+              <p>{t('Compra tu primera propiedad y pon el dinero a trabajar.')}</p>
+            </div>
+          )}
+          {properties.map((tile) => {
+            const prop = state.properties[tile.index],
+              siblings = tile.group ? PROPERTY_GROUPS[tile.group] : [tile.index];
+            const complete =
+              tile.type === 'property' &&
+              siblings.every(
+                (i) =>
+                  state.properties[i]?.ownerId === myPlayerId && !state.properties[i]?.isMortgaged,
+              );
+            const build =
+              myTurn &&
+              !auction &&
+              complete &&
+              prop.houses < 5 &&
+              (!state.customRules.evenBuilding ||
+                prop.houses === Math.min(...siblings.map((i) => state.properties[i].houses))) &&
+              (me?.cash ?? 0) >= (tile.houseCost ?? Infinity);
+            const sell =
+              myTurn &&
+              !auction &&
+              prop.houses > 0 &&
+              (!state.customRules.evenBuilding ||
+                prop.houses === Math.max(...siblings.map((i) => state.properties[i].houses)));
+            const mortgage =
+              myTurn &&
+              !auction &&
+              !prop.isMortgaged &&
+              !siblings.some((i) => state.properties[i].houses > 0);
+            const recover = Math.round((tile.mortgageValue ?? 0) * 1.1);
+            return (
+              <div className="property-item" key={tile.index}>
+                <div>
+                  <i style={{ background: GROUP_COLORS[tile.group!] }} />
+                  <div>
+                    <strong>{t(tile.name)}</strong>
+                    <small>
+                      {prop.isMortgaged
+                        ? t('Hipotecada')
+                        : prop.houses === 5
+                          ? t('Hotel')
+                          : prop.houses
+                            ? t(prop.houses === 1 ? '{0} casa' : '{0} casas', {
+                                '0': prop.houses,
+                              })
+                            : complete
+                              ? t('Grupo completo')
+                              : t('Sin edificios')}
+                    </small>
+                  </div>
+                  <button
+                    className="icon-button"
+                    onClick={() => setInspected(tile)}
+                    aria-label={t('Ver {0}', { '0': t(tile.name) })}
+                  >
+                    <ChevronRight size={17} />
+                  </button>
+                </div>
+                <div className="property-actions">
+                  {tile.houseCost && prop.houses < 5 && (
+                    <button
+                      disabled={!build}
+                      onClick={() => onAction({ type: 'BUILD_HOUSE', tileIndex: tile.index })}
+                    >
+                      {t('Construir ·')} {tile.houseCost} €
+                    </button>
+                  )}
+                  {prop.houses > 0 && (
+                    <button
+                      disabled={!sell}
+                      onClick={() => onAction({ type: 'SELL_HOUSE', tileIndex: tile.index })}
+                    >
+                      {t('Vender edificio')}{' '}
+                    </button>
+                  )}
+                  <button
+                    disabled={
+                      prop.isMortgaged
+                        ? !myTurn || !!auction || (me?.cash ?? 0) < recover
+                        : !mortgage
+                    }
+                    onClick={() =>
+                      onAction({
+                        type: prop.isMortgaged ? 'UNMORTGAGE_PROPERTY' : 'MORTGAGE_PROPERTY',
+                        tileIndex: tile.index,
+                      })
+                    }
+                  >
+                    {prop.isMortgaged
+                      ? t('Recuperar · {0} €', { '0': recover })
+                      : t('Hipotecar · {0} €', { '0': tile.mortgageValue })}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {!myTurn && properties.length > 0 && (
+            <p className="form-hint">{t('Puedes construir, vender e hipotecar en tu turno.')}</p>
+          )}
         </div>
-        <div className="management-tabs" aria-label={t('Gestión de Ciudad Fortuna')}>
-          {(
-            [
-              ['properties', Home, t('Propiedades')],
-              ['trade', Handshake, t('Tratos')],
-              ['history', History, t('Actividad')],
-            ] as const
-          ).map(([id, Icon, label]) => (
-            <button
-              key={id}
-              className={tab === id ? 'active' : ''}
-              aria-pressed={tab === id}
-              onClick={() => setTab(id)}
-            >
-              <Icon size={15} />
-              {t(label)}
-            </button>
+      )}
+      {tab === 'history' && (
+        <div className="city-log">
+          {state.logs.map((log, i) => (
+            <p key={i}>{gameText(log)}</p>
           ))}
         </div>
-        {tab === 'properties' && (
-          <div className="portfolio">
-            <div className="section-row">
-              <span className="muted">{t('Mi cartera')}</span>
-              <strong>
-                {properties.length} {t('propiedades')}
-              </strong>
+      )}
+      {tab === 'trade' && (
+        <div className="trade-form">
+          <p className="form-hint">
+            {t(
+              'Intercambia efectivo y propiedades sin edificios. Los tratos requieren la aprobación del otro jugador.',
+            )}{' '}
+          </p>
+          {state.activeTrade && (
+            <div className="notice">
+              <span>{t('Hay una propuesta pendiente.')}</span>
+              {[state.activeTrade.fromPlayerId, state.activeTrade.toPlayerId].includes(
+                myPlayerId,
+              ) && (
+                <button className="text-button" onClick={() => onAction({ type: 'CANCEL_TRADE' })}>
+                  {t('Cancelar propuesta')}{' '}
+                </button>
+              )}
             </div>
-            {!properties.length && (
-              <div className="portfolio-empty">
-                <Building2 size={32} />
-                <h3>{t('Tu ciudad empieza aquí')}</h3>
-                <p>{t('Compra tu primera propiedad y pon el dinero a trabajar.')}</p>
-              </div>
-            )}
-            {properties.map((tile) => {
-              const prop = state.properties[tile.index],
-                siblings = tile.group ? PROPERTY_GROUPS[tile.group] : [tile.index];
-              const complete =
-                tile.type === 'property' &&
-                siblings.every(
-                  (i) =>
-                    state.properties[i]?.ownerId === myPlayerId &&
-                    !state.properties[i]?.isMortgaged,
-                );
-              const build =
-                myTurn &&
-                !auction &&
-                complete &&
-                prop.houses < 5 &&
-                (!state.customRules.evenBuilding ||
-                  prop.houses === Math.min(...siblings.map((i) => state.properties[i].houses))) &&
-                (me?.cash ?? 0) >= (tile.houseCost ?? Infinity);
-              const sell =
-                myTurn &&
-                !auction &&
-                prop.houses > 0 &&
-                (!state.customRules.evenBuilding ||
-                  prop.houses === Math.max(...siblings.map((i) => state.properties[i].houses)));
-              const mortgage =
-                myTurn &&
-                !auction &&
-                !prop.isMortgaged &&
-                !siblings.some((i) => state.properties[i].houses > 0);
-              const recover = Math.round((tile.mortgageValue ?? 0) * 1.1);
-              return (
-                <div className="property-item" key={tile.index}>
-                  <div>
-                    <i style={{ background: GROUP_COLORS[tile.group!] }} />
-                    <div>
-                      <strong>{t(tile.name)}</strong>
-                      <small>
-                        {prop.isMortgaged
-                          ? t('Hipotecada')
-                          : prop.houses === 5
-                            ? t('Hotel')
-                            : prop.houses
-                              ? t(prop.houses === 1 ? '{0} casa' : '{0} casas', {
-                                  '0': prop.houses,
-                                })
-                              : complete
-                                ? t('Grupo completo')
-                                : t('Sin edificios')}
-                      </small>
-                    </div>
-                    <button
-                      className="icon-button"
-                      onClick={() => setInspected(tile)}
-                      aria-label={t('Ver {0}', { '0': t(tile.name) })}
-                    >
-                      <ChevronRight size={17} />
-                    </button>
-                  </div>
-                  <div className="property-actions">
-                    {tile.houseCost && prop.houses < 5 && (
-                      <button
-                        disabled={!build}
-                        onClick={() => onAction({ type: 'BUILD_HOUSE', tileIndex: tile.index })}
-                      >
-                        {t('Construir ·')} {tile.houseCost} €
-                      </button>
-                    )}
-                    {prop.houses > 0 && (
-                      <button
-                        disabled={!sell}
-                        onClick={() => onAction({ type: 'SELL_HOUSE', tileIndex: tile.index })}
-                      >
-                        {t('Vender edificio')}{' '}
-                      </button>
-                    )}
-                    <button
-                      disabled={
-                        prop.isMortgaged
-                          ? !myTurn || !!auction || (me?.cash ?? 0) < recover
-                          : !mortgage
-                      }
-                      onClick={() =>
-                        onAction({
-                          type: prop.isMortgaged ? 'UNMORTGAGE_PROPERTY' : 'MORTGAGE_PROPERTY',
-                          tileIndex: tile.index,
-                        })
-                      }
-                    >
-                      {prop.isMortgaged
-                        ? t('Recuperar · {0} €', { '0': recover })
-                        : t('Hipotecar · {0} €', { '0': tile.mortgageValue })}
-                    </button>
-                  </div>
+          )}
+          <label className="field-label" htmlFor="trade-partner">
+            {t('Negociar con')}{' '}
+          </label>
+          <select
+            className="field"
+            id="trade-partner"
+            value={target}
+            disabled={!canTrade}
+            onChange={(e) => {
+              setTarget(e.target.value);
+              setRequested([]);
+              setRequestedCash(0);
+            }}
+          >
+            <option value="">{t('Elige a un jugador')}</option>
+            {state.players
+              .filter((p) => p.id !== myPlayerId && !p.isBankrupt)
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+          </select>
+          {partner && (
+            <>
+              <div className="trade-columns">
+                <div>
+                  <label className="field-label" htmlFor="offered-cash">
+                    {t('Ofreces (€)')}{' '}
+                  </label>
+                  <input
+                    className="field"
+                    id="offered-cash"
+                    type="number"
+                    min={0}
+                    max={Math.max(0, me?.cash ?? 0)}
+                    step={1}
+                    disabled={!canTrade}
+                    value={offeredCash}
+                    onChange={(e) =>
+                      setOfferedCash(Math.max(0, Math.floor(Number(e.target.value))))
+                    }
+                  />
                 </div>
-              );
-            })}
-            {!myTurn && properties.length > 0 && (
-              <p className="form-hint">{t('Puedes construir, vender e hipotecar en tu turno.')}</p>
-            )}
-          </div>
-        )}
-        {tab === 'history' && (
-          <div className="city-log">
-            {state.logs.map((log, i) => (
-              <p key={i}>{gameText(log)}</p>
-            ))}
-          </div>
-        )}
-        {tab === 'trade' && (
-          <div className="trade-form">
-            <p className="form-hint">
-              {t(
-                'Intercambia efectivo y propiedades sin edificios. Los tratos requieren la aprobación del otro jugador.',
-              )}{' '}
-            </p>
-            {state.activeTrade && (
-              <div className="notice">
-                <span>{t('Hay una propuesta pendiente.')}</span>
-                {[state.activeTrade.fromPlayerId, state.activeTrade.toPlayerId].includes(
-                  myPlayerId,
-                ) && (
-                  <button
-                    className="text-button"
-                    onClick={() => onAction({ type: 'CANCEL_TRADE' })}
-                  >
-                    {t('Cancelar propuesta')}{' '}
-                  </button>
-                )}
-              </div>
-            )}
-            <label className="field-label" htmlFor="trade-partner">
-              {t('Negociar con')}{' '}
-            </label>
-            <select
-              className="field"
-              id="trade-partner"
-              value={target}
-              disabled={!canTrade}
-              onChange={(e) => {
-                setTarget(e.target.value);
-                setRequested([]);
-                setRequestedCash(0);
-              }}
-            >
-              <option value="">{t('Elige a un jugador')}</option>
-              {state.players
-                .filter((p) => p.id !== myPlayerId && !p.isBankrupt)
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-            </select>
-            {partner && (
-              <>
-                <div className="trade-columns">
-                  <div>
-                    <label className="field-label" htmlFor="offered-cash">
-                      {t('Ofreces (€)')}{' '}
-                    </label>
-                    <input
-                      className="field"
-                      id="offered-cash"
-                      type="number"
-                      min={0}
-                      max={Math.max(0, me?.cash ?? 0)}
-                      step={1}
-                      disabled={!canTrade}
-                      value={offeredCash}
-                      onChange={(e) =>
-                        setOfferedCash(Math.max(0, Math.floor(Number(e.target.value))))
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className="field-label" htmlFor="requested-cash">
-                      {t('Pides (€)')}{' '}
-                    </label>
-                    <input
-                      className="field"
-                      id="requested-cash"
-                      type="number"
-                      min={0}
-                      max={Math.max(0, partner.cash)}
-                      step={1}
-                      disabled={!canTrade}
-                      value={requestedCash}
-                      onChange={(e) =>
-                        setRequestedCash(Math.max(0, Math.floor(Number(e.target.value))))
-                      }
-                    />
-                  </div>
+                <div>
+                  <label className="field-label" htmlFor="requested-cash">
+                    {t('Pides (€)')}{' '}
+                  </label>
+                  <input
+                    className="field"
+                    id="requested-cash"
+                    type="number"
+                    min={0}
+                    max={Math.max(0, partner.cash)}
+                    step={1}
+                    disabled={!canTrade}
+                    value={requestedCash}
+                    onChange={(e) =>
+                      setRequestedCash(Math.max(0, Math.floor(Number(e.target.value))))
+                    }
+                  />
                 </div>
-                <div className="trade-columns">
-                  <fieldset disabled={!canTrade}>
-                    <legend>{t('Tus propiedades')}</legend>
-                    {properties.filter(tradeable).map((t) => (
+              </div>
+              <div className="trade-columns">
+                <fieldset disabled={!canTrade}>
+                  <legend>{t('Tus propiedades')}</legend>
+                  {properties.filter(tradeable).map((t) => (
+                    <label className="trade-checkbox" key={t.index}>
+                      <input
+                        type="checkbox"
+                        checked={offered.includes(t.index)}
+                        onChange={() => toggle(t.index, true)}
+                      />
+                      {t.name}
+                    </label>
+                  ))}
+                  {!properties.filter(tradeable).length && (
+                    <small className="muted">{t('No hay disponibles.')}</small>
+                  )}
+                </fieldset>
+                <fieldset disabled={!canTrade}>
+                  <legend>{t('Sus propiedades')}</legend>
+                  {own(partner.id)
+                    .filter(tradeable)
+                    .map((t) => (
                       <label className="trade-checkbox" key={t.index}>
                         <input
                           type="checkbox"
-                          checked={offered.includes(t.index)}
-                          onChange={() => toggle(t.index, true)}
+                          checked={requested.includes(t.index)}
+                          onChange={() => toggle(t.index, false)}
                         />
                         {t.name}
                       </label>
                     ))}
-                    {!properties.filter(tradeable).length && (
-                      <small className="muted">{t('No hay disponibles.')}</small>
-                    )}
-                  </fieldset>
-                  <fieldset disabled={!canTrade}>
-                    <legend>{t('Sus propiedades')}</legend>
-                    {own(partner.id)
-                      .filter(tradeable)
-                      .map((t) => (
-                        <label className="trade-checkbox" key={t.index}>
-                          <input
-                            type="checkbox"
-                            checked={requested.includes(t.index)}
-                            onChange={() => toggle(t.index, false)}
-                          />
-                          {t.name}
-                        </label>
-                      ))}
-                    {!own(partner.id).filter(tradeable).length && (
-                      <small className="muted">{t('No hay disponibles.')}</small>
-                    )}
-                  </fieldset>
-                </div>
-                <button
-                  className="button primary full"
-                  disabled={
-                    !canTrade ||
-                    (!offeredCash && !requestedCash && !offered.length && !requested.length) ||
-                    offeredCash > Math.max(0, me?.cash ?? 0) ||
-                    requestedCash > Math.max(0, partner.cash)
-                  }
-                  onClick={trade}
-                >
-                  <Handshake size={17} /> {t('Proponer trato')}{' '}
-                </button>
-              </>
-            )}
-          </div>
-        )}
-      </section>
-    </>
+                  {!own(partner.id).filter(tradeable).length && (
+                    <small className="muted">{t('No hay disponibles.')}</small>
+                  )}
+                </fieldset>
+              </div>
+              <button
+                className="button primary full"
+                disabled={
+                  !canTrade ||
+                  (!offeredCash && !requestedCash && !offered.length && !requested.length) ||
+                  offeredCash > Math.max(0, me?.cash ?? 0) ||
+                  requestedCash > Math.max(0, partner.cash)
+                }
+                onClick={trade}
+              >
+                <Handshake size={17} /> {t('Proponer trato')}{' '}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </section>
   );
   return (
     <BoardFrame
@@ -608,6 +573,25 @@ export function CiudadFortunaBoard({
       )}
       actions={
         <>
+          <nav className="city-fixed-tools" aria-label={t('Gestión de Ciudad Fortuna')}>
+            {(
+              [
+                ['properties', Home, t('Propiedades')],
+                ['trade', Handshake, t('Tratos')],
+                ['history', History, t('Actividad')],
+              ] as const
+            ).map(([id, Icon, label]) => (
+              <button
+                key={id}
+                className="city-fixed-tool"
+                aria-haspopup="dialog"
+                onClick={() => openManagement(id)}
+              >
+                <Icon size={17} />
+                <span>{t(label)}</span>
+              </button>
+            ))}
+          </nav>
           <div
             key={state.lastMovement?.id ?? 0}
             className={`city-dice ${rolling ? 'dice-rolling' : ''}`}
@@ -625,12 +609,6 @@ export function CiudadFortunaBoard({
           </p>
 
           {actions}
-          <button
-            className="button secondary city-manage-toggle"
-            onClick={() => setManagementOpen(true)}
-          >
-            <Wallet size={16} /> {t('Propiedades y tratos')}
-          </button>
         </>
       }
     >
@@ -648,15 +626,18 @@ export function CiudadFortunaBoard({
                   ? `${t('RONDA')} ${state.round} · ${t('Sin límite')}`
                   : `${t('RONDA')} ${state.round} ${t('DE')} ${state.customRules.maxRounds}`}
               </span>
-              <div className="city-event-banner" aria-live="polite">
-                <span>{t('LO ÚLTIMO EN LA CIUDAD')}</span>
-                <p>{gameText(state.logs[0])}</p>
-              </div>
-              <Building2 className="city-center-building" size={38} />
-              <h2>
-                {t('CIUDAD')} <br />
-                <span>{t('FORTUNA')}</span>
-              </h2>
+              <section className="city-event-banner" aria-label={t('Movimientos recientes')}>
+                <span>{t('Movimientos recientes')}</span>
+                <ul className="city-recent-moves" aria-live="polite">
+                  {state.logs.slice(0, 3).length ? (
+                    state.logs
+                      .slice(0, 3)
+                      .map((log, index) => <li key={`${index}-${log.key}`}>{gameText(log)}</li>)
+                  ) : (
+                    <li>{t('Aún no hay movimientos.')}</li>
+                  )}
+                </ul>
+              </section>
               {state.customRules.freeParkingPool && (
                 <span className="city-pot">
                   <Coins size={14} /> {t('Bote:')} {money(state.freeParkingPool)}
@@ -667,7 +648,11 @@ export function CiudadFortunaBoard({
         </section>
       </div>
       {managementOpen && (
-        <Modal title={t('Propiedades y tratos')} onClose={() => setManagementOpen(false)} wide>
+        <Modal
+          title={t(tab === 'properties' ? 'Propiedades' : tab === 'trade' ? 'Tratos' : 'Actividad')}
+          onClose={() => setManagementOpen(false)}
+          wide
+        >
           {management}
         </Modal>
       )}
@@ -952,6 +937,7 @@ function BoardSurface({
           <button
             key={tile.index}
             className={`city-tile edge-${tileEdge(tile.index)} ${tile.index % 10 === 0 ? 'corner-tile' : ''} ${prop?.isMortgaged ? 'mortgaged-tile' : ''} ${current && positionOf(current) === tile.index ? 'current-tile' : ''}`}
+            data-stack-size={occupants.length}
             style={
               {
                 ...tilePosition(tile.index),
@@ -991,20 +977,29 @@ function BoardSurface({
         );
       })}
       <div className={`city-token-layer ${moving ? 'tokens-moving' : ''}`} aria-hidden="true">
-        {state.players.map(
-          (player, seat) =>
-            !player.isBankrupt && (
-              <span
-                key={player.id}
-                className="city-token"
-                data-player={player.id}
-                data-position={positionOf(player)}
-                style={piecePosition(positionOf(player), seat)}
-              >
-                <PlayerPiece index={seat} active={player.id === state.currentTurnPlayerId} />
-              </span>
-            ),
-        )}
+        {state.players.map((player, seat) => {
+          if (player.isBankrupt) return null;
+          const position = positionOf(player);
+          const occupants = state.players.filter(
+            (candidate) => !candidate.isBankrupt && positionOf(candidate) === position,
+          );
+          return (
+            <span
+              key={player.id}
+              className="city-token"
+              data-player={player.id}
+              data-position={position}
+              data-stack-size={occupants.length}
+              style={piecePosition(
+                position,
+                occupants.findIndex((candidate) => candidate.id === player.id),
+                occupants.length,
+              )}
+            >
+              <PlayerPiece index={seat} active={player.id === state.currentTurnPlayerId} />
+            </span>
+          );
+        })}
       </div>
     </div>
   );
@@ -1042,8 +1037,8 @@ function tileEdge(index: number) {
 function axis(cell: number) {
   return cell === 1 ? 0 : CORNER + cell - 2;
 }
-/** Six stable slots in an inner lane, physically separate from the property text. */
-function piecePosition(index: number, seat: number) {
+/** Tokens stay centered alone, split left and right in pairs, and fan out for larger groups. */
+function piecePosition(index: number, occupant: number, count: number) {
   const { gridRow, gridColumn } = tilePosition(index);
   const x = axis(gridColumn),
     y = axis(gridRow);
@@ -1051,16 +1046,33 @@ function piecePosition(index: number, seat: number) {
   const width = gridColumn === 1 || gridColumn === 11 ? CORNER : 1;
   const height = gridRow === 1 || gridRow === 11 ? CORNER : 1;
   const edge = tileEdge(index);
-  let px: number, py: number;
-  if (corner || edge === 'top' || edge === 'bottom') {
-    px = x + width / 2 + ((seat % 3) - 1) * 0.28;
-    py =
-      edge === 'bottom'
-        ? y + 0.14 + Math.floor(seat / 3) * 0.27
-        : y + height - 0.42 + Math.floor(seat / 3) * 0.27;
-  } else {
-    px = edge === 'right' ? x + 0.14 + (seat % 2) * 0.27 : x + width - 0.42 + (seat % 2) * 0.27;
-    py = y + height / 2 + (Math.floor(seat / 2) - 1) * 0.28;
+  let px = x + width / 2,
+    py = y + height / 2;
+  if (!corner && edge === 'top') py = y + height - 0.28;
+  else if (!corner && edge === 'bottom') py = y + 0.28;
+  else if (!corner && edge === 'right') px = x + 0.28;
+  else if (!corner && edge === 'left') px = x + width - 0.28;
+
+  if (count === 2) {
+    px += occupant === 0 ? -0.14 : 0.14;
+  } else if (count > 2) {
+    const alongSide = !corner && (edge === 'left' || edge === 'right');
+    const columns = alongSide ? 1 : Math.min(3, count);
+    const rows = Math.ceil(count / columns);
+    const column = occupant % columns;
+    const row = Math.floor(occupant / columns);
+    if (corner) {
+      const towardBottom = index === 20 || index === 30;
+      px = x + width / 2 + (occupant - (count - 1) / 2) * 0.27;
+      py = y + (towardBottom ? height - 0.1 : 0.1);
+    } else if (alongSide) {
+      px = x + (edge === 'right' ? 0.06 : width - 0.06);
+      py = y + 0.08 + (row / (rows - 1)) * 0.84;
+    } else {
+      px += (column - (columns - 1) / 2) * 0.32;
+      py = y + (edge === 'top' ? height - 0.09 : 0.09);
+      py += (row - (rows - 1) / 2) * 0.24;
+    }
   }
   return { left: `${(px / SIZE) * 100}%`, top: `${(py / SIZE) * 100}%` };
 }

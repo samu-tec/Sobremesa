@@ -55,12 +55,12 @@ export const gameFactories = {
   words: () => defineGame(new WordsEngine(secureRandom, wordDictionaries)),
   quiz: () =>
     defineGame(new QuizEngine(secureRandom, quizQuestions), {
-      requiresPresence: () => false,
+      requiresPlayerAction: () => false,
       timeoutAction: (s) => ({ type: s.phase === 'review' ? 'NEXT' : 'SKIP' }),
     }),
   drawing: () =>
     defineGame(new DrawingEngine(secureRandom, drawingWords), {
-      requiresPresence: (s) => s.phase === 'choose',
+      requiresPlayerAction: (s) => s.phase === 'choose',
       completed: (s, a) => a.type === 'CHOOSE' || a.type === 'NEXT' || s.phase === 'review',
       timeoutSeconds: (s) => (s.phase === 'choose' ? 20 : s.phase === 'review' ? 8 : s.drawSeconds),
       timeoutAction: (s) =>
@@ -105,7 +105,7 @@ export const gameFactories = {
     const engine = new MahjongEngine(secureRandom);
     return defineGame(engine, {
       completed: (_s, a) => a.type !== 'DRAW' && a.type !== 'KONG',
-      requiresPresence: (s) => s.phase !== 'claim',
+      requiresPlayerAction: (s) => s.phase !== 'claim',
       timeoutSeconds: (s) => (s.phase === 'claim' ? 8 : null),
       timeoutAction: (s, id) =>
         s.phase === 'claim' ? ({ type: 'PASS' } as const) : engine.getBotAction(s, id),
@@ -115,7 +115,7 @@ export const gameFactories = {
   chinesecheckers: () => defineGame(new ChineseEngine()),
   go: () =>
     defineGame(new GoEngine(), {
-      requiresPresence: (s) => s.phase !== 'score',
+      requiresPlayerAction: (s) => s.phase !== 'score',
       completed: (_s, a) => a.type !== 'MARK_DEAD',
       timeoutAction: (s) => ({ type: s.phase === 'score' ? 'RESUME' : 'PASS' }) as const,
     }),
@@ -130,9 +130,16 @@ export const gameFactories = {
     const engine = new CambioDeColorEngine();
     return {
       ...defineGame(engine, {
-        requiresPresence: (s) => !s.pendingDraw && !s.hasDrawnThisTurn,
+        requiresPlayerAction: (s) =>
+          !s.jumpInWindow && (!s.pendingDraw || s.stackDrawCards) && !s.hasDrawnThisTurn,
         completed: (s, a) =>
           a.type === 'PLAY_CARD' || a.type === 'PASS_TURN' || !s.hasDrawnThisTurn,
+        timeoutSeconds: (s) => (s.jumpInWindow ? 1.5 : null),
+        expire: (s) => (s.jumpInWindow ? engine.finishJumpInWindow(s) : null),
+        botId: (s, players) =>
+          s.jumpInWindow
+            ? players.find((p) => p.isBot && engine.getBotAction(s, p.id))?.id
+            : players.find((p) => p.isBot && p.id === s.currentTurnPlayerId)?.id,
         timeoutAction: (s) => ({ type: s.hasDrawnThisTurn ? 'PASS_TURN' : 'DRAW_CARD' }) as const,
         continueTimeout: () => true,
       }),

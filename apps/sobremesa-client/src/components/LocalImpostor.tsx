@@ -6,7 +6,8 @@ import {
   type ImpostorPublicState,
   type ImpostorAction,
 } from 'sobremesa-logic';
-import { t, useLocale, LanguageSelector } from '../i18n';
+import { t, useLocale } from '../i18n';
+import { PreferencesButton } from '../ui/Preferences';
 import { PhysicalImpostorControls } from './ImpostorBoard';
 import { Modal } from '../ui/Modal';
 import '../styles/impostor-physical.css';
@@ -122,7 +123,7 @@ export function LocalImpostor({ onLeave }: { onLeave: () => void }) {
         >
           {t('Volver al catálogo')}
         </button>
-        <LanguageSelector />
+        <PreferencesButton />
       </nav>
       <h1>{t('Impostor presencial · un móvil')}</h1>
       {!match ? (

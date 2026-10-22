@@ -1,7 +1,8 @@
-import { t, useLocale, LanguageSelector } from '../i18n';
+import { t, useLocale } from '../i18n';
 import { useState } from 'react';
 import { Shuffle } from 'lucide-react';
 import { Modal } from './Modal';
+import { PreferencesButton } from './Preferences';
 export function randomName(locale: string) {
   const animals =
     locale === 'en'
@@ -27,7 +28,9 @@ export function Welcome({
   const [name, setName] = useState(initialName);
   return (
     <Modal title={t('Bienvenido a Sobremesa')} dismissable={false} onClose={() => {}}>
-      <LanguageSelector />
+      <div className="welcome-preferences">
+        <PreferencesButton />
+      </div>
       <p>{t('Elige un nombre para la mesa. Puede ser un apodo; no hace falta tu nombre real.')}</p>
       <form
         onSubmit={(e) => {

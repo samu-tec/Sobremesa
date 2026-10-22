@@ -24,6 +24,7 @@ import { Modal } from './ui/Modal';
 import { Privacy } from './ui/Privacy';
 import { WaitingRoomView } from './views/WaitingRoomView';
 import { GameLayout } from './ui/GameLayout';
+import { PlayerPreferencesProvider } from './ui/Preferences';
 import { useGameResults } from './hooks/useGameResults';
 import { GameBoard } from './components/GameBoard';
 import { requestOnConnection } from './services/request';
@@ -57,10 +58,6 @@ export function App() {
   const [notification, setNotification] = useState<GameText | null>(null);
   useEffect(() => setNotification(null), [room?.matchId]);
   const activeRoom = useRef<RoomInfo | null>(null);
-  const [groupView, setGroupView] = useState(false);
-  useEffect(() => {
-    if (room?.status !== 'finished') setGroupView(false);
-  }, [room?.status, room?.matchId]);
   const [incompatible, setIncompatible] = useState(false);
   const [replaced, setReplaced] = useState(false);
   const [tabConflict, setTabConflict] = useState<{ sameSession: boolean } | null>(null);
@@ -71,6 +68,11 @@ export function App() {
   const [inviteCode, setInviteCode] = useState(() => inviteCodeFrom(location.search));
   const pageKey =
     location.pathname === '/privacy' ? 'privacy' : room ? `${room.code}:${room.status}` : 'lobby';
+  const updatePreferenceName = (name: string) => {
+    updateName(name);
+    if (room)
+      socket.emit('room:update_name', { matchId: room.matchId, playerName: name }, () => {});
+  };
 
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -81,7 +83,6 @@ export function App() {
   const clearRoom = useCallback((preserveInvite = false) => {
     const pendingInvite = preserveInvite ? inviteCodeFrom(location.search) : null;
     activeRoom.current = null;
-    setGroupView(false);
     setRoom(null);
     setState(null);
     sessionStore.remove('sobremesa.room');
@@ -360,6 +361,14 @@ export function App() {
         ),
       );
     });
+  const setAutoPlay = (enabled: boolean) =>
+    run(async () => {
+      check(
+        await request<Result>((done) =>
+          socket.emit('room:set_autoplay', { enabled, matchId: room?.matchId || '' }, done),
+        ),
+      );
+    });
   const changeGame = (gameType: GameType) =>
     run(async () => {
       check(
@@ -522,195 +531,193 @@ export function App() {
     } else if ('wallCount' in state && state.phase === 'claim') phaseLabel = t('Reclamaciones');
   }
   return (
-    <>
-      {location.pathname === '/privacy' ? (
-        <Privacy />
-      ) : !room ? (
-        <LobbyView
-          playerName={playerName}
-          onUpdatePlayerName={updateName}
-          connected={connected}
-          onCreateRoom={(g) => create(g)}
-          onJoinRoom={join}
-          onQuickPlayVsBot={(g) => create(g, true)}
-          isConnecting={busy}
-          inviteCode={inviteCode}
-        />
-      ) : room.status === 'waiting' || (room.status === 'finished' && groupView) ? (
-        <WaitingRoomView
-          room={room}
-          myPlayerId={playerId}
-          busy={busy || !connected}
-          onAddBot={addBot}
-          onRemoveBot={removeBot}
-          onStartGame={room.status === 'finished' ? restart : start}
-          onRemovePlayer={removePlayer}
-          onChangeGame={changeGame}
-          onViewResult={room.status === 'finished' ? () => setGroupView(false) : undefined}
-          onLeaveRoom={leave}
-          onUpdateRules={updateRules}
-          onError={setError}
-        />
-      ) : state ? (
-        <GameLayout
-          {...gameResults}
-          room={room}
-          myPlayerId={playerId}
-          currentTurn={turn}
-          isAuction={'auction' in state && !!state.auction}
-          phaseLabel={phaseLabel}
-          activePlayerIds={activePlayerIds}
-          playerDetails={playerDetails}
-          connectionNotice={
-            !connected
-              ? replaced
-                ? t('Esta sesión se ha abierto en otra conexión.')
-                : t('Reconectando… Tu sitio se reserva durante {0} segundos.', {
-                    '0': Math.round(room.reconnectGraceMs / 1000),
-                  })
-              : undefined
-          }
-          onRecover={
-            replaced
-              ? () => {
-                  replacement.current = false;
-                  socket.connect();
-                }
-              : undefined
-          }
-          information={notification ? gameText(notification) : undefined}
-          onDismissInformation={() => setNotification(null)}
-          error={error}
-          onDismissError={() => setError(null)}
-          winner={state.winner}
-          isDraw={'isDraw' in state && state.isDraw}
-          busy={busy || !connected}
-          onRestart={restart}
-          onReturnToGroup={() => setGroupView(true)}
-          onRemovePlayer={removePlayer}
-          onConfirmPresence={(challengeId, stay) =>
-            void run(async () => {
-              check(
-                await request<Result>((done) =>
-                  socket.emit(
-                    'room:confirm_presence',
-                    { matchId: room.matchId, challengeId, stay },
-                    done,
+    <PlayerPreferencesProvider playerName={playerName} onUpdateName={updatePreferenceName}>
+      <>
+        {location.pathname === '/privacy' ? (
+          <Privacy />
+        ) : !room ? (
+          <LobbyView
+            playerName={playerName}
+            connected={connected}
+            onCreateRoom={(g) => create(g)}
+            onJoinRoom={join}
+            onQuickPlayVsBot={(g) => create(g, true)}
+            isConnecting={busy}
+            inviteCode={inviteCode}
+          />
+        ) : room.status === 'waiting' ? (
+          <WaitingRoomView
+            room={room}
+            myPlayerId={playerId}
+            busy={busy || !connected}
+            onAddBot={addBot}
+            onRemoveBot={removeBot}
+            onStartGame={start}
+            onRemovePlayer={removePlayer}
+            onChangeGame={changeGame}
+            onLeaveRoom={leave}
+            onUpdateRules={updateRules}
+            onError={setError}
+          />
+        ) : state ? (
+          <GameLayout
+            {...gameResults}
+            room={room}
+            myPlayerId={playerId}
+            currentTurn={turn}
+            isAuction={'auction' in state && !!state.auction}
+            phaseLabel={phaseLabel}
+            activePlayerIds={activePlayerIds}
+            playerDetails={playerDetails}
+            connectionNotice={
+              !connected
+                ? replaced
+                  ? t('Esta sesión se ha abierto en otra conexión.')
+                  : t('Reconectando… La partida seguirá en automático durante 3 minutos.')
+                : undefined
+            }
+            onRecover={
+              replaced
+                ? () => {
+                    replacement.current = false;
+                    socket.connect();
+                  }
+                : undefined
+            }
+            information={notification ? gameText(notification) : undefined}
+            onDismissInformation={() => setNotification(null)}
+            error={error}
+            onDismissError={() => setError(null)}
+            winner={state.winner}
+            isDraw={'isDraw' in state && state.isDraw}
+            busy={busy || !connected}
+            onRestart={restart}
+            onRemovePlayer={removePlayer}
+            onToggleAutoPlay={setAutoPlay}
+            onResolveAutoPlay={(playerId, decision) =>
+              run(async () => {
+                check(
+                  await request<Result>((done) =>
+                    socket.emit(
+                      'room:resolve_autoplay',
+                      { matchId: room.matchId, playerId, decision },
+                      done,
+                    ),
                   ),
-                ),
-              );
-            })
-          }
-          onLeave={leave}
-          onError={setError}
-        >
-          <Suspense fallback={<Loading />}>
-            <GameBoard
-              room={room}
-              state={state}
-              myPlayerId={playerId}
-              onAction={action}
-              busy={busy || !connected}
-            />
-          </Suspense>
-        </GameLayout>
-      ) : (
-        <Loading />
-      )}
-      {!confirmed && location.pathname !== '/privacy' && (
-        <Welcome initialName={playerName} onConfirm={updateName} />
-      )}
-      {tabConflict && (
-        <Modal
-          title={t('Ya tienes Sobremesa abierto en otra pestaña')}
-          dismissable={false}
-          onClose={() => {}}
-        >
-          <p>
-            {tabConflict.sameSession
-              ? t(
-                  'Esta pestaña comparte la misma sesión que otra. Si continúas aquí, la anterior se desconectará y esta intentará recuperar su sala actual. Para entrar a la invitación sin interrumpirla, elige un invitado nuevo.',
-                )
-              : t(
-                  'Hay otra pestaña abierta en Sobremesa. Si usas el mismo apodo, aparecerás con ese nombre en ambas. Puedes crear un invitado nuevo para que los jugadores se distingan.',
+                );
+              })
+            }
+            onLeave={leave}
+            onError={setError}
+          >
+            <Suspense fallback={<Loading />}>
+              <GameBoard
+                room={room}
+                state={state}
+                myPlayerId={playerId}
+                onAction={action}
+                busy={busy || !connected}
+              />
+            </Suspense>
+          </GameLayout>
+        ) : (
+          <Loading />
+        )}
+        {!confirmed && location.pathname !== '/privacy' && (
+          <Welcome initialName={playerName} onConfirm={updateName} />
+        )}
+        {tabConflict && (
+          <Modal
+            title={t('Ya tienes Sobremesa abierto en otra pestaña')}
+            dismissable={false}
+            onClose={() => {}}
+          >
+            <p>
+              {tabConflict.sameSession
+                ? t(
+                    'Esta pestaña comparte la misma sesión que otra. Si continúas aquí, la anterior se desconectará y esta intentará recuperar su sala actual. Para entrar a la invitación sin interrumpirla, elige un invitado nuevo.',
+                  )
+                : t(
+                    'Hay otra pestaña abierta en Sobremesa. Si usas el mismo apodo, aparecerás con ese nombre en ambas. Puedes crear un invitado nuevo para que los jugadores se distingan.',
+                  )}
+            </p>
+            {tabConflictDeferred && (
+              <p role="status">
+                {t(
+                  'Esta pestaña no se ha conectado. Puedes cerrarla desde el navegador y volver a la pestaña anterior.',
                 )}
-          </p>
-          {tabConflictDeferred && (
-            <p role="status">
+              </p>
+            )}
+            <div className="choice-buttons">
+              {!tabConflictDeferred && (
+                <button className="button primary full" onClick={continueInThisTab}>
+                  {tabConflict.sameSession
+                    ? t('Usar esta sesión aquí')
+                    : t('Entrar como {0}', { '0': playerName })}
+                </button>
+              )}
+              <button className="button secondary full" onClick={enterAsNewGuest}>
+                {t('Entrar como invitado nuevo')}
+              </button>
+              {!tabConflictDeferred && (
+                <button className="text-button" onClick={keepOtherTab}>
+                  {t('Ahora no')}
+                </button>
+              )}
+            </div>
+          </Modal>
+        )}
+        {incompatible && (
+          <Modal
+            title={t('Hay una nueva versión de Sobremesa')}
+            dismissable={false}
+            onClose={() => {}}
+          >
+            <p>
               {t(
-                'Esta pestaña no se ha conectado. Puedes cerrarla desde el navegador y volver a la pestaña anterior.',
+                'Actualiza la página para volver a conectar. Conservaremos tu sesión para intentar recuperar tu sala.',
               )}
             </p>
-          )}
-          <div className="choice-buttons">
-            {!tabConflictDeferred && (
-              <button className="button primary full" onClick={continueInThisTab}>
-                {tabConflict.sameSession
-                  ? t('Usar esta sesión aquí')
-                  : t('Entrar como {0}', { '0': playerName })}
-              </button>
-            )}
-            <button className="button secondary full" onClick={enterAsNewGuest}>
-              {t('Entrar como invitado nuevo')}
+            <button className="button primary" onClick={() => location.reload()}>
+              {t('Recargar la página')}
             </button>
-            {!tabConflictDeferred && (
-              <button className="text-button" onClick={keepOtherTab}>
-                {t('Ahora no')}
+          </Modal>
+        )}
+        {!connected && room && !(room.status === 'in_game' && state) && !incompatible && (
+          <div className="offline-banner" role="status">
+            <WifiOff size={17} />{' '}
+            {replaced
+              ? t('Esta sesión se ha abierto en otra conexión.')
+              : t('Reconectando… Tu sitio se reserva durante {0} segundos.', {
+                  '0': Math.round(room.reconnectGraceMs / 1000),
+                })}
+            {replaced && (
+              <button
+                className="text-button"
+                onClick={() => {
+                  replacement.current = false;
+                  socket.connect();
+                }}
+              >
+                {t('Recuperar aquí')}
               </button>
             )}
           </div>
-        </Modal>
-      )}
-      {incompatible && (
-        <Modal
-          title={t('Hay una nueva versión de Sobremesa')}
-          dismissable={false}
-          onClose={() => {}}
-        >
-          <p>
-            {t(
-              'Actualiza la página para volver a conectar. Conservaremos tu sesión para intentar recuperar tu sala.',
-            )}
-          </p>
-          <button className="button primary" onClick={() => location.reload()}>
-            {t('Recargar la página')}
-          </button>
-        </Modal>
-      )}
-      {!connected && room && !(room.status === 'in_game' && state) && !incompatible && (
-        <div className="offline-banner" role="status">
-          <WifiOff size={17} />{' '}
-          {replaced
-            ? t('Esta sesión se ha abierto en otra conexión.')
-            : t('Reconectando… Tu sitio se reserva durante {0} segundos.', {
-                '0': Math.round(room.reconnectGraceMs / 1000),
-              })}
-          {replaced && (
+        )}
+        {error && !(room?.status === 'in_game' && state) && (
+          <div className="toast" role="alert">
+            <span>{t(error)}</span>
             <button
-              className="text-button"
-              onClick={() => {
-                replacement.current = false;
-                socket.connect();
-              }}
+              className="icon-button"
+              aria-label={t('Cerrar aviso')}
+              onClick={() => setError(null)}
             >
-              {t('Recuperar aquí')}
+              <X size={18} />
             </button>
-          )}
-        </div>
-      )}
-      {error && !(room?.status === 'in_game' && state) && (
-        <div className="toast" role="alert">
-          <span>{t(error)}</span>
-          <button
-            className="icon-button"
-            aria-label={t('Cerrar aviso')}
-            onClick={() => setError(null)}
-          >
-            <X size={18} />
-          </button>
-        </div>
-      )}
-    </>
+          </div>
+        )}
+      </>
+    </PlayerPreferencesProvider>
   );
 }
 function Loading() {

@@ -33,6 +33,7 @@ export default defineConfig({
           HOST: '127.0.0.1',
           NODE_ENV: 'production',
           BOT_THINKING_TIME_MS: '60',
+          MAX_HANDSHAKE_ATTEMPTS_PER_MINUTE: '1000',
           ROOM_CREATE_LIMIT_PER_IP: '100',
           ROOM_CREATE_LIMIT_GLOBAL: '500',
         },

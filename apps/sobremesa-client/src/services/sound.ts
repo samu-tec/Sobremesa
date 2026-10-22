@@ -22,14 +22,14 @@ export function readSoundPreferences(): SoundPreferences {
   try {
     const value = JSON.parse(localStorage.getItem(storageKey) || 'null');
     return {
-      enabled: value?.enabled === true,
+      enabled: typeof value?.enabled === 'boolean' ? value.enabled : true,
       volume:
         typeof value?.volume === 'number' && Number.isFinite(value.volume)
           ? Math.max(0, Math.min(1, value.volume))
           : 0.25,
     };
   } catch {
-    return { enabled: false, volume: 0.25 };
+    return { enabled: true, volume: 0.25 };
   }
 }
 let preferences = readSoundPreferences();

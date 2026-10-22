@@ -36,6 +36,10 @@ export type CambioDeColorEvent =
 
 export interface CambioDeColorState {
   stackDrawCards: boolean;
+  jumpInEnabled: boolean;
+  jumpInWindow: boolean;
+  pendingCardAction: 'skip' | 'reverse' | 'draw2' | 'wild_draw4' | null;
+  jumpInPenaltyBase: number;
   pendingDraw: number;
   actionNumber: number;
   lastEvent: CambioDeColorEvent;
@@ -73,6 +77,9 @@ export interface OpponentPublicInfo {
 export interface CambioDeColorPublicState {
   playerOrder: string[];
   stackDrawCards: boolean;
+  jumpInEnabled: boolean;
+  jumpInWindow: boolean;
+  pendingCardAction: 'skip' | 'reverse' | 'draw2' | 'wild_draw4' | null;
   pendingDraw: number;
   actionNumber: number;
   lastEvent: CambioDeColorEvent;

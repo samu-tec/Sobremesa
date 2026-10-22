@@ -132,9 +132,9 @@ test('Audio opcional: preferencias, síntesis, ráfagas, pestaña oculta y limpi
     Object.defineProperty(globalThis, 'document', { configurable: true, value: doc });
     Object.defineProperty(globalThis, 'AudioContext', { configurable: true, value: Audio });
     const sound = await import('../apps/sobremesa-client/src/services/sound.ts');
-    assert.deepEqual(sound.readSoundPreferences(), { enabled: false, volume: 0.25 });
+    assert.deepEqual(sound.readSoundPreferences(), { enabled: true, volume: 0.25 });
     saved.set('sobremesa.sound', '{');
-    assert.deepEqual(sound.readSoundPreferences(), { enabled: false, volume: 0.25 });
+    assert.deepEqual(sound.readSoundPreferences(), { enabled: true, volume: 0.25 });
     saved.set('sobremesa.sound', '{"enabled":true,"volume":4}');
     assert.deepEqual(sound.readSoundPreferences(), { enabled: true, volume: 1 });
     sound.playSound('turn');

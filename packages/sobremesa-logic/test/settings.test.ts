@@ -210,3 +210,11 @@ test('Opciones: límites, tipos y claves válidos; sin cambios compartidos entre
     assert.notEqual(a, b);
   }
 });
+test('Opciones caseras documentadas: Jump-In y premio de Escoba desactivados por defecto', () => {
+  assert.equal(defaultGameSettings('colorclash').jumpIn, false);
+  assert.equal(defaultGameSettings('escoba').allSevensBonus, false);
+  assert.equal(validGameSetting('colorclash', 'jumpIn', true), true);
+  assert.equal(validGameSetting('colorclash', 'jumpIn', 1), false);
+  assert.equal(validGameSetting('escoba', 'allSevensBonus', true), true);
+  assert.equal(validGameSetting('escoba', 'allSevensBonus', null), false);
+});

@@ -8,7 +8,8 @@ async function ready(page: Page) {
     localStorage.setItem('sobremesa.name', 'Ana');
   });
   await page.goto('/');
-  await expect(page.getByText('Listo para jugar', { exact: true })).toBeVisible();
+  await expect(page.locator('.connection')).toBeVisible();
+  await expect(page.locator('.connection')).toHaveAttribute('aria-label', 'Listo para jugar');
 }
 
 test('Ciudad Fortuna adapta sus zonas por CSS al cambiar de orientación y conserva los controles', async ({
@@ -36,8 +37,8 @@ test('Ciudad Fortuna adapta sus zonas por CSS al cambiar de orientación y conse
     const roll = page.getByRole('button', { name: 'Tirar dados', exact: true });
     await roll.scrollIntoViewIfNeeded();
     await expect(roll).toBeInViewport({ ratio: 0.99 });
-    await page.getByRole('button', { name: 'Propiedades y tratos', exact: true }).click();
-    await expect(page.getByRole('dialog')).toContainText('Tu estrategia');
+    await page.getByRole('button', { name: 'Propiedades', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Propiedades', exact: true })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
   }
@@ -66,7 +67,8 @@ test('Un protocolo incompatible informa y solo recarga por decisión del jugador
   expect(token).toMatch(/^[a-f0-9]{64}$/);
   await page.unroute('**/socket.io/**');
   await dialog.getByRole('button', { name: 'Recargar la página', exact: true }).click();
-  await expect(page.getByText('Listo para jugar', { exact: true })).toBeVisible();
+  await expect(page.locator('.connection')).toBeVisible();
+  await expect(page.locator('.connection')).toHaveAttribute('aria-label', 'Listo para jugar');
   expect(await page.evaluate(() => sessionStorage.getItem('sobremesa.session'))).toBe(token);
 });
 
@@ -78,7 +80,9 @@ test('El diálogo aísla el fondo, contiene Tab y restaura el foco al cerrar', a
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await expect(page.locator('#root')).toHaveJSProperty('inert', true);
-  await page.locator('#root .topbar-profile').evaluate((node: HTMLElement) => node.focus());
+  await page
+    .locator('#root .topbar .preferences-trigger')
+    .evaluate((node: HTMLElement) => node.focus());
   expect(await dialog.evaluate((node) => node.contains(document.activeElement))).toBe(true);
   for (let i = 0; i < 10; i++) {
     await page.keyboard.press(i % 2 ? 'Shift+Tab' : 'Tab');

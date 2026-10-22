@@ -7,7 +7,8 @@ async function ready(page: Page, name = 'Ana') {
     localStorage.setItem('sobremesa.name', name);
   }, name);
   await page.goto('/');
-  await expect(page.getByText('Listo para jugar', { exact: true })).toBeVisible();
+  await expect(page.locator('.connection')).toBeVisible();
+  await expect(page.locator('.connection')).toHaveAttribute('aria-label', 'Listo para jugar');
 }
 async function group(browser: Browser, page: Page, game: string) {
   const contexts = await Promise.all([browser.newContext(), browser.newContext()]),
@@ -135,7 +136,6 @@ test('Impostor presencial: tres móviles, papeles privados, pistas habladas y mo
 }) => {
   const { contexts, pages, names } = await group(browser, page, 'impostor');
   try {
-    await page.locator('#room-settings > summary').click();
     await page
       .getByRole('combobox', { name: 'Modalidad de Impostor', exact: true })
       .selectOption('1');
@@ -158,7 +158,6 @@ test('Impostor presencial: tres móviles, papeles privados, pistas habladas y mo
       );
       await participant.getByRole('button', { name: 'He dado mi pista', exact: true }).click();
     }
-    await page.reload();
     await expect(page.locator('.clue-card')).toHaveCount(3);
     await expect(
       pages[1].getByRole('button', { name: 'Registrar recuento físico', exact: true }),

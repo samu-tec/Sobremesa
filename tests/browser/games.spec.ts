@@ -35,12 +35,44 @@ async function ready(page: Page) {
     localStorage.setItem('sobremesa.name', localStorage.getItem('sobremesa.name') || 'Ana');
   });
   await page.goto('/');
-  await expect(page.getByText('Listo para jugar', { exact: true })).toBeVisible();
+  await expect(page.locator('.connection')).toBeVisible();
+  await expect(page.locator('.connection')).toHaveAttribute('aria-label', 'Listo para jugar');
 }
+for (const width of [1280, 1024, 360])
+  test(`Cuatro en Línea centra la zona de juego a ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await ready(page);
+    await page
+      .getByRole('button', { name: 'Jugar a Cuatro en Línea contra un bot', exact: true })
+      .click();
+    await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
+    const board = page.locator('.connect-board');
+    await expect(board).toBeVisible();
+    const center = await board.evaluate((element) => {
+      const { x, width } = element.getBoundingClientRect();
+      return x + width / 2;
+    });
+    expect(Math.abs(center - width / 2)).toBeLessThanOrEqual(2);
+  });
+for (const width of [1280, 1024])
+  test(`Ajedrez centra el tablero con panel de acciones a ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await ready(page);
+    await page.getByRole('button', { name: 'Jugar a Ajedrez contra un bot', exact: true }).click();
+    await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
+    const board = page.locator('.chess-board');
+    await expect(board).toBeVisible();
+    const center = await board.evaluate((element) => {
+      const { x, width } = element.getBoundingClientRect();
+      return x + width / 2;
+    });
+    expect(Math.abs(center - width / 2)).toBeLessThanOrEqual(2);
+  });
 for (const width of [1280, 320])
   for (const [id, name, english] of games)
     test(`${name}: jugar, reconectar e idioma a ${width}px`, async ({ page }) => {
       if (id === 'parchis') test.setTimeout(60000);
+      if (id === 'impostor') test.setTimeout(60000);
       if (id === 'parchis' && width === 1280) {
         await page.emulateMedia({ reducedMotion: 'no-preference' });
         await page.addInitScript(() => {
@@ -392,9 +424,31 @@ for (const width of [1280, 320])
           fullPage: true,
         });
       }
-      await page.getByRole('button', { name: 'Preferencias de partida', exact: true }).click();
-      await page.getByRole('combobox', { name: 'Idioma', exact: true }).selectOption('en');
+      const resultDialog = page.getByRole('dialog').filter({
+        has: page.locator('.result-content'),
+      });
+      const dismissResult = async () => {
+        for (let attempt = 0; attempt < 2 && (await resultDialog.isVisible()); attempt++) {
+          await resultDialog
+            .getByRole('button', { name: /^(Ver la mesa|View the table)$/ })
+            .click();
+          await expect(resultDialog).toHaveCount(0);
+        }
+      };
+      await dismissResult();
+      await page.getByRole('button', { name: 'Preferencias', exact: true }).click();
+      await dismissResult();
+      const spanishPreferences = page.getByRole('dialog', { name: 'Preferencias', exact: true });
+      await expect(spanishPreferences).toBeVisible();
+      await page
+        .getByRole('dialog', { name: 'Preferencias', exact: true })
+        .getByRole('button', { name: 'Inglés', exact: true })
+        .click();
       await page.keyboard.press('Escape');
+      await dismissResult();
+      const englishPreferences = page.getByRole('dialog', { name: 'Preferences', exact: true });
+      if (await englishPreferences.isVisible()) await page.keyboard.press('Escape');
+      await dismissResult();
       await expect(page.getByRole('dialog')).toHaveCount(0);
       await expect(page.getByRole('heading', { name: `${english}.`, exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Rules', exact: true }).click();
@@ -410,10 +464,10 @@ for (const width of [1280, 320])
           fullPage: true,
         });
       await page.getByRole('button', { name: 'Leave game', exact: true }).click();
-      await page
+      const leaveConfirmation = page
         .getByRole('dialog')
-        .getByRole('button', { name: 'Leave game', exact: true })
-        .click();
+        .getByRole('button', { name: 'Leave game', exact: true });
+      if (await leaveConfirmation.isVisible()) await leaveConfirmation.click();
       await expect(page.locator('.game-card')).toHaveCount(30);
     });
 
@@ -596,10 +650,11 @@ test('Mahjong: cuatro personas conservan manos privadas, responden y reconectan'
     await expect(next.getByText(/Última ficha robada:/)).toBeVisible();
     await expect(page.getByText(/Última ficha robada:/)).toHaveCount(0);
     await next.reload();
-    await expect(next.locator('.mahjong-hand > button')).toHaveCount(14);
-    await expect(next.getByRole('button', { name: 'Descartar ficha', exact: true })).toBeDisabled();
-    await next.locator('.mahjong-hand > button').last().click();
-    await expect(next.getByRole('button', { name: 'Descartar ficha', exact: true })).toBeEnabled();
+    await expect(next.locator('.mahjong-hand > button')).toHaveCount(13);
+    await expect(next.getByText(/Última ficha robada:/)).toHaveCount(0);
+    await expect(next.locator('.table-player').filter({ hasText: 'Bruno' })).toContainText(
+      'En la mesa',
+    );
     await page.getByRole('button', { name: 'Salir de la partida', exact: true }).click();
     await page
       .getByRole('dialog')

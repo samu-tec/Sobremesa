@@ -13,7 +13,7 @@
 .modal {
   background: var(--paper);
   border: 1px solid #e5e9df;
-  width: min(100%, 490px);
+  width: min(100%, 640px);
   border-radius: var(--radius-dialog);
   box-shadow: var(--shadow-dialog);
   padding: 26px;
@@ -22,7 +22,7 @@
   outline: none;
 }
 .modal-wide {
-  width: min(100%, 760px);
+  width: min(100%, 640px);
 }
 .modal-heading {
   display: flex;
@@ -44,6 +44,155 @@
 .modal h3 {
   font-size: 15px;
   margin: 20px 0 10px;
+}
+.welcome-preferences {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 12px;
+}
+.preferences-panel {
+  display: grid;
+  gap: 16px;
+}
+.preference-section {
+  display: grid;
+  gap: 12px;
+}
+.preference-section + .preference-section,
+.preferences-extra {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.preference-section h3 {
+  margin: 0;
+}
+.preference-name-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+.preference-name-form .field-label {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.preference-name-form .field {
+  min-width: 0;
+  margin: 0;
+}
+.preference-name-form .button {
+  min-height: 44px;
+}
+.preference-language-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.preference-language-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 8px 10px;
+  border: 1px solid #d7dfcf;
+  border-radius: 8px;
+  background: #f8f9f3;
+  color: #294c3d;
+  text-align: left;
+}
+.preference-language-option[aria-pressed='true'] {
+  border-color: #90a984;
+  background: #edf2e5;
+}
+.preference-language-option > span:nth-child(2) {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+}
+.preference-language-flag {
+  font-size: 19px;
+  line-height: 1;
+}
+.preference-audio-toggle,
+.preference-volume-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.preference-audio-toggle {
+  min-height: 48px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #f4f6ef;
+  color: #294c3d;
+  font-size: 14px;
+  font-weight: 600;
+}
+.preference-audio-toggle input {
+  appearance: none;
+  position: relative;
+  width: 40px;
+  height: 23px;
+  flex: 0 0 auto;
+  margin: 0;
+  border-radius: 12px;
+  background: #d9dfd1;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+.preference-audio-toggle input::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 160ms ease;
+}
+.preference-audio-toggle input:checked {
+  background: #60865b;
+}
+.preference-audio-toggle input:checked::before {
+  transform: translateX(17px);
+}
+.preference-audio-toggle input:focus-visible {
+  outline: 3px solid #a6bd91;
+  outline-offset: 3px;
+}
+.preference-volume-label {
+  margin-top: 2px;
+  color: #294c3d;
+  font-size: 14px;
+  font-weight: 650;
+}
+.preference-volume-label output {
+  color: #58654f;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.preference-volume {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  accent-color: var(--green);
+}
+.preferences-panel > .muted {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.preferences-privacy-link {
+  justify-self: start;
+  min-height: 40px;
+}
+.preferences-extra {
+  display: grid;
+  gap: 16px;
 }
 .modal > .button:last-child {
   margin-top: 20px;

@@ -103,7 +103,14 @@ export interface RoomInfo {
   customRules?: RoomRules;
   turnSeconds: number;
   turnDeadline: number | null;
-  presence?: { playerId: string; challengeId: string; deadline: number };
+  autoPlay?: {
+    playerId: string;
+    mode: 'manual' | 'disconnect' | 'timeout';
+    startedAt: number;
+    deadline: number | null;
+    awaitingHost: boolean;
+    permanent: boolean;
+  }[];
   serverNow: number;
   reconnectGraceMs: number;
 }

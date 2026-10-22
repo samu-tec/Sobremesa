@@ -8,7 +8,8 @@ async function ready(page: Page, name = 'Ana') {
     localStorage.setItem('sobremesa.profileConfirmed', 'true');
   }, name);
   await page.goto('/');
-  await expect(page.getByText('Listo para jugar', { exact: true })).toBeVisible();
+  await expect(page.locator('.connection')).toBeVisible();
+  await expect(page.locator('.connection')).toHaveAttribute('aria-label', 'Listo para jugar');
 }
 
 test('Cambio de Color: configurar, jugar una partida real entre amigos y conservar la variante en la revancha', async ({
@@ -18,14 +19,14 @@ test('Cambio de Color: configurar, jugar una partida real entre amigos y conserv
   test.setTimeout(90000);
   await ready(page);
   await page.locator('.game-colorclash .play-friends').click();
-  if ((await page.locator('#room-settings').getAttribute('open')) === null)
-    await page.locator('#room-settings > summary').click();
   const stacking = page.getByRole('switch', { name: 'Permitir acumular +2 y +4', exact: true });
+  const jumpIn = page.getByRole('switch', { name: 'Permitir Jump-In', exact: true });
   await expect(stacking).not.toBeChecked();
+  await expect(jumpIn).not.toBeChecked();
   await stacking.check();
+  await jumpIn.check();
   await page.getByRole('combobox', { name: 'Cartas iniciales', exact: true }).selectOption('5');
   await page.reload();
-  await page.locator('#room-settings > summary').click();
   await expect(stacking).toBeChecked();
   const code = (await page.locator('.room-code-text').innerText()).trim();
   const context = await browser.newContext();
@@ -41,6 +42,7 @@ test('Cambio de Color: configurar, jugar una partida real entre amigos y conserv
     await expect(page.locator('.color-table')).toBeVisible();
     await page.getByRole('button', { name: 'Reglas', exact: true }).click();
     await expect(page.getByRole('dialog')).toContainText('Permitir acumular +2 y +4: Sí');
+    await expect(page.getByRole('dialog')).toContainText('Permitir Jump-In: Sí');
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
     let moves = 0;
@@ -87,8 +89,8 @@ test('Cambio de Color: configurar, jugar una partida real entre amigos y conserv
     expect(moves).toBeGreaterThan(0);
     await expect(page.locator('.result-content')).toBeVisible();
     await page.getByRole('button', { name: 'Preparar otra partida', exact: true }).click();
-    await page.locator('#room-settings > summary').click();
     await expect(stacking).toBeChecked();
+    await expect(jumpIn).toBeChecked();
     await expect(page.locator('.room-code-text')).toHaveText(code);
     await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
     await expect(guest.locator('.table-player.active small')).toHaveText('Es tu turno');
@@ -195,7 +197,7 @@ for (const direction of [1, -1])
       ).toBeFocused();
       expect((await hand.boundingBox())!.y).toBe(y);
       if (direction === 1 && viewport.width === 390) {
-        await page.getByRole('button', { name: 'Preferencias de partida', exact: true }).click();
+        await page.getByRole('button', { name: 'Preferencias', exact: true }).click();
         await page
           .getByRole('dialog')
           .getByRole('button', { name: 'Ampliar el juego', exact: true })
@@ -266,7 +268,6 @@ test('Cambio de Color: un evento público emite sonido una vez sin reordenar la 
   const order = await page
     .locator('.hand-card')
     .evaluateAll((buttons) => buttons.map((b) => b.getAttribute('data-motion-id')));
-  await page.getByRole('button', { name: 'Activar sonido', exact: true }).click();
   await expect
     .poll(() => page.evaluate(() => (window as SoundWindow).colorAudio?.currentTime || 0))
     .toBeGreaterThan(1.2);

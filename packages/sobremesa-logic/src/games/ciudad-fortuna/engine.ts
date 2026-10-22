@@ -473,6 +473,10 @@ export class CiudadFortunaEngine implements IGameEngine<
           term(isDouble ? ' ¡DOBLES!' : ''),
         ),
       );
+      if (newState.customRules.snakeEyesBonus && d1 === 1 && d2 === 1) {
+        player.cash += 500;
+        newState.logs.unshift(msg('🍀 ¡Dobles de uno! {0} recibe 500€.', player.name));
+      }
 
       // Handle Jail rolling
       if (player.inJail) {
@@ -788,8 +792,10 @@ export class CiudadFortunaEngine implements IGameEngine<
     // Passing GO check
     if (newPos < oldPos || newPos === 0) {
       const isDirectOnGo = newPos === 0;
+      const passedGo = newPos < oldPos;
       const salary =
-        isDirectOnGo && state.customRules.doubleGoSalary
+        (isDirectOnGo && state.customRules.doubleGoSalary) ||
+        (passedGo && state.customRules.doubleGoSalaryOnPass)
           ? state.customRules.salaryGO * 2
           : state.customRules.salaryGO;
 

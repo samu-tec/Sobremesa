@@ -138,7 +138,7 @@ test('Los turnos automáticos no mantienen viva una sala abandonada por inactivi
     manager.joinRoom(code, 'Bruno', 'b', 'socket-b');
     manager.updateRoomRules(code, 'a', { turnSeconds: 180 });
     manager.startGame(code, 'a');
-    manager.getRoomBySocket('socket-a').match.requiresPresence = () => false; // Exercise automatic work without human activity.
+    manager.getRoomBySocket('socket-a').match.requiresPlayerAction = () => false; // Exercise automatic work without human activity.
     context.mock.timers.tick(180000);
     assert.ok(emitted.some((e) => e.event === 'game:state_update'));
     context.mock.timers.tick(6 * 60 * 60 * 1000 + 60000);
@@ -203,14 +203,13 @@ test('El reloj conserva el presupuesto del turno durante decisiones intermedias'
       assert.equal(manager.handleAction(code, actor, action).success, true);
       assert.equal(room.turnDeadline, deadline, `${game}: reinició el reloj`);
       context.mock.timers.tick(20000);
-      assert.equal(room.presence.playerId, actor);
-      context.mock.timers.tick(15000);
+      if (room.match.actor() === actor && room.match.requiresPlayerAction())
+        assert.equal(room.autoPlay.get(actor)?.mode, 'timeout', `${game}: no activó el autoplay`);
       assert.equal(
         room.players.some((p) => p.id === actor),
-        false,
-        `${game}: abandono bloqueado`,
+        true,
+        `${game}: retirado pronto`,
       );
-      assert.equal(room.turnDeadline, null);
       manager.leaveRoom(`socket-a-${game}`);
       manager.leaveRoom(`socket-b-${game}`);
     }
@@ -283,7 +282,7 @@ for (const failure of ['expire', 'timeoutStep', 'publicState', 'forfeit', 'botAc
       manager.startGame(other, 'c');
       const room = manager.getRoomBySocket('socket-a');
       const healthy = manager.getRoomBySocket('socket-c');
-      healthy.match.requiresPresence = () => false; // Isolate automatic failure handling from the presence policy.
+      healthy.match.requiresPlayerAction = () => false; // Isolate automatic failure handling from the turn policy.
       const healthyBefore = structuredClone(healthy.match.state);
       if (failure === 'botAction') {
         assert.equal(
@@ -291,13 +290,17 @@ for (const failure of ['expire', 'timeoutStep', 'publicState', 'forfeit', 'botAc
           true,
         );
       }
-      room.match.requiresPresence = () => false; // Force the deadline path under test.
+      room.match.requiresPlayerAction = () => false; // Force the deadline path under test.
       room.match[failure] = () => {
         throw new Error('mano-secreta-no-publicable');
       };
       if (failure === 'forfeit') manager.handleDisconnect('socket-b');
       emitted.length = 0;
-      assert.doesNotThrow(() => context.mock.timers.tick(failure === 'forfeit' ? 300000 : 30000));
+      assert.doesNotThrow(() => context.mock.timers.tick(30000));
+      if (failure === 'forfeit') {
+        room.autoPlay.get('b').awaitingHost = true;
+        assert.doesNotThrow(() => manager.resolveAutoPlay(code, 'a', 'b', 'remove'));
+      }
       assert.equal(manager.getRoomsCount(), 1);
       assert.equal(manager.getRoomBySocket('socket-a'), undefined);
       assert.equal(manager.getRoomBySocket('socket-b'), undefined);
@@ -329,7 +332,7 @@ for (const failure of ['expire', 'timeoutStep', 'publicState', 'forfeit', 'botAc
   });
 }
 
-test('Reconectar conserva el plazo y anula la reserva; una desconexión antigua no afecta al sustituto', (context) => {
+test('La reconexión recupera el control automático y una desconexión antigua no afecta al sustituto', (context) => {
   context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
   const io = { to: () => ({ emit: () => {} }), sockets: { sockets: new Map() } };
   const manager = new RoomManager(io);
@@ -339,9 +342,8 @@ test('Reconectar conserva el plazo y anula la reserva; una desconexión antigua 
     manager.updateRoomRules(code, 'a', { turnSeconds: 30 });
     manager.startGame(code, 'a');
     const room = manager.getRoomBySocket('socket-a');
-    const deadline = room.turnDeadline;
     manager.handleDisconnect('socket-a');
-    context.mock.timers.tick(10000);
+    assert.ok(room.autoPlay.has('a'));
     const restored = manager.reconnectPlayer(code, 'a', 'socket-new');
     assert.equal(restored.success, true);
     assert.deepEqual(restored.state, {
@@ -349,21 +351,14 @@ test('Reconectar conserva el plazo y anula la reserva; una desconexión antigua 
       gameType: room.gameType,
       matchId: room.matchId,
     });
-    assert.equal(room.turnDeadline, deadline);
     assert.equal(room.players[0].disconnectTimeout, undefined);
-    manager.handleDisconnect('socket-a');
+    manager.handleDisconnect('socket-a'); // La conexión antigua ya fue sustituida.
     assert.equal(room.players[0].connected, true);
-    context.mock.timers.tick(20000);
-    assert.equal(
-      room.presence.playerId,
-      'a',
-      'El reloj original pide presencia a la conexión nueva',
-    );
-    assert.equal(room.match.state.board.filter(Boolean).length, 0);
-    assert.equal(manager.confirmPresence(code, 'a', room.presence.challengeId, true).success, true);
-    assert.equal(manager.handleAction(code, 'a', { type: 'MAKE_MOVE', index: 0 }).success, true);
-    context.mock.timers.tick(300000);
-    assert.equal(manager.getRoomBySocket('socket-new'), room);
+    manager.handleDisconnect('socket-new');
+    assert.ok(room.autoPlay.has('a'), 'La conexión actual activa el modo automático');
+    assert.equal(manager.reconnectPlayer(code, 'a', 'socket-newer').success, true);
+    assert.equal(room.autoPlay.has('a'), false, 'Al volver recupera el control');
+    assert.equal(manager.getRoomBySocket('socket-newer'), room);
     assert.equal(room.players.length, 2, 'La reserva cancelada no expulsa al jugador recuperado');
   } finally {
     manager.dispose();
@@ -641,7 +636,7 @@ for (const scenario of [
       manager.joinRoom(other, 'David', 'd', 'socket-d');
       manager.startGame(other, 'c');
       const healthy = manager.getRoomBySocket('socket-c');
-      healthy.match.requiresPresence = () => false; // Isolate automatic failure handling from the presence policy.
+      healthy.match.requiresPlayerAction = () => false; // Isolate automatic failure handling from the presence policy.
       const before = structuredClone(healthy.match.state);
       if (!['inicio', 'configuración'].includes(operation)) manager.startGame(code, 'a');
       if (operation === 'reinicio' || operation === 'finalización') {
@@ -737,7 +732,7 @@ test('Parchís: capturar conserva el reloj del movimiento y el plazo completa el
     manager.joinRoom(code, 'Bruno', 'b', 'socket-b');
     manager.updateRoomRules(code, 'a', { turnSeconds: 30 });
     manager.startGame(code, 'a');
-    manager.getRoomBySocket('socket-a').match.requiresPresence = () => false; // Explicit automatic actor fixture.
+    manager.getRoomBySocket('socket-a').match.requiresPlayerAction = () => false; // Explicit automatic actor fixture.
     const room = manager.getRoomBySocket('socket-a'),
       deadline = room.turnDeadline,
       s = room.match.state;
@@ -773,7 +768,7 @@ test('Parchís: tres seises sin poder salir no bloquean un turno automático', (
     manager.joinRoom(code, 'Bruno', 'b', 'socket-b');
     manager.updateRoomRules(code, 'a', { turnSeconds: 30 });
     manager.startGame(code, 'a');
-    manager.getRoomBySocket('socket-a').match.requiresPresence = () => false; // Explicit automatic actor fixture.
+    manager.getRoomBySocket('socket-a').match.requiresPlayerAction = () => false; // Explicit automatic actor fixture.
     context.mock.timers.tick(30000);
     const room = manager.getRoomBySocket('socket-a');
     assert.equal(room.match.state.currentTurnPlayerId, 'b');
@@ -843,7 +838,7 @@ test('Damas chinas: cinco participantes no cierran la sala y seis pueden empezar
   }
 });
 
-test('Mahjong: reclamaciones de ocho segundos y robar no renueva el presupuesto del descarte', (context) => {
+test('Mahjong: reclamaciones de ocho segundos y la inactividad activa autoplay al vencer el turno', (context) => {
   context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
   const manager = new RoomManager({
     to: () => ({ emit: () => {} }),
@@ -874,16 +869,10 @@ test('Mahjong: reclamaciones de ocho segundos y robar no renueva el presupuesto 
     assert.equal(room.turnDeadline, deadline);
     assert.equal(room.match.state.players[1].hand.length, 14);
     context.mock.timers.tick(deadline - Date.now());
-    assert.equal(room.presence.playerId, 'b');
-    assert.equal(
-      room.match.state.phase,
-      'discard',
-      'El servidor no elige un descarte estratégico por un humano',
-    );
-    context.mock.timers.tick(15000);
+    assert.equal(room.autoPlay.get('b')?.mode, 'timeout');
     assert.equal(
       room.players.some((p) => p.id === 'b'),
-      false,
+      true,
     );
     assert.ok(room.match.state.revision >= 6);
     assert.equal('responses' in room.match.publicState('a'), false);
@@ -993,12 +982,12 @@ test('Palabras: partidas completas con los dos diccionarios de producción y con
   }
 });
 
-function prepareColorRoom(manager, count = 4, stacking = true, bot = false) {
+function prepareColorRoom(manager, count = 4, stacking = true, bot = false, jumpIn = false) {
   const code = manager.createRoom('Ana', 'a', 'socket-a', 'colorclash').room.code;
   const ids = ['a', 'b', 'c', 'd'].slice(0, count);
   if (bot) manager.addBot(code, 'a');
   else for (const id of ids.slice(1)) manager.joinRoom(code, id, id, `socket-${id}`);
-  manager.updateRoomRules(code, 'a', { stackDrawCards: stacking, turnSeconds: 30 });
+  manager.updateRoomRules(code, 'a', { stackDrawCards: stacking, jumpIn, turnSeconds: 30 });
   manager.startGame(code, 'a');
   const room = manager.getRoomBySocket('socket-a');
   const state = room.match.state;
@@ -1025,6 +1014,7 @@ test('Cambio de Color: acumulación solo configura el anfitrión, con booleanos 
     const other = manager.createRoom('Clara', 'c', 'socket-c', 'colorclash').room;
     manager.joinRoom(a.code, 'Bruno', 'b', 'socket-b');
     assert.equal(a.customRules.stackDrawCards, false);
+    assert.equal(a.customRules.jumpIn, false);
     assert.throws(
       () => manager.updateRoomRules(a.code, 'b', { stackDrawCards: true }),
       /anfitrión/,
@@ -1034,11 +1024,18 @@ test('Cambio de Color: acumulación solo configura el anfitrión, con booleanos 
         manager.updateRoomRules(a.code, 'a', { stackDrawCards: invalid }).success,
         false,
       );
-    assert.equal(manager.updateRoomRules(a.code, 'a', { stackDrawCards: true }).success, true);
+    for (const invalid of [1, null, 'true'])
+      assert.equal(manager.updateRoomRules(a.code, 'a', { jumpIn: invalid }).success, false);
+    assert.equal(
+      manager.updateRoomRules(a.code, 'a', { stackDrawCards: true, jumpIn: true }).success,
+      true,
+    );
     assert.equal(manager.getRoomBySocket('socket-c').customRules.stackDrawCards, false);
+    assert.equal(manager.getRoomBySocket('socket-c').customRules.jumpIn, false);
     manager.startGame(a.code, 'a');
     const room = manager.getRoomBySocket('socket-a');
     assert.equal(room.match.publicState('a').stackDrawCards, true);
+    assert.equal(room.match.publicState('a').jumpInEnabled, true);
     assert.throws(() => manager.updateRoomRules(a.code, 'a', { stackDrawCards: false }), /momento/);
     room.match.state.winner = 'a';
     room.status = 'finished';
@@ -1049,6 +1046,74 @@ test('Cambio de Color: acumulación solo configura el anfitrión, con booleanos 
     assert.equal(manager.getRoomBySocket('socket-c').code, other.code);
   } finally {
     manager.dispose();
+  }
+});
+
+test('Ciudad Fortuna: las nuevas reglas de casa validan booleanos y llegan a la partida', () => {
+  const manager = new RoomManager({ to: () => ({ emit() {} }), sockets: { sockets: new Map() } });
+  try {
+    const room = manager.createRoom('Ana', 'a', 'socket-a', 'monopoly').room;
+    for (const invalid of [1, null, 'true']) {
+      assert.equal(
+        manager.updateRoomRules(room.code, 'a', { doubleGoSalaryOnPass: invalid }).success,
+        false,
+      );
+      assert.equal(
+        manager.updateRoomRules(room.code, 'a', { snakeEyesBonus: invalid }).success,
+        false,
+      );
+    }
+    assert.equal(
+      manager.updateRoomRules(room.code, 'a', {
+        doubleGoSalaryOnPass: true,
+        snakeEyesBonus: true,
+      }).success,
+      true,
+    );
+    manager.addBot(room.code, 'a');
+    assert.equal(manager.startGame(room.code, 'a').success, true);
+    const state = manager.getRoomBySocket('socket-a').match.state;
+    assert.equal(state.customRules.doubleGoSalaryOnPass, true);
+    assert.equal(state.customRules.snakeEyesBonus, true);
+  } finally {
+    manager.dispose();
+  }
+});
+
+test('Cambio de Color: Jump-In acepta una segunda acción idéntica y resuelve su ventana en servidor', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+  const manager = new RoomManager({ to: () => ({ emit() {} }), sockets: { sockets: new Map() } });
+  try {
+    const { room, code, state, take } = prepareColorRoom(manager, 4, false, false, true);
+    const first = take('draw2', 'red');
+    const second = take('draw2', 'red');
+    state.players[0].cards.push(first);
+    state.players[2].cards.push(second);
+
+    assert.equal(
+      manager.handleAction(code, 'a', { type: 'PLAY_CARD', cardId: first.id }).success,
+      true,
+    );
+    assert.equal(room.match.timeoutSeconds(), 1.5);
+    assert.equal(room.match.state.pendingDraw, 2);
+    assert.equal(
+      manager.handleAction(code, 'c', { type: 'PLAY_CARD', cardId: second.id }).success,
+      true,
+    );
+    assert.equal(
+      room.match.state.pendingDraw,
+      2,
+      'la segunda carta vuelve a aplicar solo su propio +2',
+    );
+    assert.equal(room.match.state.currentTurnPlayerId, 'd');
+    context.mock.timers.tick(1500);
+    assert.equal(room.match.state.jumpInWindow, false);
+    assert.equal(room.match.state.pendingDraw, 0);
+    assert.equal(room.match.state.players.find((p) => p.playerId === 'd').cards.length, 3);
+    assert.equal(room.match.state.currentTurnPlayerId, 'a');
+  } finally {
+    manager.dispose();
+    context.mock.timers.reset();
   }
 });
 
@@ -1101,7 +1166,7 @@ test('Cambio de Color: reloj acepta una cadena mixta una sola vez y respeta dire
   }
 });
 
-test('Cambio de Color: desconectar reserva la penalización; abandonar la transfiere y el bot responde', (context) => {
+test('Cambio de Color: desconectar activa el bot, reconectar conserva la partida y el siguiente bot responde', (context) => {
   context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
   const manager = new RoomManager({ to: () => ({ emit() {} }), sockets: { sockets: new Map() } });
   try {
@@ -1110,12 +1175,13 @@ test('Cambio de Color: desconectar reserva la penalización; abandonar la transf
     state.players[0].cards.push(penalty);
     manager.handleAction(code, 'a', { type: 'PLAY_CARD', cardId: penalty.id });
     manager.handleDisconnect('socket-b');
-    assert.equal(room.match.state.currentTurnPlayerId, 'b');
-    assert.equal(room.match.state.pendingDraw, 2);
-    assert.equal(manager.reconnectPlayer(code, 'b', 'socket-b-new').state.pendingDraw, 2);
+    assert.equal(room.match.state.currentTurnPlayerId, 'c');
+    assert.equal(room.match.state.pendingDraw, 0);
+    assert.equal(room.match.state.players.find((p) => p.playerId === 'b').cards.length, 3);
+    assert.equal(manager.reconnectPlayer(code, 'b', 'socket-b-new').state.pendingDraw, 0);
     manager.leaveRoom('socket-b-new');
     assert.equal(room.match.state.currentTurnPlayerId, 'c');
-    assert.equal(room.match.state.pendingDraw, 2);
+    assert.equal(room.match.state.pendingDraw, 0);
     assert.deepEqual(room.match.publicState('c').playerOrder, ['a', 'c']);
     const second = room.match.state.drawPile.find((c) => c.value === 'wild_draw4');
     room.match.state.drawPile = room.match.state.drawPile.filter((c) => c.id !== second.id);
@@ -1123,7 +1189,7 @@ test('Cambio de Color: desconectar reserva la penalización; abandonar la transf
     const botAction = room.match.botAction('c');
     assert.equal(botAction.cardId, second.id);
     assert.equal(manager.handleAction(code, 'c', botAction).success, true);
-    assert.equal(room.match.state.pendingDraw, 6);
+    assert.equal(room.match.state.pendingDraw, 4);
     manager.leaveRoom('socket-a');
     assert.equal(room.status, 'finished');
     assert.equal(room.match.state.pendingDraw, 0);
@@ -1243,11 +1309,20 @@ test('Retirar personas valida anfitrión, elimina reservas y aplica el abandono 
     const room = manager.getRoomBySocket('sa');
     assert.equal(manager.removeHuman(code, 'a', 'b').success, false);
     manager.handleDisconnect('sb');
-    assert.ok(room.players[1].disconnectTimeout);
+    assert.equal(room.players[1].disconnectTimeout, undefined);
+    assert.ok(room.autoPlay.get('b'));
+    assert.equal(manager.removeHuman(code, 'a', 'b').success, false);
     // Una reconexión que llega antes de la retirada vuelve a proteger la plaza.
     manager.reconnectPlayer(code, 'b', 'new-b');
     assert.equal(manager.removeHuman(code, 'a', 'b').success, false);
     manager.handleDisconnect('new-b');
+    assert.equal(manager.removeHuman(code, 'a', 'b').success, false);
+    clearTimeout(room.turnTimeout);
+    room.turnTimeout = undefined;
+    room.turnDeadline = null;
+    room.turnActor = undefined;
+    context.mock.timers.tick(180000);
+    assert.equal(room.autoPlay.get('b')?.awaitingHost, true);
     assert.equal(manager.removeHuman(code, 'a', 'b').success, true);
     assert.equal(room.status, 'finished');
     assert.equal(room.match.state.winner, 'a');
@@ -1327,7 +1402,7 @@ for (const game of GAME_CATALOG)
   });
 
 for (const game of GAME_CATALOG) {
-  test(`Presencia ${game.id}: solo decisión humana pendiente, plazo finito y abandono por motor`, (context) => {
+  test(`Autoplay ${game.id}: un turno humano vencido activa el juego automático`, (context) => {
     context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
     const events = [];
     const manager = new RoomManager({
@@ -1341,41 +1416,21 @@ for (const game of GAME_CATALOG) {
       manager.updateRoomRules(code, 'a', { turnSeconds: 30 });
       manager.startGame(code, 'a');
       const room = manager.getRoomBySocket('sa');
-      const before = structuredClone(room.match.state);
       const actor = room.match.actor();
-      const requires = room.match.requiresPresence();
+      const needsPlayerAction = room.match.requiresPlayerAction();
       context.mock.timers.tick(room.turnDeadline - Date.now());
-      if (!requires) {
-        assert.equal(room.presence, undefined, 'El plazo de reglas no pregunta por presencia');
-        assert.notDeepEqual(room.match.state, before);
-        return;
+      if (needsPlayerAction) {
+        assert.equal(room.autoPlay.get(actor)?.mode, 'timeout');
+        assert.equal(room.autoPlay.get(actor)?.deadline, Date.now() + 180000);
+      } else {
+        assert.equal(room.autoPlay.has(actor), false, 'se conserva la caducidad propia de la fase');
       }
-      assert.deepEqual(
-        room.match.state,
-        before,
-        'No se juega una estrategia automática por el humano',
-      );
-      assert.equal(room.presence.playerId, actor);
-      assert.equal(room.presence.deadline, Date.now() + 15000);
-      const pending = room.presence;
-      assert.equal(
-        manager.confirmPresence(code, 'outsider', pending.challengeId, true).success,
-        false,
-      );
-      assert.equal(manager.confirmPresence(code, actor, 'old-nonce', true).success, false);
-      context.mock.timers.tick(15000);
       assert.equal(
         room.players.some((p) => p.id === actor),
-        false,
+        true,
+        'conserva su plaza',
       );
-      assert.equal(room.presence, undefined);
-      if (game.minPlayers === 2) assert.equal(room.status, 'finished');
-      assert.ok(
-        events.some(
-          (e) => e.event === 'game:notification' && /inactividad/.test(e.payload.text.key),
-        ),
-      );
-      assert.equal(manager.confirmPresence(code, actor, pending.challengeId, true).success, false);
+      assert.ok(events.some((event) => event.event === 'room:updated'));
     } finally {
       manager.dispose();
       context.mock.timers.reset();
@@ -1383,143 +1438,159 @@ for (const game of GAME_CATALOG) {
   });
 }
 
-test('Presencia: confirmar una vez, actuar parcialmente y reconectar no conceden confirmaciones ilimitadas', (context) => {
+test('Ciudad Fortuna: si vence el turno el mismo bot termina la jugada y el siguiente jugador puede tirar', (context) => {
   context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
   const manager = new RoomManager({ to: () => ({ emit() {} }), sockets: { sockets: new Map() } });
   try {
-    const code = manager.createRoom('Ana', 'a', 'sa', 'combinations').room.code;
+    const code = manager.createRoom('Ana', 'a', 'sa', 'monopoly').room.code;
     manager.joinRoom(code, 'Bruno', 'b', 'sb');
-    manager.updateRoomRules(code, 'a', { turnSeconds: 30 });
+    manager.updateRoomRules(code, 'a', { turnSeconds: 120 });
     manager.startGame(code, 'a');
     const room = manager.getRoomBySocket('sa');
-    context.mock.timers.tick(30000);
-    const challenge = room.presence.challengeId;
-    assert.equal(manager.confirmPresence(code, 'a', challenge, true).success, true);
-    assert.equal(room.presence, undefined);
-    const deadline = room.turnDeadline;
-    assert.equal(deadline, Date.now() + 30000);
-    assert.equal(manager.confirmPresence(code, 'a', challenge, true).success, false);
-    context.mock.timers.tick(10000);
-    assert.equal(manager.handleAction(code, 'a', { type: 'ROLL', keep: [] }).success, true);
-    assert.equal(room.turnDeadline, deadline);
-    manager.handleDisconnect('sa');
-    manager.reconnectPlayer(code, 'a', 'sa2');
-    assert.equal(room.turnDeadline, deadline);
-    context.mock.timers.tick(20000);
-    assert.equal(room.status, 'finished');
-    assert.equal(room.match.result().winnerId, 'b');
-    assert.equal(room.presence, undefined);
+    const unattendedPlayer = room.match.actor();
+    context.mock.timers.tick(room.turnDeadline - Date.now());
+    assert.equal(room.autoPlay.get(unattendedPlayer)?.mode, 'timeout');
+
+    for (let i = 0; i < 40 && room.match.actor() === unattendedPlayer; i++)
+      context.mock.timers.tick(1000);
+    assert.equal(room.match.actor(), 'b');
+    assert.equal(room.match.state.turnPhase, 'roll');
+    assert.equal(room.autoPlay.has(unattendedPlayer), true);
+    assert.equal(manager.handleAction(code, 'b', { type: 'ROLL_DICE' }).success, true);
   } finally {
     manager.dispose();
     context.mock.timers.reset();
   }
 });
 
-for (const operation of [
-  'action',
-  'leave',
-  'remove',
-  'disconnect',
-  'restart',
-  'change',
-  'destroy',
-]) {
-  test(`Presencia: ${operation} cancela la confirmación y sus respuestas antiguas`, (context) => {
-    context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
-    const manager = new RoomManager({ to: () => ({ emit() {} }), sockets: { sockets: new Map() } });
-    try {
-      const code = manager.createRoom('Ana', 'a', 'sa', 'tictactoe').room.code;
-      manager.joinRoom(code, 'Bruno', 'b', 'sb');
-      manager.updateRoomRules(code, 'a', { turnSeconds: 30 });
-      manager.startGame(code, 'a');
-      const room = manager.getRoomBySocket('sa');
-      context.mock.timers.tick(30000);
-      const challenge = room.presence.challengeId;
-      if (operation === 'action') manager.handleAction(code, 'a', { type: 'MAKE_MOVE', index: 0 });
-      else if (operation === 'disconnect') {
-        manager.handleDisconnect('sa');
-        manager.reconnectPlayer(code, 'a', 'sa2');
-      } else if (operation === 'leave') manager.leaveRoom('sa');
-      else if (operation === 'remove') {
-        manager.handleAction(code, 'a', { type: 'MAKE_MOVE', index: 0 });
-        manager.handleDisconnect('sb');
-        manager.removeHuman(code, 'a', 'b');
-      } else if (operation === 'destroy') {
-        manager.leaveRoom('sa');
-        manager.leaveRoom('sb');
-      } else {
-        manager.leaveRoom('sb');
-        if (operation === 'restart') manager.restartGame(code, 'a');
-        else manager.changeGame(code, 'a', 'chess');
-      }
-      assert.equal(room.presence, undefined);
-      assert.equal(manager.confirmPresence(code, 'a', challenge, true).success, false);
-      context.mock.timers.tick(15000);
-      if (operation === 'action' || operation === 'disconnect')
-        assert.equal(room.players.length, 2);
-      if (operation === 'restart' || operation === 'change') assert.equal(room.status, 'waiting');
-    } finally {
-      manager.dispose();
-      context.mock.timers.reset();
-    }
-  });
-}
-
-test('Presencia: dos salas aíslan nonces, prórrogas, abandonos y relojes', (context) => {
+test('Autoplay: tras tres minutos el anfitrión puede mantener una plaza como bot o retirar al jugador', (context) => {
   context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
   const manager = new RoomManager({ to: () => ({ emit() {} }), sockets: { sockets: new Map() } });
+  const stopRoomClocks = (room) => {
+    clearTimeout(room.turnTimeout);
+    room.turnTimeout = undefined;
+    room.turnDeadline = null;
+    clearTimeout(room.botLoopTimeout);
+    room.botLoopTimeout = undefined;
+  };
   try {
-    const first = manager.createRoom('Ana', 'a', 'sa', 'tictactoe').room.code;
-    const second = manager.createRoom('Clara', 'c', 'sc', 'tictactoe').room.code;
-    manager.joinRoom(first, 'Bruno', 'b', 'sb');
-    manager.joinRoom(second, 'Diego', 'd', 'sd');
-    for (const [code, id] of [
-      [first, 'a'],
-      [second, 'c'],
-    ]) {
-      manager.updateRoomRules(code, id, { turnSeconds: 30 });
-      manager.startGame(code, id);
-    }
-    const a = manager.getRoomBySocket('sa'),
-      b = manager.getRoomBySocket('sc');
-    context.mock.timers.tick(30000);
-    assert.notEqual(a.presence.challengeId, b.presence.challengeId);
-    assert.equal(manager.confirmPresence(second, 'c', a.presence.challengeId, true).success, false);
-    assert.equal(manager.confirmPresence(first, 'a', a.presence.challengeId, true).success, true);
-    context.mock.timers.tick(15000);
-    assert.equal(b.status, 'finished');
-    assert.equal(b.match.result().winnerId, 'd');
-    assert.equal(a.status, 'in_game');
-    assert.equal(a.match.state.board.filter(Boolean).length, 0);
-    context.mock.timers.tick(15000);
-    assert.equal(a.status, 'finished');
-    assert.equal(a.match.result().winnerId, 'b');
-    assert.equal(a.turnTimeout, undefined);
-    assert.equal(b.turnTimeout, undefined);
+    const keepCode = manager.createRoom('Ana', 'a', 'sa', 'tictactoe').room.code;
+    manager.joinRoom(keepCode, 'Bruno', 'b', 'sb');
+    manager.updateRoomRules(keepCode, 'a', { turnSeconds: 30 });
+    manager.startGame(keepCode, 'a');
+    const keepRoom = manager.getRoomBySocket('sa');
+    manager.handleDisconnect('sb');
+    stopRoomClocks(keepRoom);
+    context.mock.timers.tick(180000);
+    assert.equal(keepRoom.autoPlay.get('b').awaitingHost, true);
+    assert.equal(manager.resolveAutoPlay(keepCode, 'b', 'b', 'keep').success, false);
+    assert.equal(manager.resolveAutoPlay(keepCode, 'a', 'b', 'keep').success, true);
+    assert.equal(keepRoom.autoPlay.get('b').permanent, true);
+    assert.equal(manager.reconnectPlayer(keepCode, 'b', 'sb-return').success, true);
+    assert.equal(keepRoom.autoPlay.has('b'), false, 'al volver recupera el control');
+
+    const removeCode = manager.createRoom('Clara', 'c', 'sc', 'tictactoe').room.code;
+    manager.joinRoom(removeCode, 'Diego', 'd', 'sd');
+    manager.updateRoomRules(removeCode, 'c', { turnSeconds: 30 });
+    manager.startGame(removeCode, 'c');
+    const removeRoom = manager.getRoomBySocket('sc');
+    manager.handleDisconnect('sd');
+    stopRoomClocks(removeRoom);
+    context.mock.timers.tick(180000);
+    assert.equal(removeRoom.autoPlay.get('d').awaitingHost, true);
+    assert.equal(manager.resolveAutoPlay(removeCode, 'c', 'd', 'remove').success, true);
+    assert.equal(
+      removeRoom.players.some((p) => p.id === 'd'),
+      false,
+    );
   } finally {
     manager.dispose();
     context.mock.timers.reset();
   }
 });
 
-test('Presencia: un bot nunca recibe confirmación aunque venza su reloj de respaldo', (context) => {
-  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+test('El apodo se actualiza solo para la identidad autenticada de la sala', () => {
   const manager = new RoomManager({ to: () => ({ emit() {} }), sockets: { sockets: new Map() } });
   try {
     const code = manager.createRoom('Ana', 'a', 'sa', 'tictactoe').room.code;
-    manager.addBot(code, 'a');
-    manager.updateRoomRules(code, 'a', { turnSeconds: 30 });
-    manager.startGame(code, 'a');
-    const room = manager.getRoomBySocket('sa'),
-      bot = room.players.find((p) => p.isBot);
-    clearTimeout(room.botLoopTimeout);
-    room.botLoopTimeout = undefined;
-    room.match.state.currentTurn = bot.id;
-    manager.armTurnClock(room, true);
-    context.mock.timers.tick(30000);
-    assert.equal(room.presence, undefined);
-    assert.equal(room.match.actor(), 'a');
-    assert.equal(room.match.state.board.filter(Boolean).length, 1);
+    manager.joinRoom(code, 'Bruno', 'b', 'sb');
+    assert.equal(manager.updatePlayerName(code, 'b', 'Bruno Nuevo').success, true);
+    assert.equal(manager.getRoomInfo(manager.getRoomBySocket('sb')).players[1].name, 'Bruno Nuevo');
+    assert.equal(manager.updatePlayerName(code, 'other', 'Intruso').success, false);
+  } finally {
+    manager.dispose();
+  }
+});
+
+test('El autoplay manual tiene un plazo de revisión y se convierte en automático al desconectarse', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+  const manager = new RoomManager({ to: () => ({ emit() {} }), sockets: { sockets: new Map() } });
+  try {
+    const room = manager.createRoom('Ana', 'a', 'sa', 'tictactoe').room;
+    manager.joinRoom(room.code, 'Bruno', 'b', 'sb');
+    manager.startGame(room.code, 'a');
+
+    assert.equal(manager.setAutoPlay(room.code, 'b', true).success, true);
+    const manual = manager.getRoomBySocket('sb').autoPlay.get('b');
+    const { timeout: _timeout, ...manualState } = manual;
+    assert.deepEqual(manualState, {
+      mode: 'manual',
+      startedAt: 100000,
+      deadline: 100000 + 180000,
+      awaitingHost: false,
+      permanent: false,
+    });
+    assert.equal(manager.setAutoPlay(room.code, 'b', false).success, true);
+    assert.equal(manager.getRoomBySocket('sb').autoPlay.has('b'), false);
+
+    assert.equal(manager.setAutoPlay(room.code, 'b', true).success, true);
+    manager.handleDisconnect('sb');
+    const automatic = manager.getRoomBySocket('sa').autoPlay.get('b');
+    assert.equal(automatic.mode, 'disconnect');
+    assert.equal(automatic.deadline, 100000 + 180000);
+    assert.equal(manager.setAutoPlay(room.code, 'b', false).success, false);
+    assert.equal(manager.reconnectPlayer(room.code, 'b', 'sb-return').success, true);
+    assert.equal(manager.getRoomBySocket('sa').autoPlay.has('b'), false);
+  } finally {
+    manager.dispose();
+    context.mock.timers.reset();
+  }
+});
+
+test('Autoplay por inactividad: el jugador puede recuperarlo y el anfitrión solo decide al vencer los tres minutos', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+  const manager = new RoomManager({ to: () => ({ emit() {} }), sockets: { sockets: new Map() } });
+  try {
+    const room = manager.createRoom('Ana', 'a', 'sa', 'tictactoe').room;
+    manager.joinRoom(room.code, 'Bruno', 'b', 'sb');
+    manager.startGame(room.code, 'a');
+    const match = manager.getRoomBySocket('sa');
+    const actor = match.match.actor();
+    const turnDeadline = match.turnDeadline;
+    context.mock.timers.tick(turnDeadline - Date.now());
+    assert.equal(match.autoPlay.get(actor)?.mode, 'timeout');
+    assert.equal(manager.resolveAutoPlay(room.code, 'a', actor, 'remove').success, false);
+    assert.equal(manager.setAutoPlay(room.code, actor, false).success, true);
+    assert.equal(match.autoPlay.has(actor), false);
+
+    const nextActor = match.match.actor();
+    assert.equal(manager.setAutoPlay(room.code, nextActor, true).success, true);
+    clearTimeout(match.turnTimeout);
+    match.turnTimeout = undefined;
+    match.turnDeadline = null;
+    clearTimeout(match.botLoopTimeout);
+    match.botLoopTimeout = undefined;
+    context.mock.timers.tick(179999);
+    assert.equal(match.autoPlay.get(nextActor)?.awaitingHost, false);
+    context.mock.timers.tick(1);
+    assert.equal(match.autoPlay.get(nextActor)?.awaitingHost, true);
+    assert.equal(manager.resolveAutoPlay(room.code, 'b', nextActor, 'remove').success, false);
+    const hostId = match.hostId;
+    assert.equal(manager.resolveAutoPlay(room.code, hostId, nextActor, 'remove').success, true);
+    assert.equal(
+      match.players.some((player) => player.id === nextActor),
+      false,
+    );
   } finally {
     manager.dispose();
     context.mock.timers.reset();

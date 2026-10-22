@@ -1,5 +1,6 @@
-import { t, LanguageSelector } from '../i18n';
+import { t } from '../i18n';
 import { GAME_CATALOG } from 'sobremesa-logic';
+import { PreferencesButton } from './Preferences';
 import type { ReactNode } from 'react';
 import {
   Dice5,
@@ -18,7 +19,6 @@ export function Shell({
   view,
   onView,
   onHelp,
-  onProfile,
   onJoin,
 }: {
   children: ReactNode;
@@ -27,7 +27,6 @@ export function Shell({
   view: 'all' | 'favorites';
   onView: (view: 'all' | 'favorites') => void;
   onHelp: () => void;
-  onProfile: () => void;
   onJoin: () => void;
 }) {
   return (
@@ -78,38 +77,37 @@ export function Shell({
             {t('Sin registro. Sin descargas.')} <br />
             {t('Solo ganas de pasarlo bien.')}{' '}
           </span>
-          <button className="profile-button" onClick={onProfile}>
+          <div className="profile-button">
             <span className="profile-avatar">{playerName.slice(0, 1).toUpperCase()}</span>
             <span>
               <strong>{playerName}</strong>
               <small>{t('Perfil de invitado')}</small>
             </span>
             <UserRound size={16} />
-          </button>
+          </div>
         </div>
       </aside>
       <div className="workspace">
         <header className="topbar">
-          <span className="topbar-title">
-            <span className="mobile-logo">
-              <Dice5 size={23} />
-            </span>
-            {t('Tu sala de juegos')}{' '}
-          </span>
-          <button className="button primary small join-friends" onClick={onJoin}>
-            {t('Unirme a amigos')} <ArrowUpRight size={17} />
-          </button>
+          <div className="topbar-leading">
+            <button className="button primary small join-friends" onClick={onJoin}>
+              {t('Unirme a amigos')} <ArrowUpRight size={17} />
+            </button>
+          </div>
           <div className="topbar-right">
-            <LanguageSelector />
-            <span className={`connection ${connected ? '' : 'offline'}`}>
-              {connected ? <Wifi size={14} /> : <WifiOff size={14} />}
-              <span>{connected ? t('Listo para jugar') : t('Conectando…')}</span>
+            <span
+              className={`connection ${connected ? '' : 'offline'}`}
+              role="status"
+              aria-label={connected ? t('Listo para jugar') : t('Conectando…')}
+            >
+              {connected ? (
+                <Wifi size={18} aria-hidden="true" />
+              ) : (
+                <WifiOff size={18} aria-hidden="true" />
+              )}
             </span>
             <span className="topbar-divider" />
-            <button className="topbar-profile" onClick={onProfile}>
-              <span className="mini-avatar">{playerName.slice(0, 1).toUpperCase()}</span>
-              <span>{playerName}</span>
-            </button>
+            <PreferencesButton />
           </div>
         </header>
         <main id="main" className="lobby-main">

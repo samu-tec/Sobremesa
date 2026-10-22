@@ -7,12 +7,12 @@ async function ready(page: Page) {
     localStorage.setItem('sobremesa.name', 'Ana');
   });
   await page.goto('/');
-  await expect(page.getByText('Listo para jugar', { exact: true })).toBeVisible();
+  await expect(page.locator('.connection')).toBeVisible();
+  await expect(page.locator('.connection')).toHaveAttribute('aria-label', 'Listo para jugar');
 }
 async function room(page: Page, id: string) {
   await page.locator(`.game-${id} .play-bot`).click();
   await expect(page.getByRole('button', { name: 'Empezar partida', exact: true })).toBeVisible();
-  await page.locator('#room-settings > summary').click();
 }
 async function select(page: Page, label: string, value: string) {
   await page.getByRole('combobox', { name: label, exact: true }).selectOption(value);
@@ -140,7 +140,6 @@ test('La sala permite restablecer las opciones antes de empezar', async ({ page 
     '14',
   );
   await page.reload();
-  await page.locator('#room-settings > summary').click();
   await expect(page.getByRole('combobox', { name: 'Puntos para abrir', exact: true })).toHaveValue(
     '30',
   );
@@ -284,7 +283,6 @@ for (const width of [1280, 768, 390, 375, 320])
     await expect(cards).toHaveValue('7');
     await cards.selectOption('9');
     await page.reload();
-    await page.locator('#room-settings > summary').click();
     await expect(cards).toHaveValue('9');
     for (const selector of ['.field', '.field-label', '.form-hint', '.waiting-player strong']) {
       const fonts = await page

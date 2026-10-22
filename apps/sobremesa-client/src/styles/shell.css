@@ -189,8 +189,11 @@
   padding: 0 40px;
   background: #fafbf7;
 }
-.topbar-title {
-  color: #59635b;
+.topbar-leading {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
 }
 .topbar-right {
   display: flex;
@@ -200,39 +203,24 @@
 .connection {
   display: flex;
   align-items: center;
-  gap: 6px;
-  color: #4b6752;
+  justify-content: center;
+  color: #277747;
 }
 .connection.offline {
-  color: #81583e;
+  color: #c23b34;
+}
+.connection svg {
+  display: block;
+  stroke-width: 2.3;
 }
 .topbar-divider {
   height: 22px;
   width: 1px;
   background: var(--line);
 }
-.topbar-profile {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.mini-avatar {
-  border: 1px solid #d4ddcc;
-  background: #edf0e4;
-  width: 29px;
-  height: 29px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  font-family: Georgia, serif;
-}
-.mobile-logo {
-  display: none;
-}
 .topbar .join-friends {
   min-height: 44px;
-  margin: 0 12px;
+  margin: 0;
 }
 @media (max-width: 800px) {
   .topbar {
@@ -243,8 +231,8 @@
     padding-top: 10px;
     padding-bottom: 10px;
   }
-  .topbar .join-friends {
-    margin: 0;
+  .topbar-leading {
+    flex: 1 1 auto;
   }
   .topbar .topbar-right {
     width: 100%;

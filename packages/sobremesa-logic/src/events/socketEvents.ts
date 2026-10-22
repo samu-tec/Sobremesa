@@ -51,12 +51,20 @@ export interface ClientToServerEvents {
     data: RoomContext & { playerId: string },
     callback: (res: Result) => void,
   ) => void;
-  'room:change_game': (
-    data: RoomContext & { gameType: GameType },
+  'room:resolve_autoplay': (
+    data: RoomContext & { playerId: string; decision: 'keep' | 'remove' },
     callback: (res: Result) => void,
   ) => void;
-  'room:confirm_presence': (
-    data: RoomContext & { challengeId: string; stay: boolean },
+  'room:set_autoplay': (
+    data: RoomContext & { enabled: boolean },
+    callback: (res: Result) => void,
+  ) => void;
+  'room:update_name': (
+    data: RoomContext & { playerName: string },
+    callback: (res: Result) => void,
+  ) => void;
+  'room:change_game': (
+    data: RoomContext & { gameType: GameType },
     callback: (res: Result) => void,
   ) => void;
   'room:start_game': (context: RoomContext, callback: (res: Result) => void) => void;

@@ -127,6 +127,10 @@
   outline: 2px solid #315f3b;
   outline-offset: 2px;
 }
+.color-match .hand-card.jump-in-available .playing-card {
+  outline-style: dashed;
+  outline-color: #7b4d9b;
+}
 .color-match .card-play-marker {
   position: absolute;
   top: -5px;

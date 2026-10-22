@@ -171,6 +171,9 @@ export function EscobaBoard({
                   '4': row.sevenCoins,
                 })}
               </p>
+              {row.allSevensBonus > 0 && (
+                <p>{t('Premio de los cuatro sietes: +{0}', { '0': row.allSevensBonus })}</p>
+              )}
             </div>
           ))}
         </section>

@@ -40,6 +40,8 @@ export interface CiudadFortunaCustomRules {
   startingCash: number; // 1500 (standard), 1000, 2000, 2500
   salaryGO: number; // 200 (standard), 300, 400
   doubleGoSalary: boolean; // landing directly on GO pays double
+  doubleGoSalaryOnPass: boolean; // passing GO pays double
+  snakeEyesBonus: boolean; // rolling double ones pays 500
   freeParkingPool: boolean; // fines/taxes placed in Free Parking
   auctionEnabled: boolean; // auction property if lander declines
   rentInJail: boolean;
@@ -53,6 +55,8 @@ export const DEFAULT_CIUDAD_FORTUNA_RULES: CiudadFortunaCustomRules = {
   startingCash: 1500,
   salaryGO: 200,
   doubleGoSalary: false,
+  doubleGoSalaryOnPass: false,
+  snakeEyesBonus: false,
   freeParkingPool: false,
   auctionEnabled: true,
   rentInJail: true,

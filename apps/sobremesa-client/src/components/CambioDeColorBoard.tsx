@@ -111,10 +111,17 @@ export function CambioDeColorBoard({
         ?.focus({ preventScroll: true });
     }
   }, [wild]);
-  const canPlay = state.currentTurnPlayerId === myPlayerId && !state.winner && !busy;
+  const canPlay =
+    state.currentTurnPlayerId === myPlayerId && !state.winner && !busy && !state.jumpInWindow;
+  const canJumpIn = state.jumpInEnabled && state.jumpInWindow && !state.winner && !busy;
+  const isJumpInCard = (card: Card) =>
+    card.color === state.topDiscardCard.color && card.value === state.topDiscardCard.value;
   const playable = (card: Card) =>
+    (!state.pendingDraw || state.stackDrawCards) &&
     isCardPlayable(card, state.activeColor, state.topDiscardCard, state.pendingDraw) &&
     (!state.hasDrawnThisTurn || state.drawnCardId === card.id);
+  const canPlayCard = (card: Card) =>
+    (canPlay && playable(card)) || (canJumpIn && isJumpInCard(card));
   const values: Record<string, string> = {
     [myPlayerId]: t(state.myHand.length === 1 ? '{0} carta' : '{0} cartas', {
       '0': state.myHand.length,
@@ -195,7 +202,9 @@ export function CambioDeColorBoard({
           )}
         </div>
         <div className={`color-penalty ${state.pendingDraw ? 'pending' : ''}`} role="status">
-          {state.pendingDraw ? (
+          {state.jumpInWindow ? (
+            <span>{t('Puedes entrar con una carta idéntica en color y valor.')}</span>
+          ) : state.pendingDraw ? (
             <>
               <strong>{t('+{0} pendientes', { '0': state.pendingDraw })}</strong>
               <span>{t('Responde con +2 o +4, o acepta el robo.')}</span>
@@ -210,11 +219,13 @@ export function CambioDeColorBoard({
               {t('Tu mano')} <span>{state.myHand.length}</span>
             </strong>
             <small>
-              {canPlay
-                ? state.pendingDraw
-                  ? t('Solo +2 o +4')
-                  : t('Elige una carta válida')
-                : t('Esperando tu turno')}
+              {canJumpIn
+                ? t('Juega una carta idéntica para interrumpir')
+                : canPlay
+                  ? state.pendingDraw
+                    ? t('Solo +2 o +4')
+                    : t('Elige una carta válida')
+                  : t('Esperando tu turno')}
             </small>
           </div>
           <div className="your-hand" tabIndex={0} role="group" aria-label={t('Tus cartas')}>
@@ -222,8 +233,8 @@ export function CambioDeColorBoard({
               <button
                 key={card.id}
                 data-motion-id={`card-${card.id}`}
-                className={`hand-card ${canPlay && playable(card) ? 'playable' : ''}`}
-                disabled={!canPlay || !playable(card) || !!wild}
+                className={`hand-card ${canPlayCard(card) ? 'playable' : ''} ${canJumpIn && isJumpInCard(card) ? 'jump-in-available' : ''}`}
+                disabled={!canPlayCard(card) || !!wild}
                 onClick={(e) => {
                   selectedButton.current = e.currentTarget;
                   play(card);
@@ -234,7 +245,7 @@ export function CambioDeColorBoard({
                 })}
               >
                 <CardFace card={card} />
-                {canPlay && playable(card) && (
+                {canPlayCard(card) && (
                   <span className="card-play-marker" aria-hidden="true">
                     <Check size={13} />
                   </span>

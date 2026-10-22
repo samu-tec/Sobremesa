@@ -112,9 +112,7 @@ export function getBotCambioDeColorAction(
   state: CambioDeColorState,
   botId: string,
 ): CambioDeColorAction | null {
-  if (state.winner !== null || state.currentTurnPlayerId !== botId) {
-    return null;
-  }
+  if (state.winner !== null) return null;
 
   const botHand = state.players.find((p) => p.playerId === botId);
   if (!botHand || botHand.cards.length === 0) {
@@ -122,6 +120,31 @@ export function getBotCambioDeColorAction(
   }
 
   const topDiscard = state.discardPile[state.discardPile.length - 1];
+  if (state.jumpInWindow) {
+    const identical = botHand.cards.filter(
+      (card) => card.color === topDiscard.color && card.value === topDiscard.value,
+    );
+    if (!identical.length) return null;
+    const dangerous = state.players.some(
+      (player) => player.playerId !== botId && player.cards.length <= 2,
+    );
+    const selected =
+      (dangerous &&
+        (identical.find((card) => card.value === 'wild_draw4') ||
+          identical.find((card) => card.value === 'draw2') ||
+          identical.find((card) => card.value === 'skip' || card.value === 'reverse'))) ||
+      identical.find((card) => card.value !== 'wild_draw4' && card.value !== 'wild') ||
+      identical[0];
+    return {
+      type: 'PLAY_CARD',
+      cardId: selected.id,
+      ...(selected.color === 'wild' ? { chosenColor: getMostFrequentColor(botHand.cards) } : {}),
+    };
+  }
+
+  if (state.currentTurnPlayerId !== botId) return null;
+  if (state.pendingDraw > 0 && !state.stackDrawCards) return { type: 'DRAW_CARD' };
+
   const playableCards = botHand.cards.filter(
     (c) =>
       isCardPlayable(c, state.activeColor, topDiscard, state.pendingDraw) &&
@@ -141,23 +164,51 @@ export function getBotCambioDeColorAction(
     (p) => p.playerId !== botId && p.cards.length <= 2,
   );
 
-  // Strategy prioritization:
-  // 1. If opponent is dangerous, prioritize +4 or +2 or skip/reverse
-  let selectedCard: Card | undefined;
-  if (isDangerousOpponent) {
-    selectedCard =
-      playableCards.find((c) => c.value === 'wild_draw4') ||
-      playableCards.find((c) => c.value === 'draw2') ||
-      playableCards.find((c) => c.value === 'skip' || c.value === 'reverse');
-  }
-
-  // 2. Otherwise prefer matching color actions or numbers
-  if (!selectedCard) {
-    selectedCard =
-      playableCards.find((c) => c.color === state.activeColor) ||
-      playableCards.find((c) => c.color !== 'wild') ||
-      playableCards[0];
-  }
+  const playerAfterBot = nextColorPlayer(
+    state.players.map((player) => player.playerId),
+    botId,
+    state.turnDirection,
+  );
+  const dangerousOpponentId = state.players.find(
+    (player) => player.playerId !== botId && player.cards.length <= 2,
+  )?.playerId;
+  const selectedCard = playableCards
+    .map((card) => {
+      const remaining = botHand.cards.filter((candidate) => candidate.id !== card.id);
+      const matchingColorCount = remaining.filter(
+        (candidate) => candidate.color === card.color,
+      ).length;
+      const isAction = ['skip', 'reverse', 'draw2', 'wild_draw4'].includes(card.value);
+      const canStopDangerousOpponent =
+        isDangerousOpponent &&
+        isAction &&
+        (state.players.length === 2 || playerAfterBot === dangerousOpponentId);
+      const actionValue =
+        card.value === 'wild_draw4'
+          ? canStopDangerousOpponent
+            ? 14
+            : -6
+          : card.value === 'draw2'
+            ? canStopDangerousOpponent
+              ? 11
+              : 1
+            : card.value === 'skip' || card.value === 'reverse'
+              ? canStopDangerousOpponent
+                ? 8
+                : 2
+              : 0;
+      return {
+        card,
+        score:
+          (remaining.length === 0 ? 1000 : 0) +
+          (canStopDangerousOpponent ? 30 : 0) +
+          actionValue +
+          (card.color === state.activeColor ? 2 : 0) +
+          matchingColorCount * 3 +
+          (card.color === 'wild' ? -4 : 0),
+      };
+    })
+    .sort((a, b) => b.score - a.score)[0].card;
 
   if (selectedCard.color === 'wild') {
     const chosenColor = getMostFrequentColor(botHand.cards);

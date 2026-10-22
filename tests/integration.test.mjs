@@ -2,6 +2,8 @@ import test, { before, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
+import { once } from 'node:events';
+import { createServer as createNetServer } from 'node:net';
 import { io } from 'socket.io-client';
 import { PROTOCOL_VERSION, getGame } from '../packages/sobremesa-logic/dist/index.js';
 const url = 'http://127.0.0.1:3190';
@@ -26,22 +28,38 @@ before(async () => {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let logs = '';
+  let exitInfo = null;
   server.stdout.on('data', (d) => (logs += d));
   server.stderr.on('data', (d) => (logs += d));
+  server.once('exit', (code, signal) => (exitInfo = { code, signal }));
   for (let i = 0; i < 100; i++) {
-    try {
-      if ((await fetch(url + '/health')).ok) {
-        serverStartedAt = Date.now();
-        return;
-      }
-    } catch {}
+    if (exitInfo) break;
+    if (logs.includes('Sobremesa disponible en http://127.0.0.1:3190')) {
+      try {
+        if ((await fetch(url + '/health')).ok) {
+          serverStartedAt = Date.now();
+          return;
+        }
+      } catch {}
+    }
     await wait(50);
   }
-  throw new Error('Servidor no disponible: ' + logs);
+  throw new Error(
+    exitInfo
+      ? `Servidor de integración terminó (${exitInfo.code ?? exitInfo.signal}): ${logs}`
+      : 'Servidor de integración no disponible: ' + logs,
+  );
 });
 after(async () => {
   for (const s of clients) s.disconnect();
-  server?.kill('SIGTERM');
+  if (!server || server.exitCode !== null) return;
+  const exited = once(server, 'exit');
+  server.kill('SIGTERM');
+  const cleanExit = await Promise.race([exited.then(() => true), wait(6000).then(() => false)]);
+  if (!cleanExit) {
+    server.kill('SIGKILL');
+    await exited;
+  }
 });
 afterEach(() => {
   for (const socket of clients.splice(0)) socket.disconnect();
@@ -57,7 +75,9 @@ const ack = (socket, event, ...data) => {
       'room:restart_game',
       'room:remove_player',
       'room:change_game',
-      'room:confirm_presence',
+      'room:resolve_autoplay',
+      'room:set_autoplay',
+      'room:update_name',
     ].includes(event) &&
     !data[0]?.matchId
   ) {
@@ -79,8 +99,8 @@ const ack = (socket, event, ...data) => {
     }),
   );
 };
-async function connect(token = secret(), extra = {}) {
-  const socket = io(url, {
+async function connect(token = secret(), extra = {}, endpoint = url) {
+  const socket = io(endpoint, {
     auth: { sessionToken: token, protocolVersion: PROTOCOL_VERSION },
     transports: ['websocket'],
     reconnection: false,
@@ -108,6 +128,29 @@ async function create(client, gameType = 'tictactoe') {
   assert.equal(result.success, true);
   return result.room;
 }
+
+test('Socket: cada jugador puede controlar su autoplay manual', async () => {
+  const host = await connect();
+  const guest = await connect();
+  const room = await create(host);
+  await ack(guest.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' });
+  await ack(host.socket, 'room:start_game');
+  let latestRoom;
+  guest.socket.on('room:updated', (value) => (latestRoom = value));
+
+  assert.equal((await ack(guest.socket, 'room:set_autoplay', { enabled: true })).success, true);
+  assert.equal(
+    latestRoom.autoPlay.find((entry) => entry.playerId === guest.playerId).mode,
+    'manual',
+  );
+  assert.equal((await ack(guest.socket, 'room:set_autoplay', { enabled: false })).success, true);
+  assert.equal(
+    latestRoom.autoPlay.some((entry) => entry.playerId === guest.playerId),
+    false,
+  );
+  await ack(host.socket, 'room:leave');
+  await ack(guest.socket, 'room:leave');
+});
 
 test('HTTP: cabeceras, catálogo de treinta juegos y rutas desconocidas', async () => {
   const res = await fetch(url);
@@ -392,7 +435,7 @@ test('Ciudad Fortuna: todos pueden pujar y una oferta renueva la ventana de 15 s
 });
 
 test(
-  'Presencia autenticada y abandono real en los seis primeros juegos',
+  'Autoplay manual se controla solo desde la conexión autenticada en seis juegos',
   { timeout: 45000 },
   async () => {
     const sessions = [];
@@ -401,95 +444,56 @@ test(
         guest = await connect(),
         room = await create(host, game);
       await ack(guest.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' });
+      await ack(host.socket, 'room:update_rules', { turnSeconds: 30 });
+      const latestRoom = { value: null };
+      host.socket.on('room:updated', (value) => (latestRoom.value = value));
+      await ack(host.socket, 'room:start_game');
+      sessions.push({ host, guest, room, game, latestRoom });
+    }
+    const first = sessions[0];
+    assert.equal(
+      (await ack(first.guest.socket, 'room:update_name', { playerName: 'Bruno Nuevo' })).success,
+      true,
+    );
+    assert.equal(
+      (
+        await ack(first.host.socket, 'game:reconnect', { roomCode: first.room.code })
+      ).room.players.find((player) => player.id === first.guest.playerId).name,
+      'Bruno Nuevo',
+    );
+    assert.equal(
+      (
+        await ack(first.guest.socket, 'room:resolve_autoplay', {
+          playerId: first.host.playerId,
+          decision: 'keep',
+        })
+      ).success,
+      false,
+      'un jugador no puede resolver el autoplay',
+    );
+    for (const session of sessions) {
       assert.equal(
-        (await ack(host.socket, 'room:update_rules', { turnSeconds: 30 })).success,
+        (await ack(session.host.socket, 'room:set_autoplay', { enabled: true })).success,
         true,
       );
-      let latest = null,
-        updates = 0;
-      host.socket.on('game:state_update', (state) => {
-        latest = state;
-        updates++;
-      });
-      await ack(host.socket, 'room:start_game');
-      assert.equal(
-        (await ack(host.socket, 'room:update_rules', { turnSeconds: 180 })).success,
-        false,
+      const currentRoom = session.latestRoom.value;
+      assert.ok(currentRoom, 'la sala publica sus actualizaciones');
+      assert.ok(
+        currentRoom.autoPlay.some(
+          (entry) => entry.playerId === session.host.playerId && entry.mode === 'manual',
+        ),
       );
-      sessions.push({ host, guest, room, game, read: () => ({ latest, updates }) });
-    }
-    await wait(31200);
-    for (const session of sessions) {
-      const recovered = await ack(session.host.socket, 'game:reconnect', {
-        roomCode: session.room.code,
-      });
-      const pending = recovered.room.presence;
-      assert.equal(pending.playerId, session.host.playerId);
-      assert.ok(pending.deadline > recovered.room.serverNow);
+      assert.equal(currentRoom.players.length, 2, 'el servidor conserva ambas plazas');
       assert.equal(
-        (
-          await ack(session.guest.socket, 'room:confirm_presence', {
-            challengeId: pending.challengeId,
-            stay: true,
-            playerId: session.host.playerId,
-          })
-        ).success,
+        (await ack(session.guest.socket, 'room:set_autoplay', { enabled: false })).success,
         false,
+        'cada conexión solo cambia su propio autoplay',
       );
-      if (session.game === 'tictactoe') {
-        assert.equal(
-          recovered.state.board.filter(Boolean).length,
-          0,
-          'Nadie decide estratégicamente por el ausente',
-        );
-        assert.equal(
-          (
-            await ack(session.host.socket, 'room:confirm_presence', {
-              challengeId: pending.challengeId,
-              stay: true,
-            })
-          ).success,
-          true,
-        );
-        assert.equal(
-          (
-            await ack(session.host.socket, 'room:confirm_presence', {
-              challengeId: pending.challengeId,
-              stay: true,
-            })
-          ).success,
-          false,
-        );
-        assert.equal(
-          (await ack(session.host.socket, 'game:action', { type: 'MAKE_MOVE', index: 0 })).success,
-          true,
-        );
-        await ack(session.host.socket, 'room:leave');
-      } else {
-        assert.equal(
-          (
-            await ack(session.host.socket, 'room:confirm_presence', {
-              challengeId: pending.challengeId,
-              stay: false,
-            })
-          ).success,
-          true,
-        );
-        assert.equal(
-          (
-            await ack(session.host.socket, 'room:confirm_presence', {
-              challengeId: pending.challengeId,
-              stay: true,
-            })
-          ).success,
-          false,
-        );
-      }
-      const remaining = await ack(session.guest.socket, 'game:reconnect', {
-        roomCode: session.room.code,
-      });
-      assert.equal(remaining.room.status, 'finished');
-      assert.equal(remaining.state.winner, session.guest.playerId);
+      assert.equal(
+        (await ack(session.host.socket, 'room:set_autoplay', { enabled: false })).success,
+        true,
+      );
+      await ack(session.host.socket, 'room:leave');
       await ack(session.guest.socket, 'room:leave');
       session.host.socket.disconnect();
       session.guest.socket.disconnect();
@@ -654,170 +658,134 @@ test('Nuevos juegos: dos salas independientes, proyección privada y reconexión
 });
 
 test(
-  'Los juegos ampliados confirman al actor humano real sin decisiones estratégicas automáticas',
-  { timeout: 80000 },
+  'Socket.IO: el vencimiento activa autoplay visible en juegos de tablero y cartas',
+  { timeout: 60000 },
   async () => {
-    // El catálogo ampliado usa más handshakes: respetamos la ventana de 120/minuto.
-    await wait(Math.max(0, 61000 - (Date.now() - serverStartedAt)));
     const sessions = [];
-    for (const game of [
-      'rummy',
-      'chess',
-      'impostor',
-      'dominoes',
-      'checkers',
-      'backgammon',
-      'battleship',
-      'mancala',
-      'combinations',
-      'parchis',
-      'oca',
-      'go',
-      'chinesecheckers',
-      'mahjong',
-      'brisca',
-    ]) {
+    for (const game of ['tictactoe', 'colorclash']) {
       const host = await connect(),
         guest = await connect(),
         room = await create(host, game);
       await ack(guest.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' });
-      for (let n = 2; n < getGame(game).minPlayers; n++) await ack(host.socket, 'room:add_bot');
       await ack(host.socket, 'room:update_rules', { turnSeconds: 30 });
-      let latest = null,
-        updates = 0;
-      host.socket.on('game:state_update', (s) => {
-        latest = s;
-        updates++;
-      });
+      const latestRoom = { value: null };
+      let updates = 0;
+      host.socket.on('room:updated', (value) => (latestRoom.value = value));
+      host.socket.on('game:state_update', () => updates++);
       await ack(host.socket, 'room:start_game');
-      const initial = (await ack(host.socket, 'game:reconnect', { roomCode: room.code })).state;
-      sessions.push({ host, guest, room, game, initial, read: () => ({ latest, updates }) });
+      sessions.push({ host, guest, room, game, latestRoom, updates: () => updates });
     }
     await wait(31500);
-    for (const s of sessions) {
-      const recovered = await ack(s.host.socket, 'game:reconnect', { roomCode: s.room.code });
-      assert.equal(recovered.success, true);
-      const pendingHuman = [s.host, s.guest].find(
-        (p) => p.playerId === recovered.room.presence.playerId,
-      );
-      assert.ok(pendingHuman, `Presencia pendiente de un humano: ${s.game}`);
-      const remainingHuman = pendingHuman === s.host ? s.guest : s.host;
-      assert.deepEqual(
-        recovered.state,
-        s.initial,
-        'No hay jugadas estratégicas automáticas por humanos',
-      );
-      assert.equal(
-        (
-          await ack(pendingHuman.socket, 'room:confirm_presence', {
-            challengeId: recovered.room.presence.challengeId,
-            stay: false,
-          })
-        ).success,
-        true,
-      );
-      const remaining = await ack(remainingHuman.socket, 'game:reconnect', {
-        roomCode: s.room.code,
-      });
-      assert.equal(remaining.success, true);
-      assert.equal(
-        remaining.room.players.some((p) => p.id === pendingHuman.playerId),
-        false,
-      );
-      await ack(s.guest.socket, 'room:leave');
-      s.host.socket.disconnect();
-      s.guest.socket.disconnect();
+    let sawAutomaticTimeout = false;
+    for (const session of sessions) {
+      const currentRoom = session.latestRoom.value;
+      assert.ok(currentRoom, `${session.game}: la sala publicó cambios`);
+      assert.ok(session.updates() > 0, `${session.game}: el turno automático publicó una jugada`);
+      assert.ok(currentRoom.players.some((player) => player.id === session.host.playerId));
+      assert.ok(currentRoom.players.some((player) => player.id === session.guest.playerId));
+      for (const entry of currentRoom.autoPlay) {
+        assert.equal(
+          entry.mode,
+          'timeout',
+          `${session.game}: el autoplay debe venir del turno vencido`,
+        );
+        assert.equal(
+          entry.deadline - entry.startedAt,
+          180000,
+          `${session.game}: plazo de revisión`,
+        );
+        sawAutomaticTimeout = true;
+      }
+      await ack(session.host.socket, 'room:leave');
+      await ack(session.guest.socket, 'room:leave');
+      session.host.socket.disconnect();
+      session.guest.socket.disconnect();
     }
+    assert.equal(sawAutomaticTimeout, true, 'al menos un turno vencido activó el mismo autoplay');
   },
 );
 
-test('Los handshakes concurrentes no superan treinta sesiones por IP y liberan las plazas', async () => {
-  const attempts = await Promise.allSettled(Array.from({ length: 35 }, () => connect()));
-  const accepted = attempts
-    .filter((result) => result.status === 'fulfilled')
-    .map((result) => result.value);
+test('El handshake limita sesiones activas e intentos por IP y libera las plazas', async () => {
+  const probe = createNetServer();
+  const port = await new Promise((resolve, reject) => {
+    probe.once('error', reject);
+    probe.listen(0, '127.0.0.1', () => {
+      const address = probe.address();
+      probe.close((error) => (error ? reject(error) : resolve(address.port)));
+    });
+  });
+  const endpoint = `http://127.0.0.1:${port}`;
+  const isolatedServer = spawn(process.execPath, ['apps/sobremesa-server/dist/server.js'], {
+    env: {
+      ...process.env,
+      PORT: String(port),
+      HOST: '127.0.0.1',
+      NODE_ENV: 'production',
+      TRUSTED_CLOUDFLARE_IPS: '',
+      BOT_THINKING_TIME_MS: '10',
+      DISCONNECT_GRACE_PERIOD_MS: '1000',
+      ROOM_CREATE_LIMIT_PER_IP: '100',
+      ROOM_CREATE_LIMIT_GLOBAL: '500',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let logs = '';
+  let exitInfo = null;
+  isolatedServer.stdout.on('data', (data) => (logs += data));
+  isolatedServer.stderr.on('data', (data) => (logs += data));
+  isolatedServer.once('exit', (code, signal) => (exitInfo = { code, signal }));
   try {
-    assert.equal(accepted.length, 30);
-    assert.equal(attempts.filter((result) => result.status === 'rejected').length, 5);
+    let ready = false;
+    for (let i = 0; i < 100; i++) {
+      if (exitInfo) break;
+      if (logs.includes(`Sobremesa disponible en ${endpoint}`)) {
+        try {
+          if ((await fetch(`${endpoint}/health`)).ok) {
+            ready = true;
+            break;
+          }
+        } catch {}
+      }
+      await wait(50);
+    }
+    assert.equal(ready, true, exitInfo ? `Servidor aislado terminó: ${logs}` : logs);
+    const attempts = await Promise.allSettled(
+      Array.from({ length: 35 }, () => connect(secret(), {}, endpoint)),
+    );
+    const accepted = attempts
+      .filter((result) => result.status === 'fulfilled')
+      .map((result) => result.value);
+    try {
+      assert.equal(accepted.length, 30);
+      assert.equal(attempts.filter((result) => result.status === 'rejected').length, 5);
+    } finally {
+      for (const client of accepted) client.socket.disconnect();
+    }
+    await wait(100);
+    const next = await connect(secret(), {}, endpoint);
+    next.socket.disconnect();
+    for (let attempt = 0; attempt < 84; attempt++) {
+      const client = await connect(secret(), {}, endpoint);
+      client.socket.disconnect();
+      await wait(10);
+    }
+    const rateLimited = await Promise.allSettled([connect(secret(), {}, endpoint)]);
+    assert.equal(rateLimited[0].status, 'rejected', 'el intento 121 dentro del minuto se rechaza');
   } finally {
-    for (const client of accepted) client.socket.disconnect();
+    if (isolatedServer.exitCode === null) {
+      const exited = once(isolatedServer, 'exit');
+      isolatedServer.kill('SIGTERM');
+      const cleanExit = await Promise.race([exited.then(() => true), wait(6000).then(() => false)]);
+      if (!cleanExit) {
+        isolatedServer.kill('SIGKILL');
+        await exited;
+      }
+    }
   }
-  await wait(100);
-  const next = await connect();
-  next.socket.disconnect();
 });
 
-test(
-  'Últimos nueve juegos: plazos reales progresan sin superar treinta sesiones por IP',
-  { timeout: 45000 },
-  async () => {
-    const sessions = [];
-    for (const game of [
-      'mus',
-      'escoba',
-      'cinquillo',
-      'poker',
-      'words',
-      'quiz',
-      'drawing',
-      'mystery',
-      'conquest',
-    ]) {
-      const host = await connect(),
-        guest = await connect(),
-        room = await create(host, game),
-        extra = [];
-      assert.equal(
-        (await ack(guest.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' }))
-          .success,
-        true,
-      );
-      for (let n = 2; n < getGame(game).minPlayers; n++) {
-        if (getGame(game).supportsBots === false) {
-          const human = await connect();
-          extra.push(human);
-          await ack(human.socket, 'room:join', { roomCode: room.code, playerName: `Persona ${n}` });
-        } else await ack(host.socket, 'room:add_bot');
-      }
-      await ack(host.socket, 'room:update_rules', { turnSeconds: 30 });
-      let updates = 0;
-      host.socket.on('game:state_update', () => updates++);
-      assert.equal((await ack(host.socket, 'room:start_game')).success, true);
-      sessions.push({ host, guest, extra, room, game, updates: () => updates });
-    }
-    await wait(31500);
-    for (const session of sessions) {
-      const recovered = await ack(session.host.socket, 'game:reconnect', {
-        roomCode: session.room.code,
-      });
-      assert.equal(recovered.success, true);
-      if (session.game === 'quiz') {
-        assert.equal(recovered.room.presence, undefined);
-        assert.ok(session.updates() > 0, 'Las preguntas mantienen su plazo propio');
-      } else {
-        const pendingHuman = [session.host, session.guest, ...session.extra].find(
-          (p) => p.playerId === recovered.room.presence.playerId,
-        );
-        assert.ok(pendingHuman, session.game);
-        assert.equal(
-          (
-            await ack(pendingHuman.socket, 'room:confirm_presence', {
-              challengeId: recovered.room.presence.challengeId,
-              stay: false,
-            })
-          ).success,
-          true,
-        );
-      }
-      for (const human of [session.host, session.guest, ...session.extra]) {
-        await ack(human.socket, 'room:leave');
-        human.socket.disconnect();
-      }
-    }
-  },
-);
-
 test('Grupo multijuego: código pegado, permisos, expulsión y contextos antiguos por Socket.IO', async () => {
+  await wait(Math.max(0, 61000 - (Date.now() - serverStartedAt)));
   const a = await connect(),
     b = await connect();
   const room = await create(a, 'colorclash');

@@ -50,6 +50,7 @@ export interface EscobaRoundScore {
   coins: number;
   sevens: number;
   sevenCoins: number;
+  allSevensBonus: number;
   total: number;
 }
 export interface EscobaState {
@@ -63,6 +64,7 @@ export interface EscobaState {
   lastPlayed: number | null;
   phase: 'play' | 'round_end' | 'finished';
   targetScore: number;
+  allSevensBonusEnabled: boolean;
   roundScores: EscobaRoundScore[];
   revision: number;
   winner: string | null;
@@ -125,6 +127,7 @@ export class EscobaEngine implements IGameEngine<EscobaState, EscobaAction, Esco
         lastPlayed: null,
         phase: 'play',
         targetScore: Number(this.rules.targetScore),
+        allSevensBonusEnabled: Boolean(this.rules.allSevensBonus),
         roundScores: [],
         revision: 0,
         winner: null,
@@ -178,9 +181,13 @@ export class EscobaEngine implements IGameEngine<EscobaState, EscobaAction, Esco
         coins: Number(coinCounts[i] === Math.max(...coinCounts)),
         sevens: Number(sevenCounts[i] === Math.max(...sevenCounts)),
         sevenCoins: Number(p.captured.includes(6)),
+        allSevensBonus: Number(
+          s.allSevensBonusEnabled && sevenCounts[i] === 4 && p.captured.includes(6),
+        ),
         total: 0,
       };
-      row.total = row.sweeps + row.cards + row.coins + row.sevens + row.sevenCoins;
+      row.total =
+        row.sweeps + row.cards + row.coins + row.sevens + row.sevenCoins + row.allSevensBonus;
       p.score += row.total;
       return row;
     });
@@ -270,26 +277,35 @@ export class EscobaEngine implements IGameEngine<EscobaState, EscobaAction, Esco
     if (s.winner || s.isDraw || id !== s.currentTurnPlayerId) return null;
     if (s.phase === 'round_end') return { type: 'NEXT_ROUND' };
     const v = this.getSanitizedState(s, id),
+      player = s.players.find((p) => p.id === id)!,
       choices = v.hand.flatMap((card) =>
-        escobaCaptures(card, v.table).map((take) => ({
-          card,
-          take,
-          value:
-            (take.length === v.table.length ? 100 : 0) +
-            take.length * 2 +
-            [card, ...take].reduce(
-              (n, c) =>
-                n +
-                (c === 6
-                  ? 15
-                  : spanishCard(c).rank === 7
-                    ? 4
-                    : spanishCard(c).suit === 'oros'
-                      ? 2
-                      : 0),
-              0,
-            ),
-        })),
+        escobaCaptures(card, v.table).map((take) => {
+          const captured = [...player.captured, card, ...take];
+          const sevenCount = captured.filter((c) => spanishCard(c).rank === 7).length;
+          const completesBonus =
+            s.allSevensBonusEnabled && sevenCount === 4 && captured.includes(6);
+          return {
+            card,
+            take,
+            value:
+              (take.length === v.table.length ? 100 : 0) +
+              take.length * 2 +
+              (s.allSevensBonusEnabled && sevenCount === 3 ? 3 : 0) +
+              [card, ...take].reduce(
+                (n, c) =>
+                  n +
+                  (c === 6
+                    ? 15
+                    : spanishCard(c).rank === 7
+                      ? 4
+                      : spanishCard(c).suit === 'oros'
+                        ? 2
+                        : 0),
+                0,
+              ) +
+              Number(completesBonus) * 20,
+          };
+        }),
       );
     choices.sort((a, b) => b.value - a.value);
     if (choices.length) return { type: 'PLAY', card: choices[0].card, take: choices[0].take };

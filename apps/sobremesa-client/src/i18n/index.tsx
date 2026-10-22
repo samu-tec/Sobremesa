@@ -4,8 +4,8 @@ import { en } from './en';
 
 // Add a dictionary and a descriptor here to support another language.
 export const LANGUAGES = [
-  { code: 'es', name: 'Español', format: 'es-ES' },
-  { code: 'en', name: 'English', format: 'en-GB' },
+  { code: 'es', name: 'Español', flag: '🇪🇸', format: 'es-ES' },
+  { code: 'en', name: 'Inglés', flag: '🇬🇧', format: 'en-GB' },
 ] as const;
 export type Locale = (typeof LANGUAGES)[number]['code'];
 const dictionaries: Record<Locale, Record<string, string>> = { es: {}, en };
@@ -104,24 +104,6 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   return <LocaleContext.Provider value={{ locale, setLocale }}>{children}</LocaleContext.Provider>;
 }
 export const useLocale = () => useContext(LocaleContext);
-export function LanguageSelector() {
-  const { locale, setLocale } = useLocale();
-  return (
-    <select
-      className="language-selector"
-      aria-label={t('Idioma')}
-      value={locale}
-      onChange={(e) => setLocale(e.target.value as Locale)}
-    >
-      {LANGUAGES.map((l) => (
-        <option value={l.code} key={l.code}>
-          {l.name}
-        </option>
-      ))}
-    </select>
-  );
-}
-
 export function gameText(value: import('sobremesa-logic').GameText | null | undefined): string {
   if (!value) return '';
   return t(

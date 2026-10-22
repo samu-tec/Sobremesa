@@ -8,7 +8,14 @@ async function ready(page: Page, name = 'Ana') {
     localStorage.setItem('sobremesa.name', name);
   }, name);
   await page.goto('/');
-  await expect(page.getByText('Listo para jugar', { exact: true })).toBeVisible();
+  await expect(page.locator('.connection')).toBeVisible();
+  await expect(page.locator('.connection')).toHaveAttribute('aria-label', 'Listo para jugar');
+}
+
+async function changeGroupGame(page: Page, id: string) {
+  await page.getByRole('button', { name: 'Cambiar juego', exact: true }).click();
+  await page.getByRole('searchbox', { name: 'Buscar juegos', exact: true }).fill(id);
+  await page.locator(`.room-game-option[data-game-id="${id}"]`).click();
 }
 
 for (const width of [1280, 360])
@@ -20,8 +27,61 @@ for (const width of [1280, 360])
     await page.setViewportSize({ width, height: 844 });
     await ready(page);
     await page.locator('.game-colorclash .play-friends').click();
-    if ((await page.locator('#room-settings').getAttribute('open')) === null)
-      await page.locator('#room-settings > summary').click();
+    await expect(page.getByRole('button', { name: 'Reglas', exact: true })).toBeVisible();
+    const headerOrder = await page.evaluate(() => {
+      const buttons = [...document.querySelectorAll('.room-header-tools button')];
+      return buttons.map((button) => button.getBoundingClientRect().x);
+    });
+    expect(headerOrder).toHaveLength(3);
+    expect(headerOrder[0]).toBeLessThan(headerOrder[1]);
+    expect(headerOrder[1]).toBeLessThan(headerOrder[2]);
+    await page.getByRole('button', { name: 'Reglas', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('Opciones de esta partida');
+    await page.keyboard.press('Escape');
+    await expect(
+      page.getByRole('button', { name: 'Copiar enlace de invitación', exact: true }),
+    ).toBeVisible();
+    const inviteLayout = await page.evaluate(() => {
+      const codeElement = document.querySelector('.room-code-group')!;
+      const linkElement = document.querySelector('.invite-link-button')!;
+      const code = codeElement.getBoundingClientRect();
+      const link = linkElement.getBoundingClientRect();
+      const card = document.querySelector('.invite-card')!.getBoundingClientRect();
+      const codeText = document.querySelector('.room-code-text')!;
+      return {
+        codeBottom: code.bottom,
+        codeTop: code.top,
+        codeHeight: code.height,
+        linkTop: link.top,
+        linkBottom: link.bottom,
+        linkHeight: link.height,
+        codeLeft: code.left,
+        codeRight: code.right,
+        linkLeft: link.left,
+        linkRight: link.right,
+        cardRight: card.right,
+        codeFits: codeText.scrollWidth <= codeText.clientWidth,
+      };
+    });
+    expect(inviteLayout.codeFits).toBe(true);
+    expect(Math.abs(inviteLayout.codeHeight - inviteLayout.linkHeight)).toBeLessThanOrEqual(1);
+    if (width > 600) {
+      expect(inviteLayout.codeLeft).toBeLessThan(inviteLayout.linkLeft);
+      expect(inviteLayout.codeRight).toBeLessThanOrEqual(inviteLayout.linkLeft);
+      expect(inviteLayout.cardRight - inviteLayout.linkRight).toBeLessThanOrEqual(1);
+      expect(inviteLayout.codeTop).toBeLessThan(inviteLayout.linkBottom);
+      expect(inviteLayout.linkTop).toBeLessThan(inviteLayout.codeBottom);
+    } else expect(inviteLayout.codeBottom).toBeLessThan(inviteLayout.linkTop);
+    await page.getByRole('button', { name: 'Preferencias', exact: true }).click();
+    const preferences = page.getByRole('dialog', { name: 'Preferencias', exact: true });
+    await expect(preferences.getByRole('button', { name: 'Español', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(preferences.getByRole('button', { name: 'Inglés', exact: true })).toBeVisible();
+    await expect(preferences.getByRole('switch', { name: 'Sonido', exact: true })).toBeChecked();
+    await expect(preferences.getByRole('slider', { name: 'Volumen' })).toHaveValue('25');
+    await page.keyboard.press('Escape');
     await page.getByRole('switch', { name: 'Permitir acumular +2 y +4', exact: true }).check();
     const code = (await page.locator('.room-code-text').innerText()).trim();
     const context = await browser.newContext({ viewport: { width, height: 844 } });
@@ -38,14 +98,26 @@ for (const width of [1280, 360])
         .fill(` ${code.toLowerCase().split('').join(' ')} `);
       await guest.getByRole('button', { name: 'Unirme a la partida', exact: true }).click();
       await expect(page.locator('.waiting-player:not(.empty-seat)')).toHaveCount(2);
-      await expect(guest.locator('#group-game')).toBeDisabled();
-      await page.getByRole('button', { name: 'Retirar a Bruno', exact: true }).click();
-      await page.keyboard.press('Escape');
       await expect(
-        page.getByRole('button', { name: 'Retirar a Bruno', exact: true }),
-      ).toBeFocused();
+        guest.getByRole('button', { name: 'Cambiar juego', exact: true }),
+      ).toBeDisabled();
+      await expect(
+        guest.getByRole('button', { name: 'Gestionar participantes', exact: true }),
+      ).toHaveCount(0);
+      await expect(guest.getByRole('button', { name: 'Retirar a Bruno', exact: true })).toHaveCount(
+        0,
+      );
+      await page.getByRole('button', { name: 'Añadir bot', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Quitar bot', exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Quitar bot', exact: true }).click();
+      const removeBruno = page.getByRole('button', { name: 'Retirar a Bruno', exact: true });
+      await expect(removeBruno).toBeVisible();
+      await removeBruno.click();
+      await expect(page.getByRole('dialog')).toContainText('Retirarás a Bruno');
+      await page.keyboard.press('Escape');
+      await expect(removeBruno).toBeFocused();
       await expect(page.locator('.waiting-player:not(.empty-seat)')).toHaveCount(2);
-      await page.getByRole('button', { name: 'Retirar a Bruno', exact: true }).click();
+      await removeBruno.click();
       await page.getByRole('button', { name: 'Retirar del grupo', exact: true }).click();
       await expect(
         guest.getByText('El anfitrión te ha retirado de la sala.', { exact: true }),
@@ -57,11 +129,11 @@ for (const width of [1280, 360])
       ).toBeVisible();
       await guest.goto(`/?room=${code}`);
       await guest.getByRole('button', { name: 'Unirme a la partida', exact: true }).click();
-      await page.locator('#group-game').selectOption('tictactoe');
-      await expect(guest.locator('#group-game')).toHaveValue('tictactoe');
+      await changeGroupGame(page, 'tictactoe');
+      await expect(guest.locator('.waiting-intro h1')).toHaveText('Tres en Raya');
       await expect(page.locator('.room-code-text')).toHaveText(code);
       await page.reload();
-      await expect(page.locator('#group-game')).toHaveValue('tictactoe');
+      await expect(page.locator('.waiting-intro h1')).toHaveText('Tres en Raya');
       await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
       await expect(guest.locator('.ttt-board')).toBeVisible();
       for (const [actor, index] of [
@@ -75,18 +147,14 @@ for (const width of [1280, 360])
         await actor.locator('.ttt-board button').nth(index).click();
       }
       await expect(page.locator('.result-content')).toBeVisible();
-      await guest.getByRole('button', { name: 'Volver al grupo', exact: true }).click();
-      await expect(guest.locator('#group-game')).toHaveValue('tictactoe');
-      await guest.getByRole('button', { name: 'Ver resultado', exact: true }).click();
-      await expect(guest.locator('.result-content')).toBeVisible();
-      await page.getByRole('button', { name: 'Volver al grupo', exact: true }).click();
-      await page.locator('#group-game').selectOption('colorclash');
-      if ((await page.locator('#room-settings').getAttribute('open')) === null)
-        await page.locator('#room-settings > summary').click();
+      await page.getByRole('button', { name: 'Preparar otra partida', exact: true }).click();
+      await expect(page.locator('.waiting-intro h1')).toHaveText('Tres en Raya');
+      await expect(guest.locator('.waiting-intro h1')).toHaveText('Tres en Raya');
+      await changeGroupGame(page, 'colorclash');
       await expect(
         page.getByRole('switch', { name: 'Permitir acumular +2 y +4', exact: true }),
       ).toBeChecked();
-      await expect(guest.locator('#group-game')).toHaveValue('colorclash');
+      await expect(guest.locator('.waiting-intro h1')).toHaveText('Cambio de Color');
       await expect(guest.locator('.room-code-text')).toHaveText(code);
       await expect(page.locator('.waiting-player:not(.empty-seat)')).toHaveCount(2);
       expect((await accessibilityAudit(page).analyze()).violations).toEqual([]);
@@ -96,6 +164,23 @@ for (const width of [1280, 360])
       await context.close();
     }
   });
+
+test('Autoplay manual se activa y desactiva desde la partida', async ({ page }) => {
+  await ready(page);
+  await page.locator('.game-tictactoe .play-bot').click();
+  await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
+  const enable = page.getByRole('button', { name: 'Activar autoplay', exact: true });
+  await expect(enable).toBeEnabled();
+  await enable.click();
+  const disable = page.getByRole('button', { name: 'Desactivar autoplay', exact: true });
+  await expect(disable).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.ttt-board .cell-x')).toHaveCount(1);
+  await disable.click();
+  await expect(page.getByRole('button', { name: 'Activar autoplay', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+});
 
 test('Ajedrez: flechas, selección reversible y Escape no abandona el modo inmersivo', async ({
   page,
@@ -170,8 +255,8 @@ test('Un estado o inicio tardío de otro motor no reemplaza la partida actual', 
     await page.locator('.ttt-board button:enabled').first().click();
   }
   await expect(page.locator('.result-content')).toBeVisible();
-  await page.getByRole('button', { name: 'Volver al grupo', exact: true }).click();
-  await page.locator('#group-game').selectOption('chess');
+  await page.getByRole('button', { name: 'Preparar otra partida', exact: true }).click();
+  await changeGroupGame(page, 'chess');
   await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
   await expect(page.locator('.chess-board')).toBeVisible();
   publishOld();
@@ -183,7 +268,7 @@ test('Un estado o inicio tardío de otro motor no reemplaza la partida actual', 
   await expect(page.locator('.ttt-board')).toHaveCount(0);
 });
 
-test('Anfitrión: retirar un desconectado durante el juego aplica el abandono y conserva el grupo', async ({
+test('Anfitrión: gestiona jugadores desde la mesa y espera el plazo de desconexión', async ({
   page,
   browser,
 }) => {
@@ -198,24 +283,21 @@ test('Anfitrión: retirar un desconectado durante el juego aplica el abandono y 
     await guest.getByRole('button', { name: 'Unirme a la partida', exact: true }).click();
     await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
     await expect(guest.locator('.ttt-board')).toBeVisible();
-    await page.getByRole('button', { name: 'Preferencias de partida', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Retirar a Bruno', exact: true })).toHaveCount(0);
-    await page.keyboard.press('Escape');
+    await expect(
+      guest.getByRole('button', { name: 'Gestionar participantes', exact: true }),
+    ).toHaveCount(0);
     await context.setOffline(true);
     await guest.evaluate(() => window.dispatchEvent(new Event('offline')));
     await expect(page.locator('.game-message')).toContainText('reconectando');
-    await page.getByRole('button', { name: 'Preferencias de partida', exact: true }).click();
-    await page.getByRole('button', { name: 'Retirar a Bruno', exact: true }).click();
-    await page.getByRole('button', { name: 'Retirar del grupo', exact: true }).click();
-    await expect(page.getByRole('heading', { name: '¡Has ganado!', exact: true })).toBeVisible();
-    await expect(page.locator('.result-content')).toContainText('Ana');
-    await page.getByRole('button', { name: 'Volver al grupo', exact: true }).click();
-    await expect(page.locator('.room-code-text')).toHaveText(code);
-    await expect(page.locator('.waiting-player:not(.empty-seat)')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Gestionar participantes', exact: true }).click();
+    const management = page.getByRole('dialog', { name: 'Gestionar participantes', exact: true });
+    await expect(management).toContainText('Bruno');
+    await expect(management.getByRole('button', { name: 'Retirar a Bruno' })).toHaveCount(0);
+    await page.keyboard.press('Escape');
     await context.setOffline(false);
     await guest.evaluate(() => window.dispatchEvent(new Event('online')));
-    await expect(guest.locator('.game-card')).toHaveCount(30);
-    await expect(guest.locator('.room-code-text')).toHaveCount(0);
+    await expect(page.locator('.players-panel .table-player')).toHaveCount(2);
+    await expect(guest.locator('.players-panel .table-player')).toHaveCount(2);
   } finally {
     await context.close();
   }

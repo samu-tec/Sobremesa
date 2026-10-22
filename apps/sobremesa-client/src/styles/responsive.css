@@ -239,9 +239,6 @@
   .connection {
     font-size: 8px;
   }
-  .topbar-profile > span:last-child {
-    display: none;
-  }
   .lobby-main {
     padding: 27px 22px;
   }
@@ -516,8 +513,8 @@
     margin: 0;
   }
   .topbar {
-    height: 44px;
-    padding: 0 18px;
+    height: auto;
+    padding: 8px 18px;
   }
   .topbar-right {
     gap: 0;
@@ -526,9 +523,6 @@
     font-size: 8px;
   }
   .topbar-divider,
-  .topbar-profile {
-    display: none;
-  }
   .lobby-main {
     padding: 24px 18px;
   }
@@ -876,8 +870,32 @@
     font-size: 13px;
   }
   .room-code-text {
-    font-size: 31px;
-    letter-spacing: 7px;
+    font-size: 21px;
+    letter-spacing: 2px;
+  }
+  .invite-card {
+    gap: 8px;
+    padding: 0;
+  }
+  .room-code-group {
+    flex: 0 0 auto;
+    gap: 7px;
+    padding: 9px;
+  }
+  .room-code-copy {
+    width: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 5px;
+  }
+  .invite-link-button {
+    height: 64px;
+    gap: 5px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .room-code-group {
+    height: 64px;
   }
   .game-content {
     padding: 24px 16px 40px;
@@ -1021,6 +1039,24 @@
   }
   .your-hand-heading > small {
     font-size: 8px;
+  }
+}
+
+@media (max-width: 400px) {
+  .room-code-text {
+    font-size: 20px;
+    letter-spacing: 1px;
+  }
+  .room-code-copy {
+    width: 34px;
+    min-width: 34px;
+    min-height: 34px;
+  }
+  .invite-link-button .button-label-full {
+    display: none;
+  }
+  .invite-link-button .button-label-short {
+    display: inline;
   }
 }
 @media (max-width: 360px) {

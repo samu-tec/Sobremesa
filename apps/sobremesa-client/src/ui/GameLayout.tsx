@@ -1,9 +1,10 @@
-import { getGame, t, LanguageSelector } from '../i18n';
+import { getGame, t } from '../i18n';
 import { TurnClock } from './TurnClock';
 import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -14,8 +15,6 @@ import { type RoomInfo } from 'sobremesa-logic';
 import {
   ArrowLeft,
   BookOpen,
-  Check,
-  Copy,
   Trophy,
   RotateCcw,
   LogOut,
@@ -23,25 +22,20 @@ import {
   Dice5,
   Maximize,
   Minimize,
-  Volume2,
-  VolumeX,
-  Settings2,
+  UsersRound,
   X,
 } from 'lucide-react';
 import { Modal } from './Modal';
 import { Rules } from './Rules';
-import {
-  playSound,
-  readSoundPreferences,
-  setSoundPreferences,
-  unlockSound,
-} from '../services/sound';
+import { PreferencesButton } from './Preferences';
+import { playSound } from '../services/sound';
 interface GamePresentation {
   activePlayerIds?: string[];
   phaseLabel?: string;
   playerDetails?: Record<string, string>;
   notice?: ReactNode;
   clockInActions?: boolean;
+  onManagePlayers?: () => void;
 }
 const GamePresentationContext = createContext<GamePresentation>({});
 
@@ -73,11 +67,11 @@ export function GameLayout({
   isDraw,
   busy,
   onRestart,
-  onReturnToGroup,
   onRemovePlayer,
-  onConfirmPresence,
+  onResolveAutoPlay,
+  onToggleAutoPlay,
   onLeave,
-  onError,
+  onError: _onError,
   children,
 }: {
   room: RoomInfo;
@@ -100,19 +94,18 @@ export function GameLayout({
   isDraw?: boolean;
   busy: boolean;
   onRestart: () => void;
-  onReturnToGroup: () => void;
   onRemovePlayer: (id: string) => Promise<boolean>;
-  onConfirmPresence: (challengeId: string, stay: boolean) => void;
+  onResolveAutoPlay: (playerId: string, decision: 'keep' | 'remove') => Promise<boolean>;
+  onToggleAutoPlay: (enabled: boolean) => Promise<boolean>;
   onLeave: () => void;
   onError: (m: string) => void;
   children: ReactNode;
 }) {
   const [retiring, setRetiring] = useState<string | null>(null);
   const [retirementError, setRetirementError] = useState(false);
+  const [managePlayersOpen, setManagePlayersOpen] = useState(false);
   const [showResult, setShowResult] = useState(true);
-  const [settings, setSettings] = useState(false),
-    [sound, setSound] = useState(readSoundPreferences),
-    [immersive, setImmersive] = useState(false),
+  const [immersive, setImmersive] = useState(false),
     [expanding, setExpanding] = useState(false),
     [messageOpen, setMessageOpen] = useState(false);
   const fullscreenOwned = useRef(false);
@@ -171,15 +164,8 @@ export function GameLayout({
     }
     if (mounted.current) setExpanding(false);
   };
-  const updateSound = (patch: Partial<typeof sound>) => {
-    const next = { ...sound, ...patch };
-    setSound(next);
-    setSoundPreferences(next);
-    if (next.enabled) unlockSound();
-  };
   const [rules, setRules] = useState(false),
-    [confirmLeave, setConfirmLeave] = useState(false),
-    [copied, setCopied] = useState(false);
+    [confirmLeave, setConfirmLeave] = useState(false);
   const previousTurn = useRef<string | null>(null);
   const previousResult = useRef<boolean | null>(null);
   const game = getGame(room.gameType),
@@ -216,23 +202,17 @@ export function GameLayout({
     previousResult.current = finished;
   }, [finished, isDraw, winner, winnerIds, myPlayerId]);
   const disconnected = room.players.filter((p) => !p.connected);
+  const autoPlayReview = room.autoPlay?.find((entry) => entry.awaitingHost);
+  const autoPlayPlayer = room.players.find((player) => player.id === autoPlayReview?.playerId);
+  const myAutoPlay = room.autoPlay?.find((entry) => entry.playerId === myPlayerId);
+  const autoplayEnabled = Boolean(myAutoPlay && myAutoPlay.mode !== 'disconnect');
   const reconnectMessage = disconnected.length
-    ? t('{0} está reconectando. Reservamos su sitio durante {1} segundos.', {
+    ? t('{0} está reconectando. Sus turnos se jugarán en automático durante 3 minutos.', {
         '0': disconnected.map((p) => p.name).join(', '),
-        '1': Math.round(room.reconnectGraceMs / 1000),
       })
     : null;
   const message = error ? t(error) : connectionNotice || reconnectMessage || information;
   useEffect(() => setMessageOpen(false), [message]);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(room.code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      onError(t('No se pudo copiar el código.'));
-    }
-  };
   const notice = message ? (
     <div className={`game-message ${error ? 'game-message-error' : ''}`}>
       <button
@@ -262,35 +242,40 @@ export function GameLayout({
         phaseLabel: isAuction ? t('Subasta abierta') : phaseLabel,
         playerDetails,
         notice,
+        onManagePlayers: () => setManagePlayersOpen(true),
       }}
     >
-      <div className={`room-page game-page ${immersive ? 'game-immersive' : ''}`}>
-        {room.status === 'in_game' && room.presence?.playerId === myPlayerId && (
-          <Modal title={t('¿Sigues en la partida?')} dismissable={false} onClose={() => {}}>
-            <p>
-              {t(
-                'Tu decisión está pendiente. Confirma para disponer de 30 segundos más; después deberás jugar para continuar.',
-              )}
-            </p>
-            <TurnClock room={room} />
-            <div className="choice-buttons">
-              <button
-                className="button primary"
-                disabled={busy}
-                onClick={() => onConfirmPresence(room.presence!.challengeId, true)}
-              >
-                {t('Sí, sigo jugando')}
-              </button>
-              <button
-                className="button secondary"
-                disabled={busy}
-                onClick={() => onConfirmPresence(room.presence!.challengeId, false)}
-              >
-                {t('Salir de la partida')}
-              </button>
-            </div>
-          </Modal>
-        )}
+      <div
+        className={`room-page game-page game-page-${room.gameType} ${immersive ? 'game-immersive' : ''}`}
+      >
+        {room.status === 'in_game' &&
+          room.hostId === myPlayerId &&
+          autoPlayReview &&
+          autoPlayPlayer && (
+            <Modal title={t('Jugador sin respuesta')} dismissable={false} onClose={() => {}}>
+              <p>
+                {t('{0} lleva 3 minutos sin responder. ¿Qué quieres hacer con su plaza?', {
+                  '0': autoPlayPlayer.name,
+                })}
+              </p>
+              <div className="choice-buttons">
+                <button
+                  className="button primary"
+                  disabled={busy}
+                  onClick={() => void onResolveAutoPlay(autoPlayPlayer.id, 'keep')}
+                >
+                  {t('Mantener como bot')}
+                </button>
+                <button
+                  className="button danger"
+                  disabled={busy}
+                  onClick={() => void onResolveAutoPlay(autoPlayPlayer.id, 'remove')}
+                >
+                  {t('Retirar jugador')}
+                </button>
+              </div>
+            </Modal>
+          )}
         <header className={`game-header play-header ${yourTurn ? 'is-your-turn' : ''}`}>
           <div className="play-start">
             <button
@@ -316,14 +301,22 @@ export function GameLayout({
             </h1>
           </div>
           <div className="header-actions">
-            <button
-              className="button small secondary room-code-button secondary-game-tool"
-              onClick={copy}
-              aria-label={t('Copiar código de sala: {0}', { '0': room.code })}
-            >
-              {copied ? <Check size={15} /> : <Copy size={15} />}
-              <span>{room.code}</span>
-            </button>
+            {room.status === 'in_game' && (
+              <button
+                className={`button small ${autoplayEnabled ? 'primary' : 'secondary'} autoplay-button`}
+                type="button"
+                aria-label={t(autoplayEnabled ? 'Desactivar autoplay' : 'Activar autoplay')}
+                aria-pressed={autoplayEnabled}
+                title={t(autoplayEnabled ? 'Desactivar autoplay' : 'Activar autoplay')}
+                disabled={busy || myAutoPlay?.mode === 'disconnect'}
+                onClick={() => void onToggleAutoPlay(!autoplayEnabled)}
+              >
+                <Bot size={17} />
+                <span className="control-label">
+                  {t(autoplayEnabled ? 'Desactivar autoplay' : 'Activar autoplay')}
+                </span>
+              </button>
+            )}
             <button
               className="button small secondary"
               onClick={(event) => {
@@ -346,34 +339,27 @@ export function GameLayout({
             >
               {immersive ? <Minimize size={18} /> : <Maximize size={18} />}
             </button>
-            <button
-              className="button small secondary secondary-game-tool"
-              onClick={() => updateSound({ enabled: !sound.enabled })}
-              aria-pressed={sound.enabled}
-              aria-label={sound.enabled ? t('Silenciar sonido') : t('Activar sonido')}
-              title={sound.enabled ? t('Silenciar sonido') : t('Activar sonido')}
-            >
-              {sound.enabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-            </button>
-            <button
-              className="button small secondary"
-              onClick={(event) => {
-                event.currentTarget.focus({ preventScroll: true });
-                setSettings(true);
-              }}
-              aria-label={t('Preferencias de partida')}
-              title={t('Preferencias de partida')}
-            >
-              <Settings2 size={18} />
-            </button>
+            <PreferencesButton>
+              {(closePreferences) => (
+                <>
+                  <div className="mobile-game-tools">
+                    <button
+                      className="button secondary"
+                      disabled={expanding}
+                      onClick={() => {
+                        closePreferences();
+                        void expand();
+                      }}
+                    >
+                      {immersive ? t('Salir de pantalla completa') : t('Ampliar el juego')}
+                    </button>
+                  </div>
+                </>
+              )}
+            </PreferencesButton>
           </div>
         </header>
         <main className={`game-content game-content-${room.gameType}`}>
-          {finished && !showResult && (
-            <button className="button secondary result-reopen" onClick={onReturnToGroup}>
-              {t('Volver al grupo')}
-            </button>
-          )}
           {finished && !showResult && (
             <button className="button primary result-reopen" onClick={() => setShowResult(true)}>
               {t('Ver resultado')}
@@ -381,85 +367,6 @@ export function GameLayout({
           )}
           {children}
         </main>
-        {settings && (
-          <Modal title={t('Preferencias de partida')} onClose={() => setSettings(false)}>
-            <div className="game-preferences">
-              <div className="mobile-game-tools">
-                <button className="button secondary" onClick={copy}>
-                  {copied ? t('Copiado') : t('Copiar código de sala')}
-                </button>
-                <button
-                  className="button secondary"
-                  disabled={expanding}
-                  onClick={() => {
-                    setSettings(false);
-                    void expand();
-                  }}
-                >
-                  {immersive ? t('Salir de pantalla completa') : t('Ampliar el juego')}
-                </button>
-              </div>
-              <LanguageSelector />
-              <a className="text-button" href="/privacy" target="_blank" rel="noopener noreferrer">
-                {t('Privacidad y uso')}
-              </a>
-              <label className="toggle-row">
-                <span>{t('Sonido')}</span>
-                <input
-                  type="checkbox"
-                  checked={sound.enabled}
-                  onChange={(e) => updateSound({ enabled: e.target.checked })}
-                />
-              </label>
-              <label className="field-label" htmlFor="game-volume">
-                {t('Volumen')}: {Math.round(sound.volume * 100)}%
-              </label>
-              <input
-                id="game-volume"
-                type="range"
-                min="0"
-                max="100"
-                value={Math.round(sound.volume * 100)}
-                onChange={(e) => updateSound({ volume: Number(e.target.value) / 100 })}
-              />
-              <p className="muted">
-                {t('Sonidos breves durante el juego. Se silencian al ocultar esta pestaña.')}
-              </p>
-              {room.hostId === myPlayerId && (
-                <section className="group-management">
-                  <h3>{t('Gestionar participantes')}</h3>
-                  <p className="muted">
-                    {t(
-                      'Durante la partida solo puedes retirar personas desconectadas. El motor resolverá su abandono.',
-                    )}
-                  </p>
-                  {room.players
-                    .filter((p) => !p.isBot && p.id !== myPlayerId)
-                    .map((p) => (
-                      <div className="section-row" key={p.id}>
-                        <span>
-                          {p.name} · {p.connected ? t('En la sala') : t('Reconectando…')}
-                        </span>
-                        {!p.connected && (
-                          <button
-                            className="button small danger"
-                            disabled={busy}
-                            onClick={(event) => {
-                              event.currentTarget.focus({ preventScroll: true });
-                              setRetiring(p.id);
-                              setRetirementError(false);
-                            }}
-                          >
-                            {t('Retirar a {0}', { '0': p.name })}
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                </section>
-              )}
-            </div>
-          </Modal>
-        )}
         {messageOpen && message && (
           <Modal title={t('Aviso de partida')} onClose={() => setMessageOpen(false)}>
             <div className="game-message-full">{message}</div>
@@ -477,6 +384,56 @@ export function GameLayout({
           </Modal>
         )}
         {rules && <Rules room={room} gameType={room.gameType} onClose={() => setRules(false)} />}
+        {managePlayersOpen && room.hostId === myPlayerId && (
+          <Modal title={t('Gestionar participantes')} onClose={() => setManagePlayersOpen(false)}>
+            <section className="group-management">
+              <p className="muted">
+                {t(
+                  'El autoplay permanece activo durante 3 minutos; después puedes retirar a esa persona o mantener su plaza como bot.',
+                )}
+              </p>
+              {room.players
+                .filter((player) => !player.isBot && player.id !== myPlayerId)
+                .map((player) => {
+                  const auto = room.autoPlay?.find((entry) => entry.playerId === player.id);
+                  const canRemove = auto?.awaitingHost === true || auto?.permanent === true;
+                  return (
+                    <div className="section-row" key={player.id}>
+                      <span>
+                        {player.name} ·{' '}
+                        {auto?.permanent
+                          ? t('En automático hasta que vuelva')
+                          : auto?.awaitingHost
+                            ? t('Esperando decisión del anfitrión')
+                            : player.connected
+                              ? t('En la sala')
+                              : t('Reconectando…')}
+                      </span>
+                      {auto?.deadline !== null &&
+                        auto?.deadline !== undefined &&
+                        !auto.awaitingHost && (
+                          <AutoPlayCountdown deadline={auto.deadline} serverNow={room.serverNow} />
+                        )}
+                      {canRemove && (
+                        <button
+                          className="button small danger"
+                          disabled={busy}
+                          onClick={(event) => {
+                            event.currentTarget.focus({ preventScroll: true });
+                            setManagePlayersOpen(false);
+                            setRetiring(player.id);
+                            setRetirementError(false);
+                          }}
+                        >
+                          {t('Retirar a {0}', { '0': player.name })}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+            </section>
+          </Modal>
+        )}
         {retiring && (
           <Modal title={t('¿Retirar a este participante?')} onClose={() => setRetiring(null)}>
             <p>
@@ -504,7 +461,6 @@ export function GameLayout({
                 onClick={async () => {
                   if (await onRemovePlayer(retiring)) {
                     setRetiring(null);
-                    setSettings(false);
                   } else setRetirementError(true);
                 }}
               >
@@ -575,9 +531,6 @@ export function GameLayout({
               <button className="button secondary full" onClick={() => setShowResult(false)}>
                 {t('Ver la mesa')}
               </button>
-              <button className="button primary full" disabled={busy} onClick={onReturnToGroup}>
-                {t('Volver al grupo')}
-              </button>
               {room.hostId === myPlayerId ? (
                 <button className="button primary full" disabled={busy} onClick={onRestart}>
                   <RotateCcw size={17} /> {t('Preparar otra partida')}{' '}
@@ -615,7 +568,19 @@ export function PlayersPanel({
   return (
     <section className="panel players-panel">
       <div className="section-row">
-        <h2>{t('En la mesa')}</h2>
+        <div className="players-panel-heading">
+          <h2>{t('En la mesa')}</h2>
+          {room.hostId === myPlayerId && presentation.onManagePlayers && (
+            <button
+              className="button small secondary players-manage-button"
+              type="button"
+              aria-label={t('Gestionar participantes')}
+              onClick={presentation.onManagePlayers}
+            >
+              <UsersRound size={16} />
+            </button>
+          )}
+        </div>
         <span className="muted">
           {room.players.length} {t('jugadores')}
         </span>
@@ -626,37 +591,71 @@ export function PlayersPanel({
         </p>
       )}
       {!presentation.clockInActions && <TurnClock room={room} />}
-      {room.players.map((p, index) => (
-        <div className={`table-player ${active(p.id) ? 'active' : ''}`} key={p.id}>
-          <span className={`player-avatar color-${index % 6}`}>
-            {playerIcons?.[p.id] ??
-              (p.isBot ? <Bot size={20} /> : p.name.slice(0, 1).toUpperCase())}
-          </span>
-          <div>
-            <strong>
-              {p.name}
-              {p.id === myPlayerId ? t(' (tú)') : ''}
-            </strong>
-            <small>
-              {!p.connected
-                ? t('Reconectando…')
-                : presentation.playerDetails?.[p.id] ||
-                  (active(p.id)
-                    ? p.id === myPlayerId
-                      ? t('Es tu turno')
-                      : p.isBot
-                        ? t('Bot jugando')
-                        : t('Jugando ahora')
-                    : p.isBot
-                      ? 'Bot'
-                      : t('En la mesa'))}
-            </small>
+      {room.players.map((p, index) => {
+        const auto = room.autoPlay?.find((entry) => entry.playerId === p.id);
+        return (
+          <div className={`table-player ${active(p.id) ? 'active' : ''}`} key={p.id}>
+            <span className={`player-avatar color-${index % 6}`}>
+              {playerIcons?.[p.id] ??
+                (p.isBot ? <Bot size={20} /> : p.name.slice(0, 1).toUpperCase())}
+            </span>
+            <div>
+              <strong>
+                {p.name}
+                {p.id === myPlayerId ? t(' (tú)') : ''}
+              </strong>
+              <small>
+                {auto?.permanent
+                  ? t('En automático hasta que vuelva')
+                  : auto?.awaitingHost
+                    ? t('Esperando decisión del anfitrión')
+                    : auto
+                      ? t('Autoplay activado')
+                      : !p.connected
+                        ? t('Reconectando…')
+                        : presentation.playerDetails?.[p.id] ||
+                          (active(p.id)
+                            ? p.id === myPlayerId
+                              ? t('Es tu turno')
+                              : p.isBot
+                                ? t('Bot jugando')
+                                : t('Jugando ahora')
+                            : p.isBot
+                              ? 'Bot'
+                              : t('En la mesa'))}
+              </small>
+              {auto?.deadline !== null && auto?.deadline !== undefined && !auto.awaitingHost && (
+                <AutoPlayCountdown deadline={auto.deadline} serverNow={room.serverNow} />
+              )}
+            </div>
+            {values?.[p.id] && <strong className="player-value">{values[p.id]}</strong>}
           </div>
-          {values?.[p.id] && <strong className="player-value">{values[p.id]}</strong>}
-        </div>
-      ))}
+        );
+      })}
       {presentation.notice}
     </section>
+  );
+}
+function AutoPlayCountdown({ deadline, serverNow }: { deadline: number; serverNow: number }) {
+  const [now, setNow] = useState(Date.now());
+  const clockOffset = useMemo(
+    () => (Number.isFinite(serverNow) ? serverNow - Date.now() : 0),
+    [serverNow],
+  );
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+  const seconds = Math.max(0, Math.ceil((deadline - (now + clockOffset)) / 1000));
+  const time = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  return (
+    <small
+      className="autoplay-countdown"
+      role="timer"
+      aria-label={t('El anfitrión podrá retirar al jugador en {0}.', { '0': time })}
+    >
+      {t('Retirada posible en {0}', { '0': time })}
+    </small>
   );
 }
 export function DiceFace({

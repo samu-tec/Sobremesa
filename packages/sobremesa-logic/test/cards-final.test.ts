@@ -142,6 +142,50 @@ test('Escoba: una captura que vacía mesa suma escoba y el reparto automático n
   assert.equal(s.players[0].sweeps, 0);
   assert.equal(next.roundScores[0].sweeps, 1);
 });
+test('Escoba: el bonus opcional de los cuatro sietes suma un punto y el valor predeterminado no cambia', () => {
+  for (const enabled of [false, true]) {
+    const e = new EscobaEngine(seed(17));
+    e.setRules({ allSevensBonus: enabled, targetScore: 31 });
+    const s = e.initGame(players(2));
+    s.stock = [];
+    s.table = [card(2, 2)];
+    s.lastCapture = 'p1';
+    s.players[0].hand = [card(6, 1)];
+    s.players[1].hand = [];
+    s.players[0].captured = [card(7), card(7, 1), card(7, 2), card(7, 3)];
+    s.players[1].captured = [card(1, 1), card(2, 1), card(3, 1), card(4, 1), card(5, 1)];
+    s.currentTurnPlayerId = 'p0';
+    const end = e.applyAction(s, 'p0', { type: 'PLAY', card: card(6, 1), take: [] });
+    const score = end.roundScores.find((row) => row.playerId === 'p0')!;
+    assert.equal(score.sevens, 1);
+    assert.equal(score.sevenCoins, 1);
+    assert.equal(score.allSevensBonus, Number(enabled));
+    assert.equal(score.total, enabled ? 4 : 3);
+  }
+});
+test('Escoba: el bot prioriza completar los cuatro sietes cuando el bonus está activado', () => {
+  const e = new EscobaEngine(seed(18));
+  e.setRules({ allSevensBonus: true });
+  const s = e.initGame(players(2));
+  const captured = [card(7, 1), card(7, 2), card(7, 3)];
+  const handCard = card(10, 1);
+  const table = [card(7), card(1), card(1, 1), card(1, 2), card(1, 3), card(3, 3)];
+  const used = new Set([...captured, handCard, ...table]);
+  s.players.forEach((p) => {
+    p.hand = [];
+    p.captured = [];
+    p.sweeps = 0;
+  });
+  s.players[0].captured = captured;
+  s.players[0].hand = [handCard];
+  s.table = table;
+  s.stock = Array.from({ length: 40 }, (_, id) => id).filter((id) => !used.has(id));
+  s.currentTurnPlayerId = 'p0';
+  const action = e.getBotAction(s, 'p0');
+  assert.ok(action && action.type === 'PLAY');
+  assert.equal(action.card, handCard);
+  assert.deepEqual(action.take, [card(7)]);
+});
 test('Escoba: partidas de dos, tres y cuatro con recuento y cuarenta cartas sin duplicados', () => {
   for (const n of [2, 3, 4])
     for (let run = 1; run <= 3; run++) {

@@ -8,7 +8,8 @@ async function ready(page: Page) {
     localStorage.setItem('sobremesa.name', 'Ana');
   });
   await page.goto('/');
-  await expect(page.getByText('Listo para jugar', { exact: true })).toBeVisible();
+  await expect(page.locator('.connection')).toBeVisible();
+  await expect(page.locator('.connection')).toHaveAttribute('aria-label', 'Listo para jugar');
 }
 async function start(page: Page, game = 'tictactoe') {
   await ready(page);
@@ -39,6 +40,11 @@ for (const viewport of [
       await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
       const board = page.locator('.ttt-board');
       await expect(board).toBeVisible();
+      const autoplayX = (await page
+        .getByRole('button', { name: 'Activar autoplay' })
+        .boundingBox())!.x;
+      const rulesX = (await page.getByRole('button', { name: 'Reglas' }).boundingBox())!.x;
+      expect(autoplayX).toBeLessThan(rulesX);
       const top = (await board.boundingBox())!.y;
       await expect(page.locator('.game-message-slot')).toHaveCount(0);
       await expect(page.locator('.table-player.active')).toContainText('Es tu turno');
@@ -55,7 +61,9 @@ for (const viewport of [
       await page.locator('.game-message-detail').focus();
       const afterFocus = (await board.boundingBox())!.y;
       await page.locator('.game-message-detail').press('Enter');
-      await expect(page.getByRole('dialog')).toContainText('Reservamos su sitio');
+      await expect(page.getByRole('dialog')).toContainText(
+        'Sus turnos se jugarán en automático durante 3 minutos',
+      );
       await page.keyboard.press('Escape');
       await expect(page.locator('.game-message-detail')).toBeFocused();
       expect((await board.boundingBox())!.y).toBe(afterFocus);
@@ -89,8 +97,8 @@ for (const game of ['tictactoe', 'chess', 'colorclash', 'monopoly'])
         JSON.stringify(viewport),
       ).toBe(true);
       for (const label of viewport.width <= 900
-        ? ['Reglas', 'Preferencias de partida']
-        : ['Reglas', 'Ampliar el juego', 'Activar sonido', 'Preferencias de partida']) {
+        ? ['Reglas', 'Preferencias']
+        : ['Reglas', 'Ampliar el juego', 'Preferencias']) {
         const control = page.getByRole('button', { name: label, exact: true });
         await expect(control).toBeVisible();
         const box = (await control.boundingBox())!;
@@ -184,18 +192,24 @@ test('Sonido y volumen persisten, el bloqueo de audio no impide jugar', async ({
     });
   });
   await start(page);
-  await page.getByRole('button', { name: 'Activar sonido', exact: true }).click();
-  await page.getByRole('button', { name: 'Preferencias de partida', exact: true }).click();
+  await page.getByRole('button', { name: 'Preferencias', exact: true }).click();
+  const soundToggle = page.getByRole('switch', { name: 'Sonido', exact: true });
+  await expect(soundToggle).toBeChecked();
+  await expect(page.getByRole('slider', { name: 'Volumen' })).toHaveValue('25');
+  await soundToggle.uncheck();
   await page.getByRole('slider', { name: 'Volumen' }).fill('40');
   await page.keyboard.press('Escape');
   await page.locator('.ttt-board button').first().click();
   await expect(page.locator('.ttt-board .cell-x')).toHaveCount(1);
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Silenciar sonido', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Preferencias de partida', exact: true }).click();
+  await page.getByRole('button', { name: 'Preferencias', exact: true }).click();
+  const persistedSoundToggle = page.getByRole('switch', { name: 'Sonido', exact: true });
+  await expect(persistedSoundToggle).not.toBeChecked();
   await expect(page.getByRole('slider', { name: 'Volumen' })).toHaveValue('40');
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Silenciar sonido', exact: true }).click();
+  await page.getByRole('button', { name: 'Preferencias', exact: true }).click();
+  await page.getByRole('switch', { name: 'Sonido', exact: true }).check();
+  await page.getByRole('switch', { name: 'Sonido', exact: true }).uncheck();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sobremesa.sound')!))).toEqual({
     enabled: false,
     volume: 0.4,
@@ -234,7 +248,6 @@ test('El audio sintetiza una señal real y no se reproduce al recargar la partid
     };
   });
   await start(page);
-  await page.getByRole('button', { name: 'Activar sonido', exact: true }).click();
   await expect
     .poll(() =>
       page.evaluate(
@@ -353,44 +366,54 @@ for (const game of ['tictactoe', 'backgammon', 'words', 'poker', 'monopoly'])
     expect((await accessibilityAudit(page).analyze()).violations).toEqual([]);
   });
 
-test('Presencia real: solo la persona pendiente confirma, cuenta atrás accesible y jugada posterior', async ({
-  page,
-  browser,
-}) => {
-  test.setTimeout(60000);
+test('Autoplay manual: activa jugadas del bot y permite recuperar el control', async ({ page }) => {
   await ready(page);
-  await page.locator('.game-tictactoe .play-friends').click();
-  await expect(page.locator('#room-settings')).not.toHaveAttribute('open');
-  await expect(page.locator('.empty-seat')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Configurar partida', exact: true }).click();
-  await page.getByRole('combobox', { name: 'Tiempo por turno', exact: true }).selectOption('30');
-  const code = (await page.locator('.room-code-text').innerText()).trim();
-  const context = await browser.newContext();
-  try {
-    const guest = await context.newPage();
-    await ready(guest);
-    await guest.goto(`/?room=${code}`);
-    await guest.getByRole('button', { name: 'Unirme a la partida', exact: true }).click();
-    await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
-    await expect(page.locator('.ttt-board')).toBeVisible();
-    await expect(
-      page.getByRole('dialog', { name: '¿Sigues en la partida?', exact: true }),
-    ).toBeVisible({ timeout: 35000 });
-    const confirmation = page.getByRole('dialog', { name: '¿Sigues en la partida?', exact: true });
-    await expect(guest.getByRole('dialog')).toHaveCount(0);
-    await expect(confirmation.getByRole('timer')).toContainText(/0:1[0-5]/);
-    await page.keyboard.press('Escape');
-    await expect(confirmation).toBeVisible();
-    expect((await accessibilityAudit(page).analyze()).violations).toEqual([]);
-    await confirmation.getByRole('button', { name: 'Sí, sigo jugando', exact: true }).click();
-    await expect(confirmation).toHaveCount(0);
-    await page.locator('.ttt-board button').nth(0).click();
-    await expect(guest.locator('.table-player.active small')).toHaveText('Es tu turno');
-    await page.getByRole('button', { name: 'Preferencias de partida', exact: true }).click();
-    await expect(
-      page.getByRole('dialog').getByRole('link', { name: 'Privacidad y uso', exact: true }),
-    ).toHaveAttribute('href', '/privacy');
-  } finally {
-    await context.close();
-  }
+  await page.locator('.game-tictactoe .play-bot').click();
+  await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
+  await expect(page.locator('.ttt-board')).toBeVisible();
+  await page.getByRole('button', { name: 'Activar autoplay', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Desactivar autoplay', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.autoplay-countdown')).toContainText('Retirada posible en');
+  await expect(page.locator('.ttt-board .cell-x')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Desactivar autoplay', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Activar autoplay', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+});
+
+test('Sala de Ciudad Fortuna: duración junto al contador y reglas solo en la barra de partida', async ({
+  page,
+}) => {
+  await ready(page);
+  await page
+    .getByRole('button', { name: 'Jugar a Ciudad Fortuna contra un bot', exact: true })
+    .click();
+  await expect(page.locator('.waiting-players .waiting-duration')).toContainText('30–90 min');
+  await expect(page.locator('.waiting-game')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Ver las reglas', exact: true })).toHaveCount(0);
+  await expect(page.locator('.room-settings-heading .turn-setting')).toBeVisible();
+  await expect(page.locator('.city-settings-grid > *')).toHaveCount(12);
+  const passGoBonus = page.getByRole('switch', {
+    name: 'Cobrar el doble al pasar por Salida',
+    exact: true,
+  });
+  const snakeEyesBonus = page.getByRole('switch', {
+    name: 'Recibir 500 € al sacar dobles de uno',
+    exact: true,
+  });
+  await expect(passGoBonus).not.toBeChecked();
+  await expect(snakeEyesBonus).not.toBeChecked();
+  await passGoBonus.click();
+  await expect(passGoBonus).toBeChecked();
+  await snakeEyesBonus.click();
+  await expect(snakeEyesBonus).toBeChecked();
+
+  await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
+  await expect(page.locator('.game-header.play-header')).toBeVisible();
+  await expect(
+    page.locator('.play-header').getByRole('button', { name: 'Reglas', exact: true }),
+  ).toBeVisible();
 });

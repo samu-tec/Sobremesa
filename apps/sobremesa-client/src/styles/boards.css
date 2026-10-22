@@ -248,6 +248,10 @@
   background: #ecd6ae;
   overflow-x: auto;
 }
+.backgammon-board:focus-visible {
+  outline: 3px solid #1f633e;
+  outline-offset: 2px;
+}
 .bg-row {
   min-width: 288px;
   display: grid;

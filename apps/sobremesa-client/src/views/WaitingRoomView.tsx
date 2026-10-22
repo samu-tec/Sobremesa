@@ -1,5 +1,5 @@
-import { getGame, t, LanguageSelector, formatMoney, settingValue } from '../i18n';
-import { useEffect, useState } from 'react';
+import { getGame, t, formatMoney, settingValue } from '../i18n';
+import { useEffect, useRef, useState } from 'react';
 import {
   type RoomInfo,
   type GameType,
@@ -12,19 +12,23 @@ import {
 import {
   ArrowLeft,
   ArrowRight,
+  BookOpen,
   Bot,
   Check,
   Copy,
   Crown,
   Link2,
+  LayoutGrid,
   Plus,
-  Trash2,
+  Search,
   Users,
-  BookOpen,
-  Settings2,
+  Clock3,
   Dice5,
+  X,
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
+import { GameArtwork } from '../ui/GameArtwork';
+import { PreferencesButton } from '../ui/Preferences';
 import { Rules } from '../ui/Rules';
 interface Props {
   room: RoomInfo;
@@ -34,7 +38,6 @@ interface Props {
   onStartGame: () => void;
   onRemovePlayer: (id: string) => Promise<boolean>;
   onChangeGame: (game: GameType) => Promise<boolean>;
-  onViewResult?: () => void;
   onLeaveRoom: () => void;
   onUpdateRules: (rules: unknown) => Promise<boolean>;
   busy: boolean;
@@ -48,7 +51,6 @@ export function WaitingRoomView({
   onStartGame,
   onRemovePlayer,
   onChangeGame,
-  onViewResult,
   onLeaveRoom,
   onUpdateRules,
   busy,
@@ -68,8 +70,11 @@ export function WaitingRoomView({
   };
   const [removing, setRemoving] = useState<string | null>(null);
   const [removalError, setRemovalError] = useState(false);
-  const [rules, setRules] = useState(false),
-    [copied, setCopied] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [gamePickerOpen, setGamePickerOpen] = useState(false),
+    [gameSearch, setGameSearch] = useState('');
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const gameSearchRef = useRef<HTMLInputElement>(null);
   const game = getGame(room.gameType),
     host = room.hostId === myPlayerId;
   const editable = host && room.status === 'waiting';
@@ -79,6 +84,16 @@ export function WaitingRoomView({
     room.players.length >= room.minPlayers &&
     room.players.length <= room.maxPlayers &&
     (!game.playerCounts || game.playerCounts.includes(room.players.length));
+  const normalizedSearch = normalizeSearch(gameSearch);
+  const availableGames = GAME_CATALOG.map(({ id }) => getGame(id)).filter((option) =>
+    normalizeSearch(`${option.name} ${option.description} ${option.id}`).includes(normalizedSearch),
+  );
+  const changeGame = async (id: GameType) => {
+    if (id === room.gameType || (await onChangeGame(id))) setGamePickerOpen(false);
+  };
+  useEffect(() => {
+    if (gamePickerOpen) gameSearchRef.current?.focus({ preventScroll: true });
+  }, [gamePickerOpen]);
   const copy = async (link: boolean) => {
     try {
       await navigator.clipboard.writeText(
@@ -93,162 +108,100 @@ export function WaitingRoomView({
   return (
     <div className="room-page">
       <header className="game-header">
-        <LanguageSelector />
         <button className="back-link" onClick={onLeaveRoom}>
-          <ArrowLeft size={18} /> {t('Volver a los juegos')}{' '}
+          <ArrowLeft size={18} /> <span>{t('Volver a los juegos')}</span>
         </button>
         <a className="compact-brand" href="/">
           <Dice5 size={22} /> sobremesa.
         </a>
-        <button className="button small secondary" onClick={() => setRules(true)}>
-          <BookOpen size={16} /> {t('Cómo jugar')}{' '}
-        </button>
+        <div className="header-actions room-header-tools">
+          <button
+            className="button small secondary"
+            aria-label={t('Cambiar juego')}
+            aria-haspopup="dialog"
+            aria-expanded={gamePickerOpen}
+            title={t('Cambiar juego')}
+            disabled={!host || busy}
+            onClick={() => {
+              setGameSearch('');
+              setGamePickerOpen(true);
+            }}
+          >
+            <LayoutGrid size={16} /> <span>{t('Cambiar juego')}</span>
+          </button>
+          <button
+            className="button small secondary"
+            aria-label={t('Reglas')}
+            aria-haspopup="dialog"
+            onClick={() => setRulesOpen(true)}
+          >
+            <BookOpen size={16} /> <span>{t('Reglas')}</span>
+          </button>
+          <PreferencesButton />
+        </div>
       </header>
       <main className="waiting-content">
         <div className="waiting-intro">
           <p className="eyebrow">{t('SALA DE ESPERA')}</p>
           <h1>{game.name}</h1>
         </div>
-        <section className="panel room-game-selector" aria-label={t('Juego del grupo')}>
-          <label className="field-label" htmlFor="group-game">
-            {host ? t('Elegir juego para el grupo') : t('Juego elegido por el anfitrión')}
-          </label>
-          <select
-            id="group-game"
-            className="field"
-            disabled={!host || busy}
-            value={room.gameType}
-            onChange={(e) => void onChangeGame(e.target.value as GameType)}
-          >
-            {GAME_CATALOG.map((g) => (
-              <option value={g.id} key={g.id}>
-                {getGame(g.id).name} ·{' '}
-                {g.playerCounts ? g.playerCounts.join('/') : `${g.minPlayers}–${g.maxPlayers}`}{' '}
-                {t('jugadores')} · {g.duration}
-              </option>
-            ))}
-          </select>
-          <p className="form-hint" role="status">
-            {t('Ahora jugamos a {0}. El código y el grupo se conservan.', { '0': game.name })}
-          </p>
-          {onViewResult && (
-            <button className="button secondary" onClick={onViewResult}>
-              {t('Ver resultado')}
-            </button>
-          )}
-        </section>
         <div className="waiting-grid">
           <section className="panel waiting-players">
             <div className="section-row">
               <h2>{t('Jugadores')}</h2>
-              <span className="pill">
-                <Users size={15} /> {room.players.length}/{room.maxPlayers}
-              </span>
+              <div className="waiting-player-meta">
+                <span className="pill">
+                  <Users size={15} /> {room.players.length}/{room.maxPlayers}
+                </span>
+                <span className="pill waiting-duration">
+                  <Clock3 size={15} /> {game.duration}
+                </span>
+              </div>
             </div>
             <div className="invite-card">
-              <div>
-                <span className="eyebrow">{t('CÓDIGO DE TU SALA')}</span>
-                <strong className="room-code-text">{room.code}</strong>
+              <div className="room-code-group">
+                <div>
+                  <span className="eyebrow">{t('CÓDIGO DE TU SALA')}</span>
+                  <strong className="room-code-text">{room.code}</strong>
+                </div>
+                <button
+                  className="icon-button room-code-copy"
+                  aria-label={t('Copiar código de sala')}
+                  onClick={() => copy(false)}
+                >
+                  {copied === 'code' ? <Check size={20} /> : <Copy size={20} />}
+                </button>
               </div>
               <button
-                className="icon-button"
-                aria-label={t('Copiar código de sala')}
-                onClick={() => copy(false)}
+                className="button secondary invite-link-button"
+                aria-label={
+                  copied === 'link' ? t('Enlace copiado') : t('Copiar enlace de invitación')
+                }
+                onClick={() => copy(true)}
               >
-                {copied === 'code' ? <Check size={20} /> : <Copy size={20} />}
+                {copied === 'link' ? <Check size={17} /> : <Link2 size={17} />}
+                <span className="button-label-full">
+                  {copied === 'link' ? t('Enlace copiado') : t('Copiar enlace de invitación')}
+                </span>
+                <span className="button-label-short">
+                  {copied === 'link' ? t('Enlace copiado') : t('Copiar enlace')}
+                </span>
               </button>
             </div>
-            <button className="button secondary full" onClick={() => copy(true)}>
-              {copied === 'link' ? <Check size={17} /> : <Link2 size={17} />}{' '}
-              {copied === 'link' ? t('Enlace copiado') : t('Copiar enlace de invitación')}
-            </button>
-            <div className="waiting-player-list">
-              {room.players.map((p, index) => (
-                <div className="waiting-player" key={p.id}>
-                  <span className={`player-avatar color-${index % 6}`}>
-                    {p.isBot ? <Bot size={22} /> : p.name.slice(0, 1).toUpperCase()}
-                  </span>
-                  <div>
-                    <strong>
-                      {p.name}
-                      {p.id === myPlayerId && <small> {t('(tú)')}</small>}
-                    </strong>
-                    <span>
-                      {p.isBot
-                        ? t('Bot · listo para jugar')
-                        : p.connected
-                          ? t('En la sala')
-                          : t('Reconectando…')}
-                    </span>
-                  </div>
-                  {p.isHost ? (
-                    <span className="host-label">
-                      <Crown size={14} /> {t('Anfitrión')}{' '}
-                    </span>
-                  ) : p.isBot && host ? (
-                    <button
-                      disabled={busy || room.status !== 'waiting'}
-                      className="icon-button"
-                      aria-label={t('Quitar {0}', { '0': p.name })}
-                      onClick={() => onRemoveBot(p.id)}
-                    >
-                      <Trash2 size={17} />
-                    </button>
-                  ) : host && !p.isBot && p.id !== myPlayerId ? (
-                    <button
-                      className="icon-button"
-                      disabled={busy}
-                      aria-label={t('Retirar a {0}', { '0': p.name })}
-                      onClick={(event) => {
-                        event.currentTarget.focus({ preventScroll: true });
-                        setRemoving(p.id);
-                        setRemovalError(false);
-                      }}
-                    >
-                      <Trash2 size={17} />
-                    </button>
-                  ) : (
-                    <span className={`presence-dot ${p.connected ? '' : 'away'}`} />
-                  )}
-                </div>
-              ))}
-              <p className="free-seats">
-                {t('{0} plazas libres', {
-                  '0': Math.max(0, room.maxPlayers - room.players.length),
-                })}
-              </p>
-            </div>
-            {host &&
-              game.supportsBots !== false &&
-              !(room.gameType === 'impostor' && room.customRules?.impostorMode === 1) &&
-              room.players.length < room.maxPlayers && (
-                <button
-                  className="button secondary full"
-                  disabled={busy || !editable}
-                  onClick={onAddBot}
-                >
-                  <Plus size={17} />
-                  <Bot size={18} /> {t('Añadir bot')}{' '}
-                </button>
-              )}
-            <div className="waiting-start">
-              {host && (
-                <button
-                  className="text-button"
-                  onClick={() => {
-                    const section = document.getElementById(
-                      'room-settings',
-                    ) as HTMLDetailsElement | null;
-                    if (section) {
-                      section.open = true;
-                      section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }
-                  }}
-                >
-                  <Settings2 size={16} />
-                  {t('Configurar partida')}
-                </button>
-              )}
+            <div className="waiting-room-actions">
+              {host &&
+                game.supportsBots !== false &&
+                !(room.gameType === 'impostor' && room.customRules?.impostorMode === 1) &&
+                room.players.length < room.maxPlayers && (
+                  <button
+                    className="button secondary full"
+                    disabled={busy || !editable}
+                    onClick={onAddBot}
+                  >
+                    <Plus size={17} />
+                    <Bot size={18} /> {t('Añadir bot')}
+                  </button>
+                )}
               {host ? (
                 <button
                   className="button primary full"
@@ -273,6 +226,64 @@ export function WaitingRoomView({
                   <span className="loading-dot" /> {t('El anfitrión iniciará la partida.')}{' '}
                 </div>
               )}
+            </div>
+            <div className="waiting-player-list">
+              {room.players.map((p, index) => (
+                <div className="waiting-player" key={p.id}>
+                  <span className={`player-avatar color-${index % 6}`}>
+                    {p.isBot ? <Bot size={22} /> : p.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <div>
+                    <strong>
+                      {p.name}
+                      {p.id === myPlayerId && <small> {t('(tú)')}</small>}
+                    </strong>
+                    <span>
+                      {p.isBot
+                        ? t('Bot · listo para jugar')
+                        : p.connected
+                          ? t('En la sala')
+                          : t('Reconectando…')}
+                    </span>
+                  </div>
+                  {p.isHost ? (
+                    <span className="host-label">
+                      <Crown size={14} /> {t('Anfitrión')}{' '}
+                    </span>
+                  ) : (
+                    <span
+                      className={`presence-dot ${p.connected ? '' : 'away'}`}
+                      aria-hidden="true"
+                    />
+                  )}
+                  {host && !p.isHost && (
+                    <button
+                      className="icon-button waiting-remove-button"
+                      type="button"
+                      aria-label={t(p.isBot ? 'Quitar bot' : 'Retirar a {0}', { '0': p.name })}
+                      title={t(p.isBot ? 'Quitar bot' : 'Retirar a {0}', { '0': p.name })}
+                      disabled={busy || (p.isBot ? room.status !== 'waiting' : false)}
+                      onClick={(event) => {
+                        event.currentTarget.focus({ preventScroll: true });
+                        if (p.isBot) void onRemoveBot(p.id);
+                        else {
+                          setRemoving(p.id);
+                          setRemovalError(false);
+                        }
+                      }}
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <p className="free-seats">
+                {t('{0} plazas libres', {
+                  '0': Math.max(0, room.maxPlayers - room.players.length),
+                })}
+              </p>
+            </div>
+            <div className="waiting-start">
               {!playerCountValid && (
                 <p className="notice" role="status">
                   {t(
@@ -307,51 +318,28 @@ export function WaitingRoomView({
             </div>
           </section>
           <aside>
-            <section className="panel waiting-game">
-              <p className="active-settings-summary">
-                {(GAME_SETTINGS[room.gameType] || [])
-                  .map(
-                    (option) =>
-                      `${t(option.label)}: ${typeof option.defaultValue === 'boolean' ? t(settings[option.key] ? 'Sí' : 'No') : settingValue(option, Number(settings[option.key] ?? option.defaultValue))}`,
-                  )
-                  .join(' · ')}
-              </p>
-              <div className="game-meta">
-                <span>
-                  <Users size={15} /> {game.minPlayers}–{game.maxPlayers} {t('jugadores')}{' '}
-                </span>
-                <span>{game.duration}</span>
+            <section className="panel room-settings" id="room-settings">
+              <div className="room-settings-heading">
+                <h2>{t('Opciones de la partida')}</h2>
+                <div className="turn-setting">
+                  <label className="field-label" htmlFor="turn-seconds">
+                    {t('Tiempo por turno')}
+                  </label>
+                  <select
+                    className="field"
+                    id="turn-seconds"
+                    disabled={!editable || busy}
+                    value={settings.turnSeconds}
+                    onChange={(e) => changeRules({ turnSeconds: Number(e.target.value) })}
+                  >
+                    {[30, 60, 90, 120, 180].map((n) => (
+                      <option value={n} key={n}>
+                        {n} s
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <button className="text-button" onClick={() => setRules(true)}>
-                {t('Ver las reglas')} <ArrowUpRightIcon />
-              </button>
-            </section>
-            <details className="panel room-settings" id="room-settings">
-              <summary>
-                <Settings2 size={18} /> {t('Opciones de la partida')} · {settings.turnSeconds} s
-              </summary>
-
-              <label className="field-label" htmlFor="turn-seconds">
-                {t('Tiempo por turno')}
-              </label>
-              <select
-                className="field"
-                id="turn-seconds"
-                disabled={!editable || busy}
-                value={settings.turnSeconds}
-                onChange={(e) => changeRules({ turnSeconds: Number(e.target.value) })}
-              >
-                {[30, 60, 90, 120, 180].map((n) => (
-                  <option value={n} key={n}>
-                    {n} s
-                  </option>
-                ))}
-              </select>
-              <p className="form-hint">
-                {t(
-                  'Cuando tu decisión bloquee la partida, tendrás 15 segundos para confirmar tu presencia y una única prórroga de 30 segundos. Los plazos propios de las reglas se mantienen.',
-                )}
-              </p>
               <p className="settings-owner-note">
                 {host
                   ? t(
@@ -360,7 +348,10 @@ export function WaitingRoomView({
                   : t('El anfitrión puede cambiar estas opciones antes de empezar.')}
               </p>
               {(GAME_SETTINGS[room.gameType] || []).map((setting) => (
-                <div className="game-setting" key={setting.key}>
+                <div
+                  className={`game-setting ${typeof setting.defaultValue === 'boolean' ? 'is-toggle' : 'is-select'}`}
+                  key={setting.key}
+                >
                   {typeof setting.defaultValue === 'boolean' ? (
                     <label className="toggle-row" htmlFor={`setting-${setting.key}`}>
                       <span>{t(setting.label)}</span>
@@ -407,6 +398,117 @@ export function WaitingRoomView({
                   )}
                 </p>
               )}
+              {room.gameType === 'monopoly' && (
+                <section className="city-settings">
+                  <div className="city-settings-grid">
+                    <div className="city-setting-field">
+                      <label className="field-label" htmlFor="starting-cash">
+                        {t('Dinero inicial')}
+                      </label>
+                      <select
+                        className="field"
+                        id="starting-cash"
+                        disabled={!editable || busy}
+                        value={settings?.startingCash ?? 1500}
+                        onChange={(e) => changeRules({ startingCash: Number(e.target.value) })}
+                      >
+                        {[1000, 1500, 2000, 2500].map((n) => (
+                          <option key={n} value={n}>
+                            {formatMoney(n)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="city-setting-field">
+                      <label className="field-label" htmlFor="salary">
+                        {t('Salario al pasar por Salida')}
+                      </label>
+                      <select
+                        className="field"
+                        id="salary"
+                        disabled={!editable || busy}
+                        value={settings?.salaryGO ?? 200}
+                        onChange={(e) => changeRules({ salaryGO: Number(e.target.value) })}
+                      >
+                        {[200, 300, 400].map((n) => (
+                          <option key={n} value={n}>
+                            {n} €
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="city-setting-field">
+                      <label className="field-label" htmlFor="max-rounds">
+                        {t('Límite de rondas')}
+                      </label>
+                      <select
+                        className="field"
+                        id="max-rounds"
+                        disabled={!editable || busy}
+                        value={settings?.maxRounds ?? 'unlimited'}
+                        onChange={(e) =>
+                          changeRules({
+                            maxRounds:
+                              e.target.value === 'unlimited' ? null : Number(e.target.value),
+                          })
+                        }
+                      >
+                        <option value="unlimited">{t('Sin límite')}</option>
+                        {[20, 40, 60].map((n) => (
+                          <option key={n} value={n}>
+                            {n} {t('rondas')}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {(
+                      [
+                        ['jailFine', 'Multa para salir de la cárcel', [50, 100, 150]],
+                        ['maxJailTurns', 'Intentos para salir con dobles', [1, 2, 3]],
+                      ] as const
+                    ).map(([key, label, values]) => (
+                      <div className="city-setting-field" key={key}>
+                        <label className="field-label" htmlFor={key}>
+                          {t(label)}
+                        </label>
+                        <select
+                          className="field"
+                          id={key}
+                          disabled={!editable || busy}
+                          value={settings?.[key]}
+                          onChange={(e) => changeRules({ [key]: Number(e.target.value) })}
+                        >
+                          {values.map((n) => (
+                            <option value={n} key={n}>
+                              {key === 'jailFine' ? formatMoney(n) : n}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                    {[
+                      ['auctionEnabled', t('Subastar propiedades rechazadas')],
+                      ['freeParkingPool', t('Acumular impuestos en el descanso')],
+                      ['doubleGoSalary', t('Cobrar el doble al caer en Salida')],
+                      ['doubleGoSalaryOnPass', t('Cobrar el doble al pasar por Salida')],
+                      ['snakeEyesBonus', t('Recibir 500 € al sacar dobles de uno')],
+                      ['rentInJail', t('Cobrar alquiler estando en la cárcel')],
+                      ['evenBuilding', t('Construcción equilibrada')],
+                    ].map(([key, label]) => (
+                      <label className="toggle-row city-setting-toggle" key={key}>
+                        <span>{t(label)}</span>
+                        <input
+                          type="checkbox"
+                          role="switch"
+                          disabled={!editable || busy}
+                          checked={!!settings?.[key]}
+                          onChange={(e) => changeRules({ [key]: e.target.checked })}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </section>
+              )}
               {host && (
                 <button
                   className="button secondary full settings-reset"
@@ -422,115 +524,82 @@ export function WaitingRoomView({
                   {t('Restablecer opciones')}
                 </button>
               )}
-              {room.gameType === 'monopoly' && (
-                <section className="city-settings">
-                  <p>
-                    {host
-                      ? t('Ajusta las opciones antes de empezar.')
-                      : t('Estas son las opciones elegidas por el anfitrión.')}
-                  </p>
-                  <label className="field-label" htmlFor="starting-cash">
-                    {t('Dinero inicial')}{' '}
-                  </label>
-                  <select
-                    className="field"
-                    id="starting-cash"
-                    disabled={!editable || busy}
-                    value={settings?.startingCash ?? 1500}
-                    onChange={(e) => changeRules({ startingCash: Number(e.target.value) })}
-                  >
-                    {[1000, 1500, 2000, 2500].map((n) => (
-                      <option key={n} value={n}>
-                        {formatMoney(n)}
-                      </option>
-                    ))}
-                  </select>
-                  <label className="field-label" htmlFor="salary">
-                    {t('Salario al pasar por Salida')}{' '}
-                  </label>
-                  <select
-                    className="field"
-                    id="salary"
-                    disabled={!editable || busy}
-                    value={settings?.salaryGO ?? 200}
-                    onChange={(e) => changeRules({ salaryGO: Number(e.target.value) })}
-                  >
-                    {[200, 300, 400].map((n) => (
-                      <option key={n} value={n}>
-                        {n} €
-                      </option>
-                    ))}
-                  </select>
-                  <label className="field-label" htmlFor="max-rounds">
-                    {t('Límite de rondas')}{' '}
-                  </label>
-                  <select
-                    className="field"
-                    id="max-rounds"
-                    disabled={!editable || busy}
-                    value={settings?.maxRounds ?? 'unlimited'}
-                    onChange={(e) =>
-                      changeRules({
-                        maxRounds: e.target.value === 'unlimited' ? null : Number(e.target.value),
-                      })
-                    }
-                  >
-                    <option value="unlimited">{t('Sin límite')}</option>
-                    {[20, 40, 60].map((n) => (
-                      <option key={n} value={n}>
-                        {n} {t('rondas')}{' '}
-                      </option>
-                    ))}
-                  </select>
-                  {(
-                    [
-                      ['jailFine', 'Multa para salir de la cárcel', [50, 100, 150]],
-                      ['maxJailTurns', 'Intentos para salir con dobles', [1, 2, 3]],
-                    ] as const
-                  ).map(([key, label, values]) => (
-                    <div key={key}>
-                      <label className="field-label" htmlFor={key}>
-                        {t(label)}
-                      </label>
-                      <select
-                        className="field"
-                        id={key}
-                        disabled={!editable || busy}
-                        value={settings?.[key]}
-                        onChange={(e) => changeRules({ [key]: Number(e.target.value) })}
-                      >
-                        {values.map((n) => (
-                          <option value={n} key={n}>
-                            {key === 'jailFine' ? formatMoney(n) : n}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
-                  {[
-                    ['auctionEnabled', t('Subastar propiedades rechazadas')],
-                    ['freeParkingPool', t('Acumular impuestos en el descanso')],
-                    ['doubleGoSalary', t('Cobrar el doble al caer en Salida')],
-                    ['rentInJail', t('Cobrar alquiler estando en la cárcel')],
-                    ['evenBuilding', t('Construcción equilibrada')],
-                  ].map(([key, label]) => (
-                    <label className="toggle-row" key={key}>
-                      <span>{t(label)}</span>
-                      <input
-                        type="checkbox"
-                        role="switch"
-                        disabled={!editable || busy}
-                        checked={!!settings?.[key]}
-                        onChange={(e) => changeRules({ [key]: e.target.checked })}
-                      />
-                    </label>
-                  ))}
-                </section>
-              )}
-            </details>
+            </section>
           </aside>
         </div>
       </main>
+      {gamePickerOpen && (
+        <Modal title={t('Cambiar juego')} wide onClose={() => setGamePickerOpen(false)}>
+          <p className="muted">{t('El código de la sala y el grupo se conservan al cambiar.')}</p>
+          <label className="field-label" htmlFor="room-game-search">
+            {t('Buscar juegos')}
+          </label>
+          <div className="search-box room-game-picker-search">
+            <Search size={18} aria-hidden="true" />
+            <input
+              id="room-game-search"
+              ref={gameSearchRef}
+              type="search"
+              autoComplete="off"
+              placeholder={t('Buscar juegos')}
+              value={gameSearch}
+              onChange={(event) => setGameSearch(event.target.value)}
+            />
+            {gameSearch && (
+              <button
+                type="button"
+                aria-label={t('Borrar búsqueda')}
+                onClick={() => setGameSearch('')}
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          {availableGames.length ? (
+            <ul className="room-game-picker-list">
+              {availableGames.map((option) => {
+                const isCurrent = option.id === room.gameType;
+                const playerRange = option.playerCounts
+                  ? option.playerCounts.join('/')
+                  : `${option.minPlayers}–${option.maxPlayers}`;
+                return (
+                  <li key={option.id}>
+                    <button
+                      type="button"
+                      className={`room-game-option ${isCurrent ? 'selected' : ''}`}
+                      data-game-id={option.id}
+                      aria-pressed={isCurrent}
+                      disabled={!host || busy}
+                      onClick={() => void changeGame(option.id)}
+                    >
+                      <span className="room-game-option-art">
+                        <GameArtwork game={option.id} />
+                      </span>
+                      <span className="room-game-option-copy">
+                        <strong>{option.name}</strong>
+                        <span className="room-game-option-meta">
+                          {playerRange} {t('jugadores')} · {option.duration}
+                        </span>
+                        <span className="room-game-option-description">{option.description}</span>
+                      </span>
+                      <span className="room-game-option-check" aria-hidden="true">
+                        {isCurrent && <Check size={18} />}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="room-game-picker-empty" role="status">
+              {t('No se encontraron juegos.')}
+            </p>
+          )}
+        </Modal>
+      )}
+      {rulesOpen && (
+        <Rules gameType={room.gameType} room={room} onClose={() => setRulesOpen(false)} />
+      )}
       {removing && (
         <Modal title={t('¿Retirar a este participante?')} onClose={() => setRemoving(null)}>
           <p>
@@ -560,10 +629,13 @@ export function WaitingRoomView({
           </div>
         </Modal>
       )}
-      {rules && <Rules room={room} gameType={game.id} onClose={() => setRules(false)} />}
     </div>
   );
 }
-function ArrowUpRightIcon() {
-  return <ArrowRight size={15} />;
+function normalizeSearch(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
 }

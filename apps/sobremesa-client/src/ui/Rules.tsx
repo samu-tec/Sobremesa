@@ -45,6 +45,8 @@ export function Rules({
                 ['auctionEnabled', 'Subastar propiedades rechazadas'],
                 ['freeParkingPool', 'Acumular impuestos en el descanso'],
                 ['doubleGoSalary', 'Cobrar el doble al caer en Salida'],
+                ['doubleGoSalaryOnPass', 'Cobrar el doble al pasar por Salida'],
+                ['snakeEyesBonus', 'Recibir 500 € al sacar dobles de uno'],
                 ['rentInJail', 'Cobrar alquiler estando en la cárcel'],
                 ['evenBuilding', 'Construcción equilibrada'],
               ].map(([key, label]) => (
@@ -66,7 +68,7 @@ export function Rules({
           </p>
           <p>
             {t(
-              'Cuando tu decisión bloquee la partida, tendrás 15 segundos para confirmar tu presencia y una única prórroga de 30 segundos. Los plazos propios de las reglas se mantienen.',
+              'Puedes activar o desactivar el autoplay. Si no actúas durante un turno o te desconectas, la partida usa la inteligencia normal del bot por ti. Tras 3 minutos, el anfitrión puede retirarte o mantener tu plaza como bot; puedes desactivarlo antes de que venza. Los plazos propios de las reglas se mantienen.',
             )}
           </p>
           {room.gameType === 'monopoly' && (

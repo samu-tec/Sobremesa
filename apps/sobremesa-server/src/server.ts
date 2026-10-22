@@ -77,7 +77,10 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEve
           : { attempts: 0, reset: now + 60000, active: previous?.active || 0 };
       bucket.attempts++;
       connections.set(ip, bucket);
-      callback(null, bucket.attempts <= 120 && bucket.active < 30);
+      callback(
+        null,
+        bucket.attempts <= CONFIG.MAX_HANDSHAKE_ATTEMPTS_PER_MINUTE && bucket.active < 30,
+      );
     },
     maxHttpBufferSize: 16 * 1024,
     pingTimeout: 20000,

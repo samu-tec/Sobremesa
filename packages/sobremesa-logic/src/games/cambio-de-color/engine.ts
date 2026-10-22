@@ -24,10 +24,12 @@ export class CambioDeColorEngine implements IGameEngine<
   constructor(
     private startingCards = 7,
     private stackDrawCards = false,
+    private jumpInEnabled = false,
   ) {}
-  setRules(rules: { startingCards?: number; stackDrawCards?: boolean }) {
+  setRules(rules: { startingCards?: number; stackDrawCards?: boolean; jumpIn?: boolean }) {
     this.startingCards = rules.startingCards ?? 7;
     this.stackDrawCards = rules.stackDrawCards ?? false;
+    this.jumpInEnabled = rules.jumpIn ?? false;
   }
   setStartingCards(value: number) {
     this.startingCards = value;
@@ -58,6 +60,10 @@ export class CambioDeColorEngine implements IGameEngine<
 
     return {
       stackDrawCards: this.stackDrawCards,
+      jumpInEnabled: this.jumpInEnabled,
+      jumpInWindow: false,
+      pendingCardAction: null,
+      jumpInPenaltyBase: 0,
       pendingDraw: 0,
       actionNumber: 0,
       lastEvent: 'start',
@@ -84,25 +90,32 @@ export class CambioDeColorEngine implements IGameEngine<
       return false;
     }
 
-    if (state.currentTurnPlayerId !== playerId) {
-      return false;
-    }
-
     const player = state.players.find((p) => p.playerId === playerId);
     if (!player) {
       return false;
     }
 
     const topDiscard = state.discardPile[state.discardPile.length - 1];
+    const isJumpInCard = (card: (typeof player.cards)[number]) =>
+      state.jumpInEnabled &&
+      state.jumpInWindow &&
+      card.color === topDiscard.color &&
+      card.value === topDiscard.value;
 
     if (action.type === 'PLAY_CARD') {
       const card = player.cards.find((c) => c.id === action.cardId);
       if (!card) {
         return false;
       }
-      if (state.hasDrawnThisTurn && state.drawnCardId !== card.id) return false;
+      const isJumpIn = isJumpInCard(card);
+      if (state.jumpInWindow && !isJumpIn) return false;
+      if (state.currentTurnPlayerId !== playerId && !isJumpIn) return false;
+      if (state.pendingCardAction === 'skip' && !isJumpIn) return false;
+      if (!isJumpIn && state.hasDrawnThisTurn && state.drawnCardId !== card.id) return false;
 
-      if (!isCardPlayable(card, state.activeColor, topDiscard, state.pendingDraw)) {
+      if (!isJumpIn && state.pendingDraw > 0 && !state.stackDrawCards) return false;
+
+      if (!isJumpIn && !isCardPlayable(card, state.activeColor, topDiscard, state.pendingDraw)) {
         return false;
       }
 
@@ -119,11 +132,22 @@ export class CambioDeColorEngine implements IGameEngine<
     }
 
     if (action.type === 'DRAW_CARD') {
-      return !state.hasDrawnThisTurn;
+      return (
+        state.currentTurnPlayerId === playerId &&
+        !state.jumpInWindow &&
+        state.pendingCardAction !== 'skip' &&
+        (state.pendingDraw > 0 || !state.hasDrawnThisTurn)
+      );
     }
 
     if (action.type === 'PASS_TURN') {
-      return state.hasDrawnThisTurn && !state.pendingDraw;
+      return (
+        state.currentTurnPlayerId === playerId &&
+        !state.jumpInWindow &&
+        state.pendingCardAction !== 'skip' &&
+        state.hasDrawnThisTurn &&
+        !state.pendingDraw
+      );
     }
 
     return false;
@@ -135,8 +159,23 @@ export class CambioDeColorEngine implements IGameEngine<
     action: CambioDeColorAction,
   ): CambioDeColorState {
     if (!this.validateAction(state, playerId, action)) return state;
+    const previousTop = state.discardPile[state.discardPile.length - 1];
+    const requestedCard =
+      action.type === 'PLAY_CARD'
+        ? state.players
+            .find((p) => p.playerId === playerId)
+            ?.cards.find((c) => c.id === action.cardId)
+        : undefined;
+    const isJumpIn = Boolean(
+      requestedCard &&
+      state.jumpInEnabled &&
+      state.jumpInWindow &&
+      requestedCard.color === previousTop.color &&
+      requestedCard.value === previousTop.value,
+    );
     const newState: CambioDeColorState = {
       ...state,
+      currentTurnPlayerId: isJumpIn ? playerId : state.currentTurnPlayerId,
       actionNumber: state.actionNumber + 1,
       players: state.players.map((p) => ({ ...p, cards: [...p.cards] })),
       drawPile: [...state.drawPile],
@@ -152,6 +191,9 @@ export class CambioDeColorEngine implements IGameEngine<
 
     if (action.type === 'DRAW_CARD') {
       newState.lastEvent = 'draw';
+      newState.jumpInWindow = false;
+      newState.pendingCardAction = null;
+      newState.jumpInPenaltyBase = 0;
       newState.drawnCardId = null;
       if (newState.pendingDraw > 0) {
         const count = newState.pendingDraw;
@@ -192,6 +234,8 @@ export class CambioDeColorEngine implements IGameEngine<
 
     if (action.type === 'PASS_TURN') {
       newState.lastEvent = 'pass';
+      newState.jumpInWindow = false;
+      newState.pendingCardAction = null;
       newState.hasDrawnThisTurn = false;
       newState.drawnCardId = null;
       newState.currentTurnPlayerId = this.getNextPlayerId(newState, 1);
@@ -201,6 +245,12 @@ export class CambioDeColorEngine implements IGameEngine<
 
     if (action.type === 'PLAY_CARD') {
       newState.drawnCardId = null;
+      newState.jumpInWindow = this.jumpInEnabled;
+      if (isJumpIn) {
+        newState.pendingDraw = state.jumpInPenaltyBase;
+        newState.pendingCardAction = null;
+        newState.jumpInPenaltyBase = 0;
+      }
       const cardIndex = player.cards.findIndex((c) => c.id === action.cardId);
       const [playedCard] = player.cards.splice(cardIndex, 1);
       newState.discardPile.push(playedCard);
@@ -214,6 +264,51 @@ export class CambioDeColorEngine implements IGameEngine<
         newState.pendingDraw = 0;
         newState.lastEvent = 'win';
         newState.lastActionDescription = msg('¡Ha ganado la partida!');
+        return newState;
+      }
+
+      if (this.jumpInEnabled && playedCard.value === 'skip') {
+        newState.pendingCardAction = 'skip';
+        newState.lastEvent = 'skip';
+        newState.currentTurnPlayerId = this.getNextPlayerId(newState, 1);
+        newState.lastActionDescription = isJumpIn
+          ? msg('La segunda carta idéntica cancela la anterior y aplica Salto desde quien entró.')
+          : msg('Jugó Salto; tienes un instante para entrar con otra carta idéntica.');
+        return newState;
+      }
+      if (this.jumpInEnabled && playedCard.value === 'reverse') {
+        newState.pendingCardAction = 'reverse';
+        newState.lastEvent = 'reverse';
+        newState.currentTurnPlayerId = nextColorPlayer(
+          newState.players.map((p) => p.playerId),
+          playerId,
+          (newState.turnDirection * -1) as 1 | -1,
+        );
+        newState.lastActionDescription = isJumpIn
+          ? msg(
+              'La segunda carta idéntica cancela la anterior y aplica Cambio de Sentido desde quien entró.',
+            )
+          : msg('Jugó Cambio de Sentido; espera la resolución del sentido.');
+        return newState;
+      }
+      if (
+        this.jumpInEnabled &&
+        (playedCard.value === 'draw2' || playedCard.value === 'wild_draw4')
+      ) {
+        newState.jumpInPenaltyBase = newState.pendingDraw;
+        newState.pendingDraw += playedCard.value === 'draw2' ? 2 : 4;
+        newState.pendingCardAction = playedCard.value;
+        newState.currentTurnPlayerId = this.getNextPlayerId(newState, 1);
+        newState.lastEvent = this.stackDrawCards ? 'stack' : 'card';
+        newState.lastActionDescription = isJumpIn
+          ? msg(
+              'La segunda carta idéntica cancela la anterior y aplica {0} desde quien entró.',
+              playedCard.value === 'draw2' ? '+2' : '+4',
+            )
+          : msg(
+              'Jugó {0}; la penalización se resolverá tras la oportunidad de Jump-In.',
+              playedCard.value === 'draw2' ? '+2' : '+4',
+            );
         return newState;
       }
 
@@ -268,11 +363,13 @@ export class CambioDeColorEngine implements IGameEngine<
         newState.lastActionDescription = msg('Cambió el color a {0}', term(action.chosenColor!));
       } else {
         newState.currentTurnPlayerId = this.getNextPlayerId(newState, 1);
-        newState.lastActionDescription = msg(
-          'Jugó {0} {1}',
-          term(playedCard.color),
-          term(playedCard.value),
-        );
+        newState.lastActionDescription = isJumpIn
+          ? msg(
+              'Interrumpió con una carta idéntica: jugó {0} {1}.',
+              term(playedCard.color),
+              term(playedCard.value),
+            )
+          : msg('Jugó {0} {1}', term(playedCard.color), term(playedCard.value));
       }
 
       return newState;
@@ -298,6 +395,9 @@ export class CambioDeColorEngine implements IGameEngine<
     return {
       playerOrder: state.players.map((p) => p.playerId),
       stackDrawCards: state.stackDrawCards,
+      jumpInEnabled: state.jumpInEnabled,
+      jumpInWindow: state.jumpInWindow,
+      pendingCardAction: state.pendingCardAction,
       pendingDraw: state.pendingDraw,
       actionNumber: state.actionNumber,
       lastEvent: state.lastEvent,
@@ -323,17 +423,34 @@ export class CambioDeColorEngine implements IGameEngine<
   forfeitPlayer(state: CambioDeColorState, id: string): CambioDeColorState {
     if (state.winner || !state.players.some((p) => p.playerId === id)) return state;
     const departed = state.players.find((p) => p.playerId === id);
+    const isCurrentActorLeavingWindow = state.jumpInWindow && state.currentTurnPlayerId === id;
+    const direction =
+      isCurrentActorLeavingWindow && state.pendingCardAction === 'reverse'
+        ? ((state.turnDirection * -1) as 1 | -1)
+        : state.turnDirection;
     const players = state.players
       .filter((p) => p.playerId !== id)
       .map((p) => ({ ...p, cards: [...p.cards] }));
     const nextId =
-      state.currentTurnPlayerId === id ? this.getNextPlayerId(state, 1) : state.currentTurnPlayerId;
+      state.currentTurnPlayerId === id
+        ? nextColorPlayer(
+            state.players.map((p) => p.playerId),
+            id,
+            direction,
+          )
+        : state.currentTurnPlayerId;
     return {
       ...state,
       players,
       actionNumber: state.actionNumber + 1,
       lastEvent: 'leave',
       pendingDraw: players.length === 1 ? 0 : state.pendingDraw,
+      jumpInWindow: players.length > 1 && state.jumpInWindow && !isCurrentActorLeavingWindow,
+      pendingCardAction:
+        players.length === 1 || isCurrentActorLeavingWindow ? null : state.pendingCardAction,
+      jumpInPenaltyBase:
+        players.length === 1 || isCurrentActorLeavingWindow ? 0 : state.jumpInPenaltyBase,
+      turnDirection: direction,
       drawPile: shuffleDeck([...state.drawPile, ...(departed?.cards ?? [])]),
       currentTurnPlayerId: nextId,
       winner: players.length === 1 ? players[0].playerId : null,
@@ -345,6 +462,34 @@ export class CambioDeColorEngine implements IGameEngine<
 
   getBotAction(state: CambioDeColorState, botId: string): CambioDeColorAction | null {
     return getBotCambioDeColorAction(state, botId);
+  }
+
+  /** Cierra la ventana breve de interrupción y aplica el efecto pendiente. */
+  finishJumpInWindow(state: CambioDeColorState): CambioDeColorState {
+    if (!state.jumpInWindow) return state;
+    const next: CambioDeColorState = {
+      ...state,
+      players: state.players.map((p) => ({ ...p, cards: [...p.cards] })),
+      drawPile: [...state.drawPile],
+      discardPile: [...state.discardPile],
+      jumpInWindow: false,
+      pendingCardAction: null,
+      jumpInPenaltyBase: 0,
+    };
+    if (state.pendingCardAction === 'skip') {
+      next.currentTurnPlayerId = this.getNextPlayerId(next, 1);
+    } else if (state.pendingCardAction === 'reverse') {
+      next.turnDirection = (next.turnDirection * -1) as 1 | -1;
+      if (next.players.length === 2) next.currentTurnPlayerId = this.getNextPlayerId(next, 1);
+    } else if (state.pendingCardAction && !state.stackDrawCards && next.pendingDraw > 0) {
+      const victimId = next.currentTurnPlayerId;
+      this.drawCardsForPlayer(next, victimId, next.pendingDraw);
+      next.pendingDraw = 0;
+      next.currentTurnPlayerId = this.getNextPlayerId(next, 1);
+      next.hasDrawnThisTurn = false;
+      next.drawnCardId = null;
+    }
+    return next;
   }
 
   /**
