@@ -23,6 +23,12 @@ test('Cambio de Color: configurar, jugar una partida real entre amigos y conserv
   const jumpIn = page.getByRole('switch', { name: 'Permitir Jump-In', exact: true });
   await expect(stacking).not.toBeChecked();
   await expect(jumpIn).not.toBeChecked();
+  await expect(page.locator('.game-setting').filter({ has: stacking })).not.toContainText(
+    'Desactivada por defecto',
+  );
+  await expect(page.locator('.game-setting').filter({ has: jumpIn })).not.toContainText(
+    'Desactivada por defecto',
+  );
   await stacking.check();
   await jumpIn.check();
   await page.getByRole('combobox', { name: 'Cartas iniciales', exact: true }).selectOption('5');
@@ -155,18 +161,44 @@ for (const direction of [1, -1])
       await page.getByRole('button', { name: 'Añadir bot', exact: true }).click();
       await page.getByRole('button', { name: 'Añadir bot', exact: true }).click();
       await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
+      const orderPanel = page.locator('.color-order-panel');
+      await expect(orderPanel).toBeVisible();
+      await expect(orderPanel).toContainText('Orden de juego');
+      await expect(page.locator('.table-sidebar .color-player-order')).toHaveCount(0);
+      await expect(page.locator('.color-table .color-order-panel')).toHaveCount(0);
+      await expect(orderPanel).toHaveCSS('flex-direction', 'column');
+      const orderPanelBox = await orderPanel.boundingBox();
+      const tableCenterBox = await page.locator('.card-table-center').boundingBox();
+      expect(orderPanelBox).not.toBeNull();
+      expect(tableCenterBox).not.toBeNull();
+      expect(orderPanelBox!.x).toBeLessThan(tableCenterBox!.x);
+      const playerRows = await page
+        .locator('.color-player-order > li')
+        .evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().y));
+      expect(playerRows).toHaveLength(4);
+      expect(playerRows).toEqual([...playerRows].sort((a, b) => a - b));
+      await expect(page.locator('.color-order-arrow svg')).toHaveCount(4);
+      await expect(page.locator('.color-order-arrow svg').last()).toHaveClass(/lucide-arrow-down/);
       await expect(page.locator('.color-player-order li strong')).toHaveText([
-        'Ana (tú)',
-        'Bot 2',
-        'Bot 3',
-        'Bot 1',
+        ...(direction === 1
+          ? ['Ana (tú)', 'Bot 2', 'Bot 3', 'Bot 1']
+          : ['Ana (tú)', 'Bot 1', 'Bot 3', 'Bot 2']),
       ]);
-      await expect(page.locator('.color-direction')).toContainText(
-        direction === 1 ? 'Sentido horario' : 'Sentido antihorario',
-      );
-      await expect(page.locator('.color-direction')).toContainText(
+      await expect(page.locator('.color-next-player')).toContainText(
         direction === 1 ? 'Siguiente: Bot 2' : 'Siguiente: Bot 1',
       );
+      await expect(orderPanel).not.toContainText(/Sentido horario|Sentido antihorario/);
+      await expect(page.locator('.color-opponents > div')).toHaveCount(3);
+      await expect(page.locator('.color-opponents')).toBeVisible();
+      await expect(page.locator('.color-opponents .mini-cards')).toHaveCount(3);
+      await expect(page.locator('.color-opponents .mini-cards > span')).toHaveCount(9);
+      const centralPlayers = await page.locator('.color-opponents strong').allTextContents();
+      expect(centralPlayers.map((name) => name.trim()).sort()).toEqual(['Bot 1', 'Bot 2', 'Bot 3']);
+      await expect(page.locator('.color-opponents small')).toHaveText([
+        '7 cartas',
+        '7 cartas',
+        '7 cartas',
+      ]);
       await expect(page.locator('.color-penalty')).toContainText('+10 pendientes');
       await expect(
         page.getByRole('button', { name: 'Robar 10 cartas y perder el turno', exact: true }),
@@ -178,14 +210,12 @@ for (const direction of [1, -1])
         page.getByRole('button', { name: 'Jugar Comodín Color', exact: true }),
       ).toBeDisabled();
       const hand = page.locator('.your-hand');
-      const y = (await hand.boundingBox())!.y;
-      const scroll = await page.evaluate(() => window.scrollY);
       await page.getByRole('button', { name: 'Jugar Comodín +4', exact: true }).click();
       await expect(page.locator('.color-choice-panel')).toBeVisible();
       await expect(page.locator('.draw-deck')).not.toHaveClass(/draw-available/);
       await expect(page.locator('.color-choices button').first()).toBeFocused();
-      expect((await hand.boundingBox())!.y).toBe(y);
-      expect(await page.evaluate(() => window.scrollY)).toBe(scroll);
+      const handYAfterScroll = (await hand.boundingBox())!.y;
+      const scrollAfterScroll = await page.evaluate(() => window.scrollY);
       await expect(hand).toBeInViewport();
       const audit = await accessibilityAudit(page).analyze();
       expect(
@@ -195,7 +225,11 @@ for (const direction of [1, -1])
       await expect(
         page.getByRole('button', { name: 'Jugar Comodín +4', exact: true }),
       ).toBeFocused();
-      expect((await hand.boundingBox())!.y).toBe(y);
+      // Restoring focus may scroll a few pixels on mobile to keep the card visible.
+      expect(Math.abs((await hand.boundingBox())!.y - handYAfterScroll)).toBeLessThanOrEqual(16);
+      expect(
+        Math.abs((await page.evaluate(() => window.scrollY)) - scrollAfterScroll),
+      ).toBeLessThanOrEqual(16);
       if (direction === 1 && viewport.width === 390) {
         await page.getByRole('button', { name: 'Preferencias', exact: true }).click();
         await page
@@ -272,7 +306,9 @@ test('Cambio de Color: un evento público emite sonido una vez sin reordenar la 
     .poll(() => page.evaluate(() => (window as SoundWindow).colorAudio?.currentTime || 0))
     .toBeGreaterThan(1.2);
   publish(1);
-  await expect(page.locator('.color-direction')).toContainText('Sentido antihorario');
+  await expect(page.locator('.color-order-panel')).not.toContainText(
+    /Sentido horario|Sentido antihorario/,
+  );
   await expect.poll(() => page.evaluate(() => (window as SoundWindow).colorNotes)).toBe(2);
   // Wait for the real native oscillators to finish before resending the same public event.
   await expect

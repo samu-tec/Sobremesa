@@ -29,13 +29,13 @@ export const GAME_SETTINGS: Record<GameType, readonly GameSetting[]> = {
     toggle(
       'jumpIn',
       'Permitir Jump-In',
-      'Regla de la casa: puedes interrumpir con una carta idéntica en color y valor. Si es de acción, la segunda cancela el efecto pendiente y se resuelve como una acción nueva desde quien entró. Desactivada por defecto.',
+      'Regla de la casa: puedes interrumpir con una carta idéntica en color y valor. Si es de acción, la segunda cancela el efecto pendiente y se resuelve como una acción nueva desde quien entró.',
       false,
     ),
     toggle(
       'stackDrawCards',
       'Permitir acumular +2 y +4',
-      'Regla de la casa: responde con cualquier +2 o +4, sin importar el color, o roba el total y pierde el turno. Desactivada por defecto.',
+      'Regla de la casa: responde con cualquier +2 o +4, sin importar el color, o roba el total y pierde el turno.',
       false,
     ),
     number(
@@ -85,7 +85,7 @@ export const GAME_SETTINGS: Record<GameType, readonly GameSetting[]> = {
     toggle(
       'allSevensBonus',
       'Premio por los cuatro sietes',
-      'Regla casera documentada: quien captura los cuatro sietes suma tres puntos por el conjunto de sietes y el siete de oros, en vez de los dos habituales. Desactivada por defecto.',
+      'Regla casera documentada: quien captura los cuatro sietes suma tres puntos por el conjunto de sietes y el siete de oros, en vez de los dos habituales.',
       false,
     ),
     number(

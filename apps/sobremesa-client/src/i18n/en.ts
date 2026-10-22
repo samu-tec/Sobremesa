@@ -26,8 +26,8 @@ export const en: Record<string, string> = {
   'Jugó {0}: +{1} pendientes.': 'Played {0}: +{1} pending.',
   'Aceptó la penalización de {0} cartas y perdió el turno.':
     'Accepted the {0}-card penalty and lost their turn.',
-  'Regla de la casa: responde con cualquier +2 o +4, sin importar el color, o roba el total y pierde el turno. Desactivada por defecto.':
-    'House rule: respond with any +2 or +4, regardless of colour, or draw the total and lose your turn. Off by default.',
+  'Regla de la casa: responde con cualquier +2 o +4, sin importar el color, o roba el total y pierde el turno.':
+    'House rule: respond with any +2 or +4, regardless of colour, or draw the total and lose your turn.',
   'Permitir acumular +2 y +4': 'Allow stacking +2 and +4',
   'Aviso de partida': 'Game notice',
   'Sonidos breves durante el juego. Se silencian al ocultar esta pestaña.':
@@ -1909,8 +1909,9 @@ export const en: Record<string, string> = {
   'Acumular impuestos en el descanso': 'Put taxes into the rest stop pot',
   'Cobrar el doble al caer en Salida': 'Double salary for landing on Go',
   'Permitir Jump-In': 'Allow Jump-In',
-  'Regla de la casa: puedes interrumpir con una carta idéntica en color y valor. Si es de acción, la segunda cancela el efecto pendiente y se resuelve como una acción nueva desde quien entró. Desactivada por defecto.':
-    'House rule: interrupt with a card that matches both colour and value. If it is an action card, it cancels the pending effect and resolves as a new action from the player who jumped in. Off by default.',
+  'Cartas de los rivales': 'Opponents’ cards',
+  'Regla de la casa: puedes interrumpir con una carta idéntica en color y valor. Si es de acción, la segunda cancela el efecto pendiente y se resuelve como una acción nueva desde quien entró.':
+    'House rule: interrupt with a card that matches both colour and value. If it is an action card, it cancels the pending effect and resolves as a new action from the player who jumped in.',
   'Regla de la casa opcional Jump-In: durante la breve oportunidad tras una jugada, puedes interrumpir con otra carta idéntica en color y valor. Si es de acción, la segunda cancela el efecto pendiente y se resuelve como una acción nueva desde quien entró. Desactivada por defecto.':
     'Optional Jump-In house rule: during the brief window after a play, interrupt with another card that matches both colour and value. If it is an action card, it cancels the pending effect and resolves as a new action from the player who jumped in. Off by default.',
   'Las cartas, los impuestos y el bote opcional se resuelven automáticamente. Antes de empezar, el anfitrión puede ajustar dinero, salario, subastas, cárcel, construcción y bote de descanso. Las reglas caseras opcionales incluyen doble salario al caer o pasar por Salida y 500 € por sacar dobles de uno; vienen desactivadas. Las opciones de la sala prevalecen sobre estos valores predeterminados.':
@@ -1927,8 +1928,8 @@ export const en: Record<string, string> = {
   'Regla casera opcional: capturar los cuatro sietes concede un punto adicional, de modo que el conjunto de sietes y el siete de oros suma tres en total. Desactivada por defecto.':
     'Optional house rule: capturing all four sevens adds one point, making the sevens set and seven of coins worth three points in total. Off by default.',
   'Premio por los cuatro sietes': 'Bonus for all four sevens',
-  'Regla casera documentada: quien captura los cuatro sietes suma tres puntos por el conjunto de sietes y el siete de oros, en vez de los dos habituales. Desactivada por defecto.':
-    'Documented house rule: capturing all four sevens scores three points for the set of sevens and the seven of coins instead of the usual two. Off by default.',
+  'Regla casera documentada: quien captura los cuatro sietes suma tres puntos por el conjunto de sietes y el siete de oros, en vez de los dos habituales.':
+    'Documented house rule: capturing all four sevens scores three points for the set of sevens and the seven of coins instead of the usual two.',
   'Puedes entrar con una carta idéntica en color y valor.':
     'You may jump in with an identical colour and value card.',
   'Juega una carta idéntica para interrumpir': 'Play an identical card to jump in',
