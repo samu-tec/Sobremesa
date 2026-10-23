@@ -271,7 +271,9 @@ test('Anfitrión: puede confirmar la retirada anticipada de un desconectado', as
     ).toHaveCount(0);
     await context.setOffline(true);
     await guest.evaluate(() => window.dispatchEvent(new Event('offline')));
-    await expect(page.locator('.game-message')).toContainText('reconectando');
+    await expect(page.locator('.game-message-detail')).toHaveText(
+      'Bruno ha perdido la conexión. Puede volver mientras su plaza siga disponible.',
+    );
     await page.getByRole('button', { name: 'Gestionar participantes', exact: true }).click();
     const management = page.getByRole('dialog', { name: 'Gestionar participantes', exact: true });
     await expect(management).toContainText('Bruno');
@@ -283,6 +285,7 @@ test('Anfitrión: puede confirmar la retirada anticipada de un desconectado', as
     await guest.evaluate(() => window.dispatchEvent(new Event('online')));
     await expect(page.locator('.players-panel .table-player')).toHaveCount(2);
     await expect(guest.locator('.players-panel .table-player')).toHaveCount(2);
+    await expect(page.locator('.game-message')).toHaveCount(0);
   } finally {
     await context.close();
   }

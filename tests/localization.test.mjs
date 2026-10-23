@@ -58,6 +58,26 @@ test('Los textos de interfaz y los mensajes de los motores tienen traducción y 
     visit(source);
   }
 });
+test('Los avisos de desconexión se traducen sin prometer una reserva garantizada', () => {
+  assert.equal(
+    en['{0} ha perdido la conexión. Puede volver mientras su plaza siga disponible.'],
+    '{0} has lost the connection. They can return while their seat is still available.',
+  );
+  assert.equal(
+    en[
+      'Han perdido la conexión: {0}. Cada persona puede volver mientras su plaza siga disponible.'
+    ],
+    'The following players have lost connection: {0}. Each can return while their seat remains available.',
+  );
+  assert.equal(
+    en['Reconectando… El plazo de recuperación de la sala de espera es de {0} segundos.'],
+    'Reconnecting… The waiting room recovery period is {0} seconds.',
+  );
+  assert.equal(
+    en['Reconectando… La disponibilidad de tu plaza depende del estado de la sala.'],
+    'Reconnecting… Your seat’s availability depends on the room state.',
+  );
+});
 test('Catálogo, reglas, consejos, cartas y casillas especiales están traducidos', () => {
   for (const game of GAME_CATALOG) {
     if (game.name !== 'Reversi') translated(game.name);

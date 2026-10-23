@@ -449,7 +449,7 @@ export function LobbyView({
             <Link2 size={22} />
             <p>
               {t(
-                'Si se corta tu conexión, vuelve desde la misma pestaña en menos de cinco minutos para recuperar tu sitio.',
+                'El plazo de recuperación se puede configurar; por defecto es de cinco minutos. En la sala de espera, la plaza se conserva durante ese plazo. Durante una partida, el autoplay mantiene el juego en marcha y el anfitrión puede retirar inmediatamente a una persona que siga desconectada. La plaza solo se recupera mientras permanezca en la sala; retirarla definitivamente invalida esa sesión.',
               )}{' '}
             </p>
           </div>

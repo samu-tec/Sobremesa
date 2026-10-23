@@ -44,7 +44,7 @@ for (const viewport of [
     const context = await browser.newContext();
     try {
       const guest = await context.newPage();
-      await ready(guest);
+      await ready(guest, 'Bruno');
       await guest.goto(`/?room=${code}`);
       await guest.getByRole('button', { name: 'Unirme a la partida', exact: true }).click();
       await expect(page.locator('.waiting-player:not(.empty-seat)')).toHaveCount(2);
@@ -64,13 +64,15 @@ for (const viewport of [
       await expect(page.locator('.table-player.active')).toContainText('Es tu turno');
       expect((await board.boundingBox())!.y).toBe(top);
       await guest.close();
-      await expect(page.locator('.game-message')).toContainText('reconectando');
+      await expect(page.locator('.game-message-detail')).toHaveText(
+        'Bruno ha perdido la conexión. Puede volver mientras su plaza siga disponible.',
+      );
       expect((await board.boundingBox())!.y).toBe(top);
       await page.locator('.game-message-detail').focus();
       const afterFocus = (await board.boundingBox())!.y;
       await page.locator('.game-message-detail').press('Enter');
       await expect(page.getByRole('dialog')).toContainText(
-        'Ana está reconectando. El anfitrión podrá gestionar su ausencia en 3 minutos.',
+        'Bruno ha perdido la conexión. Puede volver mientras su plaza siga disponible.',
       );
       await page.keyboard.press('Escape');
       await expect(page.locator('.game-message-detail')).toBeFocused();
@@ -79,6 +81,72 @@ for (const viewport of [
       await context.close();
     }
   });
+
+test('Aviso de varias desconexiones conserva nombres, autoplay y posición del tablero', async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(60000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await ready(page);
+  await page.locator('.game-colorclash .play-friends').click();
+  const code = (await page.locator('.room-code-text').innerText()).trim();
+  const guests: { context: Awaited<ReturnType<typeof browser.newContext>>; page: Page }[] = [];
+  try {
+    for (const name of ['Bruno', 'Carla']) {
+      const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+      const guest = await context.newPage();
+      guests.push({ context, page: guest });
+      await ready(guest, name);
+      await guest.goto(`/?room=${code}`);
+      await guest.getByRole('button', { name: 'Unirme a la partida', exact: true }).click();
+    }
+    await expect(page.locator('.waiting-player:not(.empty-seat)')).toHaveCount(3);
+    await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
+    const board = page.locator('.color-table');
+    await expect(board).toBeVisible();
+    const boardTop = await board.evaluate(
+      (element) => element.getBoundingClientRect().top + scrollY,
+    );
+
+    for (const guest of guests) {
+      await guest.context.setOffline(true);
+      await guest.page.evaluate(() => window.dispatchEvent(new Event('offline')));
+    }
+    await expect(page.locator('.game-message-detail')).toHaveText(
+      'Han perdido la conexión: Bruno, Carla. Cada persona puede volver mientras su plaza siga disponible.',
+    );
+    for (const name of ['Bruno', 'Carla'])
+      await expect(
+        page.locator('.players-panel .table-player').filter({ hasText: name }),
+      ).toContainText('Turno automático');
+    expect(await board.evaluate((element) => element.getBoundingClientRect().top + scrollY)).toBe(
+      boardTop,
+    );
+
+    await guests[0].context.setOffline(false);
+    await guests[0].page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await expect(page.locator('.game-message-detail')).toHaveText(
+      'Carla ha perdido la conexión. Puede volver mientras su plaza siga disponible.',
+    );
+    await expect(
+      page.locator('.players-panel .table-player').filter({ hasText: 'Bruno' }),
+    ).not.toContainText('Turno automático');
+
+    await page.getByRole('button', { name: 'Gestionar participantes', exact: true }).click();
+    const management = page.getByRole('dialog', { name: 'Gestionar participantes', exact: true });
+    await management.getByRole('button', { name: 'Retirar a Carla' }).click();
+    const confirmation = page.getByRole('dialog', { name: '¿Retirar a este participante?' });
+    await confirmation.getByRole('button', { name: 'Retirar del grupo', exact: true }).click();
+    await expect(page.locator('.game-message-detail')).toContainText(
+      'ha salido de la partida por decisión del anfitrión',
+    );
+    await expect(page.locator('.game-message-detail')).not.toContainText('ha perdido la conexión');
+    await expect(page.locator('.players-panel .table-player')).toHaveCount(2);
+  } finally {
+    await Promise.all(guests.map(({ context }) => context.close()));
+  }
+});
 
 for (const game of ['tictactoe', 'chess', 'reversi', 'pig', 'colorclash', 'monopoly'])
   test(`${game}: distribución, controles y modo inmersivo en tamaños pequeños y grandes`, async ({
@@ -248,7 +316,25 @@ test('Volver a jugar solo aparece a quien está en autoplay y funciona por tecla
     const returningPage = activeName.includes('Ana') ? page : guest;
     const otherPage = returningPage === page ? guest : page;
     const returnButton = returningPage.getByRole('button', { name: 'Volver a jugar', exact: true });
-    await expect(returnButton).toBeVisible({ timeout: 80000 });
+    const deadline = Date.now() + 80000;
+    let answeredOtherTurn = false;
+    while (Date.now() < deadline && !(await returnButton.isVisible())) {
+      const otherTurn = await otherPage
+        .locator('.table-player.active small')
+        .textContent()
+        .catch(() => null);
+      if (otherTurn?.trim() === 'Es tu turno') {
+        if (!answeredOtherTurn) {
+          const move = otherPage.locator('.ttt-board button:enabled').first();
+          if (await move.count()) {
+            await move.click();
+            answeredOtherTurn = true;
+          }
+        }
+      } else answeredOtherTurn = false;
+      await page.waitForTimeout(200);
+    }
+    await expect(returnButton).toBeVisible({ timeout: 1000 });
     await expect(
       otherPage.getByRole('button', { name: 'Volver a jugar', exact: true }),
     ).toHaveCount(0);
@@ -321,8 +407,11 @@ test('Sonido y volumen persisten, el bloqueo de audio no impide jugar', async ({
   await expect(page.getByRole('slider', { name: 'Volumen' })).toHaveValue('40');
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Preferencias', exact: true }).click();
-  await page.getByRole('switch', { name: 'Sonido', exact: true }).check();
-  await page.getByRole('switch', { name: 'Sonido', exact: true }).uncheck();
+  const finalSoundToggle = page.getByRole('switch', { name: 'Sonido', exact: true });
+  await expect(page.getByRole('dialog', { name: 'Preferencias', exact: true })).toBeVisible();
+  await expect(finalSoundToggle).toBeVisible();
+  await finalSoundToggle.check();
+  await finalSoundToggle.uncheck();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sobremesa.sound')!))).toEqual({
     enabled: false,
     volume: 0.4,

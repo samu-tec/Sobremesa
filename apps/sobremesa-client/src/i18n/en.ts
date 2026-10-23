@@ -2462,8 +2462,10 @@ export const en: Record<string, string> = {
   'Multa para salir de la cárcel': 'Jail release fine',
   'Intentos para salir con dobles': 'Attempts to roll doubles in jail',
   'Tiempo restante': 'Time remaining',
-  'Reconectando… Tu sitio se reserva durante {0} minutos.':
-    'Reconnecting… Your seat is reserved for {0} minutes.',
+  'Reconectando… El plazo de recuperación de la sala de espera es de {0} segundos.':
+    'Reconnecting… The waiting room recovery period is {0} seconds.',
+  'Reconectando… La disponibilidad de tu plaza depende del estado de la sala.':
+    'Reconnecting… Your seat’s availability depends on the room state.',
   'Esta sesión se ha abierto en otra conexión.':
     'This session has been opened on another connection.',
   'Recuperar aquí': 'Resume here',
@@ -2488,8 +2490,8 @@ export const en: Record<string, string> = {
   clara: 'light',
   'Privacidad y uso': 'Privacy and use',
   'Cerrar diálogo': 'Close dialog',
-  'Si se corta tu conexión, vuelve desde la misma pestaña en menos de cinco minutos para recuperar tu sitio.':
-    'If your connection drops, return to the same tab within five minutes to keep your place.',
+  'El plazo de recuperación se puede configurar; por defecto es de cinco minutos. En la sala de espera, la plaza se conserva durante ese plazo. Durante una partida, el autoplay mantiene el juego en marcha y el anfitrión puede retirar inmediatamente a una persona que siga desconectada. La plaza solo se recupera mientras permanezca en la sala; retirarla definitivamente invalida esa sesión.':
+    'The recovery period is configurable and defaults to five minutes. In the waiting room, the seat is kept for that period. During a game, autoplay keeps play moving, and the host can immediately remove someone who remains disconnected. A seat can only be recovered while it remains in the room; permanent removal ends that session’s access to the seat.',
   'Quitar {0} de favoritos': 'Remove {0} from favourites',
   'Añadir {0} a favoritos': 'Add {0} to favourites',
   'Ver la posición de {0}': 'View {0}’s position',
@@ -2500,10 +2502,6 @@ export const en: Record<string, string> = {
   '{0} carta': '{0} card',
   Coral: 'Coral',
   Mostaza: 'Mustard',
-  '{0} está reconectando. Reservamos su sitio durante {1} segundos.':
-    '{0} is reconnecting. Their seat is reserved for {1} seconds.',
-  'Reconectando… Tu sitio se reserva durante {0} segundos.':
-    'Reconnecting… Your seat is reserved for {0} seconds.',
   'otro jugador': 'another player',
   Bot: 'Bot',
   'Opciones de esta partida': 'This game’s settings',
@@ -2598,8 +2596,10 @@ export const en: Record<string, string> = {
   'Esperando decisión del anfitrión': 'Waiting for the host’s decision',
   'Reconectando… La partida continúa en automático mientras vuelves.':
     'Reconnecting… The game will continue automatically while you return.',
-  '{0} está reconectando. El anfitrión podrá gestionar su ausencia en 3 minutos.':
-    '{0} is reconnecting. The host can manage their absence in three minutes.',
+  '{0} ha perdido la conexión. Puede volver mientras su plaza siga disponible.':
+    '{0} has lost the connection. They can return while their seat is still available.',
+  'Han perdido la conexión: {0}. Cada persona puede volver mientras su plaza siga disponible.':
+    'The following players have lost connection: {0}. Each can return while their seat remains available.',
   'Espera a que las personas desconectadas vuelvan o retíralas del grupo.':
     'Wait for disconnected players to return or remove them from the group.',
   'Confirmación no válida.': 'Invalid confirmation.',

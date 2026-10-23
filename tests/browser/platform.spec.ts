@@ -711,7 +711,10 @@ test('Una caída de red conserva la misma sala y el estado al volver', async ({ 
   await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
   await page.getByRole('button', { name: 'Fila 1, columna 1: vacía', exact: true }).click();
   await context.setOffline(true);
-  await expect(page.locator('.game-message')).toContainText('Reconectando', { timeout: 25000 });
+  await expect(page.locator('.game-message-detail')).toHaveText(
+    'Reconectando… La partida continúa en automático mientras vuelves.',
+    { timeout: 25000 },
+  );
   await context.setOffline(false);
   await expect(page.locator('.game-message')).toHaveCount(0, { timeout: 15000 });
   await expect(

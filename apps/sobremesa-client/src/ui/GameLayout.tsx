@@ -216,11 +216,20 @@ export function GameLayout({
   const disconnected = room.players.filter((p) => !p.connected);
   const autoPlayReview = room.autoPlay?.find((entry) => entry.awaitingHost);
   const autoPlayPlayer = room.players.find((player) => player.id === autoPlayReview?.playerId);
-  const reconnectMessage = disconnected.length
-    ? t('{0} está reconectando. El anfitrión podrá gestionar su ausencia en 3 minutos.', {
-        '0': disconnected.map((p) => p.name).join(', '),
-      })
-    : null;
+  const disconnectedNames = disconnected.map((player) => player.name).join(', ');
+  const reconnectMessage =
+    disconnected.length === 1
+      ? t('{0} ha perdido la conexión. Puede volver mientras su plaza siga disponible.', {
+          '0': disconnectedNames,
+        })
+      : disconnected.length > 1
+        ? t(
+            'Han perdido la conexión: {0}. Cada persona puede volver mientras su plaza siga disponible.',
+            {
+              '0': disconnectedNames,
+            },
+          )
+        : null;
   const message = error ? t(error) : connectionNotice || reconnectMessage || information;
   useEffect(() => setMessageOpen(false), [message]);
   const notice = message ? (

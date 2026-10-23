@@ -740,9 +740,14 @@ export function App() {
             <WifiOff size={17} />{' '}
             {replaced
               ? t('Esta sesión se ha abierto en otra conexión.')
-              : t('Reconectando… Tu sitio se reserva durante {0} segundos.', {
-                  '0': Math.round(room.reconnectGraceMs / 1000),
-                })}
+              : room.status === 'waiting'
+                ? t(
+                    'Reconectando… El plazo de recuperación de la sala de espera es de {0} segundos.',
+                    {
+                      '0': Math.round(room.reconnectGraceMs / 1000),
+                    },
+                  )
+                : t('Reconectando… La disponibilidad de tu plaza depende del estado de la sala.')}
             {replaced && (
               <button
                 className="text-button"
