@@ -1,6 +1,7 @@
 .poker-hand,
 .poker-community {
   display: flex;
+  justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
   margin: 12px 0;

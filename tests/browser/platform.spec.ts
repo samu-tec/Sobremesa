@@ -145,10 +145,9 @@ for (const viewport of [
       .getByRole('switch', { name: 'Construcción equilibrada', exact: true })
       .scrollIntoViewIfNeeded();
     expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
-    // Dispatch preserves the current scroll while navigation runs, isolating the reset itself.
-    await page
-      .getByRole('button', { name: 'Volver a los juegos', exact: true })
-      .dispatchEvent('click');
+    // The sticky header remains visible at the current scroll position; use a real click so
+    // the application listener runs the same way it does for a player.
+    await page.getByRole('button', { name: 'Volver a los juegos', exact: true }).click();
     await expect(page.locator('.game-card')).toHaveCount(30);
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   });
@@ -375,6 +374,16 @@ test('Primera visita: idioma, apodo aleatorio, persistencia y privacidad', async
   const preferences = page.getByRole('dialog', { name: 'Preferencias', exact: true });
   await preferences.getByRole('button', { name: 'Inglés', exact: true }).click();
   await page.keyboard.press('Escape');
+  await expect(welcome).toContainText('Welcome to Sobremesa');
+  await expect(
+    welcome.getByRole('link', { name: 'Read the privacy policy', exact: true }),
+  ).toHaveAttribute('href', '/privacy');
+  await expect(welcome.locator('input[type="checkbox"]')).toHaveCount(0);
+  await welcome.getByRole('link', { name: 'Read the privacy policy', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Who is responsible and how to get in touch', exact: true }),
+  ).toBeVisible();
+  await page.goBack();
   await expect(welcome).toContainText('Welcome to Sobremesa');
   await welcome.getByRole('button', { name: 'Random name', exact: true }).click();
   await expect(welcome.getByRole('textbox', { name: 'Your name', exact: true })).not.toHaveValue(

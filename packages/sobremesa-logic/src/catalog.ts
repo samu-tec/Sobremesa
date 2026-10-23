@@ -332,7 +332,7 @@ export const GAME_DEFINITIONS = {
       'Coloca una piedra en una intersección libre. Las piedras del mismo color conectadas horizontal o verticalmente forman grupos; sus intersecciones libres vecinas son libertades. Los grupos rivales sin libertades se capturan.',
       'El suicidio está prohibido: tu grupo debe tener alguna libertad después de retirar las capturas. El superko impide reproducir cualquier posición anterior del tablero mediante una colocación; pasar siempre es posible.',
       'Tras dos pases consecutivos se revisa la puntuación. En tu turno de revisión puedes marcar o desmarcar un grupo muerto, aceptar la propuesta o reanudar. Cambiar una marca anula las confirmaciones; ambos deben aceptar la misma propuesta.',
-      'Si hay desacuerdo, reanuda para resolverlo mediante capturas. Las piedras marcadas no se retiran al reanudar y se conserva el turno que correspondía tras los dos pases. Los bots aceptan la propuesta actual sin un análisis avanzado de vida y muerte.',
+      'Si hay desacuerdo, reanuda para resolverlo mediante capturas. Las piedras marcadas no se retiran al reanudar y se conserva el turno que correspondía tras los dos pases. Los bots aceptan propuestas que no empeoran su puntuación respecto al tablero sin marcas; si la empeoran, reanudan la partida, sin análisis avanzado de vida y muerte.',
       'Se cuentan las piedras vivas y los puntos vacíos rodeados exclusivamente por un color. Las zonas junto a ambos colores son neutrales, incluido el espacio compartido en seki. Las capturas no añaden puntos extra. Blancas suma 7,5; gana la puntuación mayor.',
       'Puedes rendirte en cualquier momento. Abandonar concede la victoria al rival. En revisión se reanuda sin aceptar una puntuación automáticamente.',
     ],
@@ -506,7 +506,7 @@ export const GAME_DEFINITIONS = {
     maxPlayers: 8,
     description: 'Seis categorías y preguntas propias para poner ideas en común.',
     rules: [
-      'Preguntas y respuestas para dos a ocho personas. El banco local incluye setenta y dos preguntas originales de seis categorías: Ciencia, Naturaleza, Mapas, Arte, Lógica y Vida cotidiana. Cada pregunta y sus cuatro opciones están disponibles en español e inglés.',
+      'Preguntas y respuestas para dos a ocho personas. El banco local incluye ciento ochenta preguntas originales, treinta por cada una de seis categorías: Ciencia, Naturaleza, Mapas, Arte, Lógica y Vida cotidiana. Cada pregunta y sus cuatro opciones están disponibles en español e inglés.',
       'Se alternan categorías y se barajan preguntas y opciones al iniciar. No se repiten preguntas durante una partida. Cada persona contesta cinco por defecto; la sala puede elegir tres u ocho. Cada navegador muestra los textos en su idioma.',
       'Solo puede responder quien tiene el turno. Elige una de las cuatro opciones y confirma: cada acierto suma diez puntos y los fallos no restan. La solución permanece en el servidor hasta que se confirma la respuesta o se agota el tiempo.',
       'Después se muestra la respuesta correcta y se continúa al siguiente asiento. Si se agota el reloj de la pregunta, cuenta como no respondida y no suma puntos. El reloj de revisión continúa automáticamente a la siguiente pregunta.',

@@ -178,6 +178,22 @@ export function MahjongBoard({
             : t('{0} · {1} fichas', { '0': winds()[i], '1': p.handCount }),
         ]),
       )}
+      sidebarDetails={{
+        label: t('Ver descartes'),
+        title: t('Descartes de los jugadores'),
+        content: s.players.map((p) => (
+          <section className="mahjong-river" key={p.id}>
+            <h3>
+              {t('Descartes: {0}', { '0': s.rivers[p.id].length })} · {name(p.id)}
+            </h3>
+            <div>
+              {s.rivers[p.id].map((tile) => (
+                <TileFace key={tile} tile={tile} />
+              ))}
+            </div>
+          </section>
+        )),
+      }}
     >
       <p className="board-instruction" role="status">
         {gameText(s.message)}
@@ -291,14 +307,6 @@ export function MahjongBoard({
                   ))}
                 </div>
               )}
-              <details className="mahjong-river">
-                <summary>{t('Descartes: {0}', { '0': s.rivers[p.id].length })}</summary>
-                <div>
-                  {s.rivers[p.id].map((tile) => (
-                    <TileFace key={tile} tile={tile} />
-                  ))}
-                </div>
-              </details>
             </section>
           ))}
         </div>

@@ -76,7 +76,7 @@ const ack = (socket, event, ...data) => {
       'room:remove_player',
       'room:change_game',
       'room:resolve_autoplay',
-      'room:set_autoplay',
+      'room:respond_inactivity',
       'room:update_name',
     ].includes(event) &&
     !data[0]?.matchId
@@ -129,24 +129,31 @@ async function create(client, gameType = 'tictactoe') {
   return result.room;
 }
 
-test('Socket: cada jugador puede controlar su autoplay manual', async () => {
+test('Socket: solo el anfitrión puede resolver una ausencia automática', async () => {
   const host = await connect();
   const guest = await connect();
   const room = await create(host);
   await ack(guest.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' });
   await ack(host.socket, 'room:start_game');
-  let latestRoom;
-  guest.socket.on('room:updated', (value) => (latestRoom = value));
-
-  assert.equal((await ack(guest.socket, 'room:set_autoplay', { enabled: true })).success, true);
   assert.equal(
-    latestRoom.autoPlay.find((entry) => entry.playerId === guest.playerId).mode,
-    'manual',
-  );
-  assert.equal((await ack(guest.socket, 'room:set_autoplay', { enabled: false })).success, true);
-  assert.equal(
-    latestRoom.autoPlay.some((entry) => entry.playerId === guest.playerId),
+    (
+      await ack(guest.socket, 'room:resolve_autoplay', {
+        playerId: host.playerId,
+        decision: 'keep',
+      })
+    ).success,
     false,
+    'un jugador no puede resolver una ausencia',
+  );
+  assert.equal(
+    (
+      await ack(host.socket, 'room:resolve_autoplay', {
+        playerId: guest.playerId,
+        decision: 'remove',
+      })
+    ).success,
+    false,
+    'el anfitrión no puede actuar antes de los tres minutos',
   );
   await ack(host.socket, 'room:leave');
   await ack(guest.socket, 'room:leave');
@@ -434,73 +441,6 @@ test('Ciudad Fortuna: todos pueden pujar y una oferta renueva la ventana de 15 s
   guest.socket.disconnect();
 });
 
-test(
-  'Autoplay manual se controla solo desde la conexión autenticada en seis juegos',
-  { timeout: 45000 },
-  async () => {
-    const sessions = [];
-    for (const game of ['monopoly', 'colorclash', 'connect4', 'reversi', 'tictactoe', 'pig']) {
-      const host = await connect(),
-        guest = await connect(),
-        room = await create(host, game);
-      await ack(guest.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' });
-      await ack(host.socket, 'room:update_rules', { turnSeconds: 30 });
-      const latestRoom = { value: null };
-      host.socket.on('room:updated', (value) => (latestRoom.value = value));
-      await ack(host.socket, 'room:start_game');
-      sessions.push({ host, guest, room, game, latestRoom });
-    }
-    const first = sessions[0];
-    assert.equal(
-      (await ack(first.guest.socket, 'room:update_name', { playerName: 'Bruno Nuevo' })).success,
-      true,
-    );
-    assert.equal(
-      (
-        await ack(first.host.socket, 'game:reconnect', { roomCode: first.room.code })
-      ).room.players.find((player) => player.id === first.guest.playerId).name,
-      'Bruno Nuevo',
-    );
-    assert.equal(
-      (
-        await ack(first.guest.socket, 'room:resolve_autoplay', {
-          playerId: first.host.playerId,
-          decision: 'keep',
-        })
-      ).success,
-      false,
-      'un jugador no puede resolver el autoplay',
-    );
-    for (const session of sessions) {
-      assert.equal(
-        (await ack(session.host.socket, 'room:set_autoplay', { enabled: true })).success,
-        true,
-      );
-      const currentRoom = session.latestRoom.value;
-      assert.ok(currentRoom, 'la sala publica sus actualizaciones');
-      assert.ok(
-        currentRoom.autoPlay.some(
-          (entry) => entry.playerId === session.host.playerId && entry.mode === 'manual',
-        ),
-      );
-      assert.equal(currentRoom.players.length, 2, 'el servidor conserva ambas plazas');
-      assert.equal(
-        (await ack(session.guest.socket, 'room:set_autoplay', { enabled: false })).success,
-        false,
-        'cada conexión solo cambia su propio autoplay',
-      );
-      assert.equal(
-        (await ack(session.host.socket, 'room:set_autoplay', { enabled: false })).success,
-        true,
-      );
-      await ack(session.host.socket, 'room:leave');
-      await ack(session.guest.socket, 'room:leave');
-      session.host.socket.disconnect();
-      session.guest.socket.disconnect();
-    }
-  },
-);
-
 test('Nuevos juegos: dos salas independientes, proyección privada y reconexión', async () => {
   for (const game of [
     'rummy',
@@ -658,8 +598,8 @@ test('Nuevos juegos: dos salas independientes, proyección privada y reconexión
 });
 
 test(
-  'Socket.IO: el vencimiento activa autoplay visible en juegos de tablero y cartas',
-  { timeout: 60000 },
+  'Socket.IO: la confirmación de inactividad es privada y el silencio activa autoplay en tablero y cartas',
+  { timeout: 90000 },
   async () => {
     const sessions = [];
     for (const game of ['tictactoe', 'colorclash']) {
@@ -669,13 +609,49 @@ test(
       await ack(guest.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' });
       await ack(host.socket, 'room:update_rules', { turnSeconds: 30 });
       const latestRoom = { value: null };
+      const inactivityPrompt = { value: null, socket: null };
       let updates = 0;
       host.socket.on('room:updated', (value) => (latestRoom.value = value));
       host.socket.on('game:state_update', () => updates++);
+      host.socket.on('room:inactivity_prompt', (value) => {
+        inactivityPrompt.value = value;
+        inactivityPrompt.socket = host.socket;
+      });
+      guest.socket.on('room:inactivity_prompt', (value) => {
+        inactivityPrompt.value = value;
+        inactivityPrompt.socket = guest.socket;
+      });
       await ack(host.socket, 'room:start_game');
-      sessions.push({ host, guest, room, game, latestRoom, updates: () => updates });
+      sessions.push({
+        host,
+        guest,
+        room,
+        game,
+        latestRoom,
+        inactivityPrompt,
+        updates: () => updates,
+      });
     }
     await wait(31500);
+    for (const session of sessions) {
+      const prompt = session.inactivityPrompt.value;
+      assert.ok(prompt, `${session.game}: el actor recibió una confirmación privada`);
+      assert.equal(prompt.matchId, session.latestRoom.value.matchId);
+      assert.equal(session.latestRoom.value.autoPlay.length, 0, 'no automatiza antes de contestar');
+      const other =
+        session.inactivityPrompt.socket === session.host.socket ? session.guest : session.host;
+      assert.equal(
+        (
+          await ack(other.socket, 'room:respond_inactivity', {
+            promptId: prompt.promptId,
+            decision: 'continue',
+          })
+        ).success,
+        false,
+        `${session.game}: otra sesión no puede responder`,
+      );
+    }
+    await wait(21000);
     let sawAutomaticTimeout = false;
     for (const session of sessions) {
       const currentRoom = session.latestRoom.value;

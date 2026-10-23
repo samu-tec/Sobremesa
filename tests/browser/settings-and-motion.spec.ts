@@ -197,11 +197,20 @@ for (const width of [1366, 320])
 test('Rummy: las fichas se mueven entre el atril y la mesa sin bloquear el editor', async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await captureMotion(page);
   await ready(page);
   await room(page, 'rummy');
   await start(page);
+  const rack = page.locator('.number-tile-rack');
+  await rack.locator('> button').first().dragTo(page.locator('.number-tile-table'));
+  await expect(page.locator('.tile-set-row > button')).toHaveCount(1);
+  await expect(rack.locator('> button')).toHaveCount(13);
+  await expect(page.getByRole('button', { name: 'Confirmar jugada', exact: true })).toBeDisabled();
+  await page.locator('.tile-set-row > button').first().dragTo(rack);
+  await expect(rack.locator('> button')).toHaveCount(14);
+  await expect(page.locator('.tile-set-row')).toHaveCount(0);
   await page.locator('.number-tile-rack > button').first().click();
   await page.getByRole('button', { name: /Crear combinación/ }).click();
   await expect

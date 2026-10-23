@@ -105,7 +105,7 @@ export interface RoomInfo {
   turnDeadline: number | null;
   autoPlay?: {
     playerId: string;
-    mode: 'manual' | 'disconnect' | 'timeout';
+    mode: 'disconnect' | 'timeout';
     startedAt: number;
     deadline: number | null;
     awaitingHost: boolean;

@@ -82,12 +82,8 @@
   font-size: 0.875rem;
 }
 .brisca-captured {
-  margin-top: 20px;
-}
-.brisca-captured summary {
-  cursor: pointer;
-  min-height: 44px;
-  padding: 10px 0;
+  display: grid;
+  gap: 12px;
 }
 .brisca-captured p {
   overflow-wrap: anywhere;

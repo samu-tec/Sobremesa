@@ -70,7 +70,7 @@ export function CuatroEnLineaBoard({
           <p className="board-caption">{t('Pulsa una flecha para dejar caer tu ficha.')}</p>
         </>
       </section>
-      <aside className="table-sidebar">
+      <aside className="table-sidebar" aria-label={t('Jugadores')} tabIndex={0}>
         <PlayersPanel room={room} myPlayerId={myPlayerId} currentTurn={turn} values={values} />
       </aside>
     </div>

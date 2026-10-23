@@ -264,7 +264,21 @@ export class GoEngine implements IGameEngine<GoState, GoAction, GoPublicState> {
   }
   getBotAction(s: GoState, id: string): GoAction | null {
     if (s.winner || s.isDraw || id !== s.currentTurnPlayerId) return null;
-    if (s.phase === 'score') return { type: 'ACCEPT_SCORE' };
+    if (s.phase === 'score') {
+      const proposal = s.score ?? goAreaScore(s.board, s.size, s.dead);
+      const baseline = goAreaScore(s.board, s.size);
+      const black = s.players[0].id === id;
+      const proposedLead = black
+        ? proposal.black - proposal.white
+        : proposal.white - proposal.black;
+      const currentLead = black ? baseline.black - baseline.white : baseline.white - baseline.black;
+      const hasLegalMove = s.board.some((stone, index) => stone === 0 && !!placement(s, index));
+      // No life-and-death solver: accept a neutral or favorable proposal, but resume
+      // play rather than blindly agreeing to a marking that worsens the bot's score.
+      return proposedLead >= currentLead || !hasLegalMove
+        ? { type: 'ACCEPT_SCORE' }
+        : { type: 'RESUME' };
+    }
     const color = s.players[0].id === id ? 1 : 2;
     // Evita llenar ojos propios; el historial y las posiciones son información pública.
     const candidates = s.board.flatMap((stone, index) => {

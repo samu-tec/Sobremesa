@@ -11,7 +11,7 @@ import {
   type Ref,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import { type RoomInfo } from 'sobremesa-logic';
+import { type InactivityPrompt, type RoomInfo } from 'sobremesa-logic';
 import {
   ArrowLeft,
   BookOpen,
@@ -24,6 +24,7 @@ import {
   Minimize,
   UsersRound,
   X,
+  List,
 } from 'lucide-react';
 import { Modal } from './Modal';
 import { Rules } from './Rules';
@@ -45,6 +46,11 @@ export interface BoardProps<S, A> {
   myPlayerId: string;
   onAction: (action: A) => void;
   busy: boolean;
+}
+export interface BoardSidebarDetails {
+  label: string;
+  title: string;
+  content: ReactNode;
 }
 export function GameLayout({
   room,
@@ -69,7 +75,8 @@ export function GameLayout({
   onRestart,
   onRemovePlayer,
   onResolveAutoPlay,
-  onToggleAutoPlay,
+  inactivityPrompt,
+  onRespondToInactivity,
   onLeave,
   onError: _onError,
   children,
@@ -96,7 +103,8 @@ export function GameLayout({
   onRestart: () => void;
   onRemovePlayer: (id: string) => Promise<boolean>;
   onResolveAutoPlay: (playerId: string, decision: 'keep' | 'remove') => Promise<boolean>;
-  onToggleAutoPlay: (enabled: boolean) => Promise<boolean>;
+  inactivityPrompt: InactivityPrompt | null;
+  onRespondToInactivity: (decision: 'continue' | 'leave') => Promise<boolean>;
   onLeave: () => void;
   onError: (m: string) => void;
   children: ReactNode;
@@ -204,10 +212,8 @@ export function GameLayout({
   const disconnected = room.players.filter((p) => !p.connected);
   const autoPlayReview = room.autoPlay?.find((entry) => entry.awaitingHost);
   const autoPlayPlayer = room.players.find((player) => player.id === autoPlayReview?.playerId);
-  const myAutoPlay = room.autoPlay?.find((entry) => entry.playerId === myPlayerId);
-  const autoplayEnabled = Boolean(myAutoPlay && myAutoPlay.mode !== 'disconnect');
   const reconnectMessage = disconnected.length
-    ? t('{0} está reconectando. Sus turnos se jugarán en automático durante 3 minutos.', {
+    ? t('{0} está reconectando. El anfitrión podrá gestionar su ausencia en 3 minutos.', {
         '0': disconnected.map((p) => p.name).join(', '),
       })
     : null;
@@ -248,16 +254,53 @@ export function GameLayout({
       <div
         className={`room-page game-page game-page-${room.gameType} ${immersive ? 'game-immersive' : ''}`}
       >
+        {room.status === 'in_game' && inactivityPrompt && (
+          <Modal title={t('¿Sigues jugando?')} dismissable={false} onClose={() => {}}>
+            <p>
+              {t('Si sigues aquí, confirma para continuar. Si no respondes, el bot jugará por ti.')}
+            </p>
+            <DeadlineCountdown
+              deadline={inactivityPrompt.deadline}
+              serverNow={room.serverNow}
+              label="Tiempo para responder: {0}"
+            />
+            <div className="choice-buttons">
+              <button
+                className="button primary"
+                disabled={busy}
+                onClick={() => void onRespondToInactivity('continue')}
+              >
+                {t('Sí, sigo jugando')}
+              </button>
+              <button
+                className="button secondary"
+                disabled={busy}
+                onClick={() => void onRespondToInactivity('leave')}
+              >
+                {t('Salir de la partida')}
+              </button>
+            </div>
+          </Modal>
+        )}
         {room.status === 'in_game' &&
           room.hostId === myPlayerId &&
           autoPlayReview &&
-          autoPlayPlayer && (
+          autoPlayPlayer &&
+          !inactivityPrompt && (
             <Modal title={t('Jugador sin respuesta')} dismissable={false} onClose={() => {}}>
               <p>
-                {t('{0} lleva 3 minutos sin responder. ¿Qué quieres hacer con su plaza?', {
-                  '0': autoPlayPlayer.name,
-                })}
+                {t(
+                  '{0} no ha respondido. Puedes mantenerlo como bot o retirarlo; si no decides, se retirará automáticamente.',
+                  { '0': autoPlayPlayer.name },
+                )}
               </p>
+              {autoPlayReview.deadline !== null && (
+                <DeadlineCountdown
+                  deadline={autoPlayReview.deadline}
+                  serverNow={room.serverNow}
+                  label="Retirada automática en {0}"
+                />
+              )}
               <div className="choice-buttons">
                 <button
                   className="button primary"
@@ -301,22 +344,6 @@ export function GameLayout({
             </h1>
           </div>
           <div className="header-actions">
-            {room.status === 'in_game' && (
-              <button
-                className={`button small ${autoplayEnabled ? 'primary' : 'secondary'} autoplay-button`}
-                type="button"
-                aria-label={t(autoplayEnabled ? 'Desactivar autoplay' : 'Activar autoplay')}
-                aria-pressed={autoplayEnabled}
-                title={t(autoplayEnabled ? 'Desactivar autoplay' : 'Activar autoplay')}
-                disabled={busy || myAutoPlay?.mode === 'disconnect'}
-                onClick={() => void onToggleAutoPlay(!autoplayEnabled)}
-              >
-                <Bot size={17} />
-                <span className="control-label">
-                  {t(autoplayEnabled ? 'Desactivar autoplay' : 'Activar autoplay')}
-                </span>
-              </button>
-            )}
             <button
               className="button small secondary"
               onClick={(event) => {
@@ -389,7 +416,7 @@ export function GameLayout({
             <section className="group-management">
               <p className="muted">
                 {t(
-                  'El autoplay permanece activo durante 3 minutos; después puedes retirar a esa persona o mantener su plaza como bot.',
+                  'Tras 3 minutos puedes mantener a la persona como bot o retirarla. Si no decides durante el minuto siguiente, se aplica el plazo automático de esa ausencia.',
                 )}
               </p>
               {room.players
@@ -409,11 +436,17 @@ export function GameLayout({
                               ? t('En la sala')
                               : t('Reconectando…')}
                       </span>
-                      {auto?.deadline !== null &&
-                        auto?.deadline !== undefined &&
-                        !auto.awaitingHost && (
-                          <AutoPlayCountdown deadline={auto.deadline} serverNow={room.serverNow} />
-                        )}
+                      {auto?.deadline !== null && auto?.deadline !== undefined && (
+                        <DeadlineCountdown
+                          deadline={auto.deadline}
+                          serverNow={room.serverNow}
+                          label={
+                            auto.awaitingHost
+                              ? 'Retirada automática en {0}'
+                              : 'Revisión del anfitrión en {0}'
+                          }
+                        />
+                      )}
                       {canRemove && (
                         <button
                           className="button small danger"
@@ -610,7 +643,7 @@ export function PlayersPanel({
                   : auto?.awaitingHost
                     ? t('Esperando decisión del anfitrión')
                     : auto
-                      ? t('Autoplay activado')
+                      ? t('Turno automático')
                       : !p.connected
                         ? t('Reconectando…')
                         : presentation.playerDetails?.[p.id] ||
@@ -624,8 +657,16 @@ export function PlayersPanel({
                               ? 'Bot'
                               : t('En la mesa'))}
               </small>
-              {auto?.deadline !== null && auto?.deadline !== undefined && !auto.awaitingHost && (
-                <AutoPlayCountdown deadline={auto.deadline} serverNow={room.serverNow} />
+              {auto?.deadline !== null && auto?.deadline !== undefined && (
+                <DeadlineCountdown
+                  deadline={auto.deadline}
+                  serverNow={room.serverNow}
+                  label={
+                    auto.awaitingHost
+                      ? 'Retirada automática en {0}'
+                      : 'Revisión del anfitrión en {0}'
+                  }
+                />
               )}
             </div>
             {values?.[p.id] && <strong className="player-value">{values[p.id]}</strong>}
@@ -636,7 +677,15 @@ export function PlayersPanel({
     </section>
   );
 }
-function AutoPlayCountdown({ deadline, serverNow }: { deadline: number; serverNow: number }) {
+function DeadlineCountdown({
+  deadline,
+  serverNow,
+  label,
+}: {
+  deadline: number;
+  serverNow: number;
+  label: string;
+}) {
   const [now, setNow] = useState(Date.now());
   const clockOffset = useMemo(
     () => (Number.isFinite(serverNow) ? serverNow - Date.now() : 0),
@@ -649,12 +698,8 @@ function AutoPlayCountdown({ deadline, serverNow }: { deadline: number; serverNo
   const seconds = Math.max(0, Math.ceil((deadline - (now + clockOffset)) / 1000));
   const time = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   return (
-    <small
-      className="autoplay-countdown"
-      role="timer"
-      aria-label={t('El anfitrión podrá retirar al jugador en {0}.', { '0': time })}
-    >
-      {t('Retirada posible en {0}', { '0': time })}
+    <small className="autoplay-countdown" role="timer" aria-label={t(label, { '0': time })}>
+      {t(label, { '0': time })}
     </small>
   );
 }
@@ -697,6 +742,7 @@ export function BoardFrame({
   playerIcons,
   children,
   actions,
+  sidebarDetails,
   motionRef,
   selectionActive,
   onCancelSelection,
@@ -708,11 +754,13 @@ export function BoardFrame({
   playerIcons?: Record<string, ReactNode>;
   children: ReactNode;
   actions?: ReactNode;
+  sidebarDetails?: BoardSidebarDetails;
   motionRef?: Ref<HTMLDivElement>;
   selectionActive?: boolean;
   onCancelSelection?: () => void;
 }) {
   const presentation = useContext(GamePresentationContext);
+  const [showSidebarDetails, setShowSidebarDetails] = useState(false);
   const cancelControl = onCancelSelection && (
     <div className="board-selection-controls">
       <button
@@ -752,7 +800,7 @@ export function BoardFrame({
           {children}
           {!actions && cancelControl}
         </section>
-        <aside className="table-sidebar">
+        <aside className="table-sidebar" aria-label={t('Jugadores')} tabIndex={0}>
           <PlayersPanel
             room={room}
             myPlayerId={myPlayerId}
@@ -760,7 +808,23 @@ export function BoardFrame({
             values={values}
             playerIcons={playerIcons}
           />
+          {sidebarDetails && (
+            <button
+              className="button secondary game-sidebar-details"
+              aria-haspopup="dialog"
+              aria-expanded={showSidebarDetails}
+              onClick={() => setShowSidebarDetails(true)}
+            >
+              <List size={18} aria-hidden="true" />
+              <span>{sidebarDetails.label}</span>
+            </button>
+          )}
         </aside>
+        {showSidebarDetails && sidebarDetails && (
+          <Modal title={sidebarDetails.title} onClose={() => setShowSidebarDetails(false)}>
+            <div className="game-sidebar-details-content">{sidebarDetails.content}</div>
+          </Modal>
+        )}
       </div>
     </GamePresentationContext.Provider>
   );
@@ -833,7 +897,7 @@ export function moveBoardFocus(event: ReactKeyboardEvent<HTMLElement>, columns: 
 
 export function ActionsPanel({ room, children }: { room: RoomInfo; children: ReactNode }) {
   return (
-    <aside className="panel game-actions-panel" aria-label={t('Acciones de partida')}>
+    <aside className="panel game-actions-panel" aria-label={t('Acciones de partida')} tabIndex={0}>
       <TurnClock room={room} />
       {children}
     </aside>

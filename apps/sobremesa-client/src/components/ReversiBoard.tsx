@@ -74,7 +74,7 @@ export function ReversiBoard({
           <p className="board-caption">{t('Los puntos señalan dónde puedes colocar una ficha.')}</p>
         </>
       </section>
-      <aside className="table-sidebar">
+      <aside className="table-sidebar" aria-label={t('Jugadores')} tabIndex={0}>
         <PlayersPanel room={room} myPlayerId={myPlayerId} currentTurn={turn} values={values} />
       </aside>
     </div>

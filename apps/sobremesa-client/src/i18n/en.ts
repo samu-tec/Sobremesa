@@ -255,8 +255,8 @@ export const en: Record<string, string> = {
   'Investigar hipótesis': 'Investigate hypothesis',
   'Preparar acusación final': 'Prepare final accusation',
   'Cuaderno de deducción': 'Deduction notebook',
-  'Tus marcas son locales y se pierden al recargar. Una pista conocida no forma parte de la solución.':
-    'Your marks are local and disappear on reload. A known clue is not part of the solution.',
+  'Tus marcas se guardan en esta pestaña durante la partida. Una pista conocida no forma parte de la solución.':
+    'Your marks are saved in this tab during the match. A known clue is not part of the solution.',
   'Pista conocida': 'Known clue',
   'Última acusación de {0}: {1}': 'Last accusation by {0}: {1}',
   'Solución del misterio': 'Mystery solution',
@@ -357,8 +357,8 @@ export const en: Record<string, string> = {
   Palabras: 'Words',
   Social: 'Social',
 
-  'Preguntas y respuestas para dos a ocho personas. El banco local incluye setenta y dos preguntas originales de seis categorías: Ciencia, Naturaleza, Mapas, Arte, Lógica y Vida cotidiana. Cada pregunta y sus cuatro opciones están disponibles en español e inglés.':
-    'Questions and answers for two to eight players. The local bank includes seventy-two original questions across six categories: Science, Nature, Maps, Art, Logic and Everyday life. Every question and its four options are available in Spanish and English.',
+  'Preguntas y respuestas para dos a ocho personas. El banco local incluye ciento ochenta preguntas originales, treinta por cada una de seis categorías: Ciencia, Naturaleza, Mapas, Arte, Lógica y Vida cotidiana. Cada pregunta y sus cuatro opciones están disponibles en español e inglés.':
+    'Questions and answers for two to eight players. The local bank includes 180 original questions, thirty in each of six categories: Science, Nature, Maps, Art, Logic and Everyday life. Every question and its four options are available in Spanish and English.',
   'Se alternan categorías y se barajan preguntas y opciones al iniciar. No se repiten preguntas durante una partida. Cada persona contesta cinco por defecto; la sala puede elegir tres u ocho. Cada navegador muestra los textos en su idioma.':
     'Categories alternate and questions and choices are shuffled at the start. Questions do not repeat within a match. Each person answers five by default; the room may choose three or eight. Each browser displays text in its own language.',
   'Solo puede responder quien tiene el turno. Elige una de las cuatro opciones y confirma: cada acierto suma diez puntos y los fallos no restan. La solución permanece en el servidor hasta que se confirma la respuesta o se agota el tiempo.':
@@ -718,6 +718,7 @@ export const en: Record<string, string> = {
   'La primera carta marca el palo de salida.': 'The first card determines the led suit.',
   'Recoge la baza: {0}': 'Trick collected by: {0}',
   'Ver cartas ganadas': 'View captured cards',
+  'Cartas ganadas': 'Captured cards',
   'Todavía no ha ganado cartas.': 'No cards won yet.',
   Oros: 'Coins',
   Copas: 'Cups',
@@ -823,6 +824,8 @@ export const en: Record<string, string> = {
   Kong: 'Kong',
   'Mano revelada de {0}': "{0}'s revealed hand",
   'Descartes: {0}': 'Discards: {0}',
+  'Ver descartes': 'View discards',
+  'Descartes de los jugadores': 'Players’ discards',
   'Tu mano de Mahjong': 'Your Mahjong hand',
   'Selecciona una ficha y confirma el descarte. Las combinaciones reclamadas quedan fijas.':
     'Select a tile and confirm your discard. Claimed melds cannot be rearranged.',
@@ -930,8 +933,15 @@ export const en: Record<string, string> = {
     'Suicide is forbidden: your group must have a liberty after captures are removed. Superko forbids placing a stone that recreates any earlier board position; passing is always allowed.',
   'Tras dos pases consecutivos se revisa la puntuación. En tu turno de revisión puedes marcar o desmarcar un grupo muerto, aceptar la propuesta o reanudar. Cambiar una marca anula las confirmaciones; ambos deben aceptar la misma propuesta.':
     'After two consecutive passes, review the score. On your review turn, mark or unmark a dead group, accept the proposal or resume play. Changing a mark clears confirmations; both players must agree to the same proposal.',
-  'Si hay desacuerdo, reanuda para resolverlo mediante capturas. Las piedras marcadas no se retiran al reanudar y se conserva el turno que correspondía tras los dos pases. Los bots aceptan la propuesta actual sin un análisis avanzado de vida y muerte.':
-    'If you disagree, resume play and resolve the position through captures. Marked stones stay on the board when play resumes, and the turn due after the two passes is restored. Bots accept the current proposal without advanced life-and-death analysis.',
+  'Si hay desacuerdo, reanuda para resolverlo mediante capturas. Las piedras marcadas no se retiran al reanudar y se conserva el turno que correspondía tras los dos pases. Los bots aceptan propuestas que no empeoran su puntuación respecto al tablero sin marcas; si la empeoran, reanudan la partida, sin análisis avanzado de vida y muerte.':
+    'If you disagree, resume play and resolve the position through captures. Marked stones stay on the board when play resumes, and the turn due after the two passes is restored. Bots accept proposals that do not worsen their score compared with the unmarked board; otherwise, they resume play without advanced life-and-death analysis.',
+  'Piedras negras: {0} · Territorio negro: {1}': 'Black stones: {0} · Black territory: {1}',
+  'Piedras blancas: {0} · Territorio blanco: {1} · Komi: 7,5':
+    'White stones: {0} · White territory: {1} · Komi: 7.5',
+  'Puntos neutrales: {0}': 'Neutral points: {0}',
+  'Piedras marcadas como muertas: {0}': 'Stones marked dead: {0}',
+  'Las cruces del tablero marcan grupos propuestos como muertos. Pulsa una piedra del grupo para cambiar la propuesta; si hay desacuerdo, reanudamos la partida.':
+    'Crosses on the board mark proposed dead groups. Select a stone in the group to change the proposal; if there is a disagreement, resume play.',
   'Se cuentan las piedras vivas y los puntos vacíos rodeados exclusivamente por un color. Las zonas junto a ambos colores son neutrales, incluido el espacio compartido en seki. Las capturas no añaden puntos extra. Blancas suma 7,5; gana la puntuación mayor.':
     'Count living stones and empty points surrounded only by one colour. Regions bordering both colours are neutral, including shared space in seki. Captures add no extra points. White adds 7.5; the higher score wins.',
   'Puedes rendirte en cualquier momento. Abandonar concede la victoria al rival. En revisión se reanuda sin aceptar una puntuación automáticamente.':
@@ -1012,6 +1022,8 @@ export const en: Record<string, string> = {
     'You bounced off the goal and moved backwards by the excess.',
   'Turnos de espera cumplidos: {0}.': 'Waiting turns served: {0}.',
   'Casilla {0}: {1}. Espera: {2}.': 'Square {0}: {1}. Wait: {2}.',
+  'Estado y casillas especiales': 'Player status and special squares',
+  'Estado de los jugadores': 'Player status',
   'Casillas especiales de la Oca': 'Special Goose squares',
   'Consulta las reglas para ver cada salto y penalización.':
     'Check the rules for every jump and penalty.',
@@ -1423,10 +1435,10 @@ export const en: Record<string, string> = {
   '106 FICHAS · 2 COMODINES': '106 TILES · 2 JOKERS',
   'Ya puedes reorganizar la mesa.': 'You can now rearrange the table.',
   'Tu apertura necesita 30 puntos.': 'Your opening needs 30 points.',
-  'Puedes separar, unir y mover fichas entre combinaciones. Al confirmar, todas deben ser válidas.':
-    'Split, combine and move tiles between sets. All must be valid when you confirm.',
-  'Prepara uno o más grupos o escaleras con tus fichas. Hasta abrir no puedes usar la mesa.':
-    'Prepare one or more groups or runs with your tiles. Open before using the table.',
+  'Puedes arrastrar fichas entre combinaciones o seleccionarlas y usar los botones. Al confirmar, todas deben ser válidas.':
+    'Drag tiles between sets, or select them and use the buttons. Every set must be valid when you confirm.',
+  'Prepara grupos o escaleras con tus fichas: arrástralas a la mesa o selecciónalas y crea una combinación. Hasta abrir no puedes usar la mesa.':
+    'Prepare groups or runs with your tiles: drag them to the table or select them and create a set. You cannot use the table before opening.',
   'Apertura preparada: {0} / 30 puntos': 'Opening prepared: {0} / 30 points',
   'Mesa de Rummy': 'Rummy table',
   'La mesa': 'The table',
@@ -2436,6 +2448,7 @@ export const en: Record<string, string> = {
   Idioma: 'Language',
   'Nombre aleatorio': 'Random name',
   'Bienvenido a Sobremesa': 'Welcome to Sobremesa',
+  'Consulta la política de privacidad': 'Read the privacy policy',
   'Elige un nombre para la mesa. Puede ser un apodo; no hace falta tu nombre real.':
     'Choose a name for the table. A nickname is fine; you don’t need your real name.',
   'Entrar a Sobremesa': 'Enter Sobremesa',
@@ -2504,11 +2517,9 @@ export const en: Record<string, string> = {
   'Gestionar participantes': 'Manage participants',
   Gestionar: 'Manage',
   'Quitar bot': 'Remove bot',
-  'Activar autoplay': 'Turn on autoplay',
-  'Desactivar autoplay': 'Turn off autoplay',
-  'Autoplay activado': 'Autoplay on',
-  'Puedes activar o desactivar el autoplay. Si no actúas durante un turno o te desconectas, la partida usa la inteligencia normal del bot por ti. Tras 3 minutos, el anfitrión puede retirarte o mantener tu plaza como bot; puedes desactivarlo antes de que venza. Los plazos propios de las reglas se mantienen.':
-    'You can turn autoplay on or off. If your turn expires or you disconnect, the game uses its regular bot intelligence for you. After three minutes, the host can remove you or keep your seat as a bot; you can turn it off before then. Game-specific deadlines still apply.',
+  'Turno automático': 'Automatic turn',
+  'Si vence un turno humano ordinario, recibirás una confirmación privada de 20 segundos. Si no respondes, el bot jugará con la estrategia normal. También se activa al desconectarte. Tras 3 minutos de ausencia, el anfitrión puede mantener tu plaza como bot o retirarte; si no decide durante el minuto siguiente, se aplica la política correspondiente. Los plazos propios de las reglas se mantienen.':
+    'When an ordinary human turn expires, you receive a private 20-second prompt. If you do not respond, the bot will use its normal strategy. Autoplay also starts if you disconnect. After three minutes of absence, the host can keep your seat as a bot or remove you; if they do not decide within the following minute, the applicable departure policy is used. Game-specific deadlines still apply.',
   'Durante la partida solo puedes retirar personas desconectadas. El motor resolverá su abandono.':
     'During a game you can only remove disconnected people. The game will resolve their departure.',
   'Retirar a {0}': 'Remove {0}',
@@ -2537,8 +2548,8 @@ export const en: Record<string, string> = {
   'No puedes retirar a ese participante.': 'You cannot remove this participant.',
   'Solo puedes retirar a un jugador cuando su autoplay esté pendiente de revisión.':
     'You can remove a player when their autoplay is awaiting review.',
-  'El autoplay permanece activo durante 3 minutos; después puedes retirar a esa persona o mantener su plaza como bot.':
-    'Autoplay runs for three minutes; then you can remove the player or keep their seat as a bot.',
+  'Tras 3 minutos puedes mantener a la persona como bot o retirarla. Si no decides durante el minuto siguiente, se aplica el plazo automático de esa ausencia.':
+    'After three minutes, you can keep the person as a bot or remove them. If you do not decide within the following minute, the automatic deadline for that absence applies.',
   'Termina la partida antes de cambiar de juego.': 'Finish the game before changing games.',
   'Juego no válido.': 'Invalid game.',
   'La partida ha cambiado. Usa los controles actuales de la sala.':
@@ -2560,6 +2571,18 @@ export const en: Record<string, string> = {
   '{0} plazas libres': '{0} free seats',
   'El anfitrión podrá retirar al jugador en {0}.': 'The host can remove this player in {0}.',
   'Retirada posible en {0}': 'Removal possible in {0}',
+  '¿Sigues jugando?': 'Are you still playing?',
+  'Si sigues aquí, confirma para continuar. Si no respondes, el bot jugará por ti.':
+    'If you are still here, confirm to continue. If you do not respond, the bot will play for you.',
+  'Tiempo para responder: {0}': 'Time to respond: {0}',
+  'Sí, sigo jugando': 'Yes, I am still playing',
+  '{0} ha activado el autoplay. Puedes mantenerlo como bot o retirarlo.':
+    '{0} enabled autoplay. You can keep them as a bot or remove them.',
+  '{0} no ha respondido. Puedes mantenerlo como bot o retirarlo; si no decides, se retirará automáticamente.':
+    '{0} has not responded. You can keep them as a bot or remove them; if you do not decide, they will be removed automatically.',
+  'El bot seguirá jugando en {0}': 'The bot will keep playing in {0}',
+  'Retirada automática en {0}': 'Automatic removal in {0}',
+  'Revisión del anfitrión en {0}': 'Host review in {0}',
   'Nombre de jugador': 'Player name',
   'Jugador sin respuesta': 'Player has not responded',
   '{0} lleva 3 minutos sin responder. ¿Qué quieres hacer con su plaza?':
@@ -2568,10 +2591,10 @@ export const en: Record<string, string> = {
   'Retirar jugador': 'Remove player',
   'En automático hasta que vuelva': 'Playing automatically until they return',
   'Esperando decisión del anfitrión': 'Waiting for the host’s decision',
-  'Reconectando… La partida seguirá en automático durante 3 minutos.':
-    'Reconnecting… The game will continue automatically for three minutes.',
-  '{0} está reconectando. Sus turnos se jugarán en automático durante 3 minutos.':
-    '{0} is reconnecting. Their turns will play automatically for three minutes.',
+  'Reconectando… La partida continúa en automático mientras vuelves.':
+    'Reconnecting… The game will continue automatically while you return.',
+  '{0} está reconectando. El anfitrión podrá gestionar su ausencia en 3 minutos.':
+    '{0} is reconnecting. The host can manage their absence in three minutes.',
   'Espera a que las personas desconectadas vuelvan o retíralas del grupo.':
     'Wait for disconnected players to return or remove them from the group.',
   'Confirmación no válida.': 'Invalid confirmation.',

@@ -189,6 +189,26 @@ export function MusBoard({
           t('Bando {0} · {1} piedras', { '0': p.team + 1, '1': s.teamPoints[p.team] }),
         ]),
       )}
+      sidebarDetails={
+        s.agreements.length
+          ? {
+              label: t('Lances acordados'),
+              title: t('Lances acordados'),
+              content: (
+                <section className="mus-results">
+                  {s.agreements.map((a, i) => (
+                    <p key={i}>
+                      {lanceName(a.lance)}:{' '}
+                      {a.forcedTeam === null
+                        ? t('Envite pendiente: {0} piedras', { '0': a.stake })
+                        : t('Asignado al bando {0}', { '0': a.forcedTeam + 1 })}
+                    </p>
+                  ))}
+                </section>
+              ),
+            }
+          : undefined
+      }
       actions={actions}
     >
       <p className="board-instruction" role="status">
@@ -282,19 +302,6 @@ export function MusBoard({
             {t(s.bet?.offer === 'ordago' ? 'Aceptar el órdago' : 'Lanzar el órdago')}
           </button>
         </Modal>
-      )}
-      {s.agreements.length > 0 && (
-        <details className="mus-results">
-          <summary>{t('Lances acordados')}</summary>
-          {s.agreements.map((a, i) => (
-            <p key={i}>
-              {lanceName(a.lance)}:{' '}
-              {a.forcedTeam === null
-                ? t('Envite pendiente: {0} piedras', { '0': a.stake })
-                : t('Asignado al bando {0}', { '0': a.forcedTeam + 1 })}
-            </p>
-          ))}
-        </details>
       )}
       {s.showHands && (
         <div className="mus-reveal">

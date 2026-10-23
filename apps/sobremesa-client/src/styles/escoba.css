@@ -63,12 +63,8 @@
   font-size: 1.2rem;
 }
 .escoba-captured {
-  margin-top: 20px;
-}
-.escoba-captured summary {
-  min-height: 44px;
-  cursor: pointer;
-  padding: 10px 0;
+  display: grid;
+  gap: 12px;
 }
 .escoba-captured p {
   overflow-wrap: anywhere;

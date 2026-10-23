@@ -2,6 +2,10 @@ import type { GameType, RoomInfo, GamePublicState } from '../types/index.js';
 export interface RoomContext {
   matchId: string;
 }
+export interface InactivityPrompt extends RoomContext {
+  promptId: string;
+  deadline: number;
+}
 export type GameSnapshot = GamePublicState & RoomContext & { gameType: GameType };
 export interface Result {
   success: boolean;
@@ -17,6 +21,10 @@ export interface ServerToClientEvents {
   'session:replaced': () => void;
   'session:ready': (data: { playerId: string; protocolVersion: number }) => void;
   'room:updated': (room: RoomInfo) => void;
+  'room:inactivity_prompt': (prompt: InactivityPrompt) => void;
+  'room:inactivity_prompt_cleared': (
+    prompt: Pick<InactivityPrompt, 'matchId' | 'promptId'>,
+  ) => void;
   'room:removed': (reason: string) => void;
   'room:closed': (reason: string) => void;
   'game:started': (data: {
@@ -55,8 +63,8 @@ export interface ClientToServerEvents {
     data: RoomContext & { playerId: string; decision: 'keep' | 'remove' },
     callback: (res: Result) => void,
   ) => void;
-  'room:set_autoplay': (
-    data: RoomContext & { enabled: boolean },
+  'room:respond_inactivity': (
+    data: RoomContext & { promptId: string; decision: 'continue' | 'leave' },
     callback: (res: Result) => void,
   ) => void;
   'room:update_name': (

@@ -18,6 +18,15 @@ async function start(page: Page, game = 'tictactoe') {
   await expect(page.locator('.play-header')).toBeVisible();
 }
 
+const gameCenterTargets = {
+  tictactoe: { surface: '.ttt-board', region: '.play-area' },
+  chess: { surface: '.chess-board', region: '.extended-play' },
+  reversi: { surface: '.reversi-board', region: '.play-area' },
+  pig: { surface: '.pig-dice .dice-face', region: '.extended-play' },
+  colorclash: { surface: '.color-table', region: '.table-layout' },
+  monopoly: { surface: '.city-main', region: '.extended-play' },
+} as const;
+
 for (const viewport of [
   { width: 1280, height: 720 },
   { width: 360, height: 640 },
@@ -40,11 +49,8 @@ for (const viewport of [
       await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
       const board = page.locator('.ttt-board');
       await expect(board).toBeVisible();
-      const autoplayX = (await page
-        .getByRole('button', { name: 'Activar autoplay' })
-        .boundingBox())!.x;
-      const rulesX = (await page.getByRole('button', { name: 'Reglas' }).boundingBox())!.x;
-      expect(autoplayX).toBeLessThan(rulesX);
+      await expect(page.getByRole('button', { name: /autoplay/i })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Reglas' })).toBeVisible();
       const top = (await board.boundingBox())!.y;
       await expect(page.locator('.game-message-slot')).toHaveCount(0);
       await expect(page.locator('.table-player.active')).toContainText('Es tu turno');
@@ -62,7 +68,7 @@ for (const viewport of [
       const afterFocus = (await board.boundingBox())!.y;
       await page.locator('.game-message-detail').press('Enter');
       await expect(page.getByRole('dialog')).toContainText(
-        'Sus turnos se jugarán en automático durante 3 minutos',
+        'Ana está reconectando. El anfitrión podrá gestionar su ausencia en 3 minutos.',
       );
       await page.keyboard.press('Escape');
       await expect(page.locator('.game-message-detail')).toBeFocused();
@@ -72,7 +78,7 @@ for (const viewport of [
     }
   });
 
-for (const game of ['tictactoe', 'chess', 'colorclash', 'monopoly'])
+for (const game of ['tictactoe', 'chess', 'reversi', 'pig', 'colorclash', 'monopoly'])
   test(`${game}: distribución, controles y modo inmersivo en tamaños pequeños y grandes`, async ({
     page,
   }) => {
@@ -96,6 +102,36 @@ for (const game of ['tictactoe', 'chess', 'colorclash', 'monopoly'])
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
         JSON.stringify(viewport),
       ).toBe(true);
+      const { surface, region } = gameCenterTargets[game as keyof typeof gameCenterTargets];
+      const surfaceBox = await page.locator(surface).boundingBox();
+      const regionBox = await page.locator(region).boundingBox();
+      expect(surfaceBox, `${game} ${surface} en ${viewport.width}px`).not.toBeNull();
+      expect(regionBox, `${game} ${region} en ${viewport.width}px`).not.toBeNull();
+      expect(
+        Math.abs(surfaceBox!.x + surfaceBox!.width / 2 - (regionBox!.x + regionBox!.width / 2)),
+        `${game} debe centrar ${surface} en ${viewport.width}px`,
+      ).toBeLessThanOrEqual(2);
+      if (viewport.width > 900) {
+        const vertical = await page.locator(region).evaluate((element) => {
+          const main = document.querySelector<HTMLElement>('.game-content')!;
+          const rect = main.getBoundingClientRect();
+          const styles = getComputedStyle(main);
+          const paddingTop = Number.parseFloat(styles.paddingTop);
+          const paddingBottom = Number.parseFloat(styles.paddingBottom);
+          const contentHeight = main.clientHeight - paddingTop - paddingBottom;
+          const regionRect = element.getBoundingClientRect();
+          return {
+            fits: regionRect.height <= contentHeight + 1,
+            regionCenter: regionRect.top + regionRect.height / 2,
+            contentCenter: rect.top + paddingTop + contentHeight / 2,
+          };
+        });
+        if (vertical.fits)
+          expect(
+            Math.abs(vertical.regionCenter - vertical.contentCenter),
+            `${game} debe centrar verticalmente la zona de juego en ${viewport.height}px`,
+          ).toBeLessThanOrEqual(3);
+      }
       for (const label of viewport.width <= 900
         ? ['Reglas', 'Preferencias']
         : ['Reglas', 'Ampliar el juego', 'Preferencias']) {
@@ -285,7 +321,6 @@ test('Dominó: terminar y consultar una ronda mantiene la mesa y permite continu
     await expect(page.locator('.waiting-player:not(.empty-seat)')).toHaveCount(2);
     await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
     await expect(page.locator('.domino-table')).toBeVisible();
-    const top = (await page.locator('.domino-table').boundingBox())!.y;
     for (let move = 0; move < 100 && !(await page.getByRole('dialog').count()); move++) {
       await expect
         .poll(
@@ -318,11 +353,13 @@ test('Dominó: terminar y consultar una ronda mantiene la mesa y permite continu
       }
     }
     await expect(page.getByRole('dialog')).toContainText('Ronda 1 terminada');
-    expect((await page.locator('.domino-table').boundingBox())!.y).toBe(top);
+    const top = (await page.locator('.domino-table').boundingBox())!.y;
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect(Math.abs((await page.locator('.domino-table').boundingBox())!.y - top)).toBeLessThan(1);
     await page.getByRole('button', { name: 'Ronda 1 terminada', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
+    expect(Math.abs((await page.locator('.domino-table').boundingBox())!.y - top)).toBeLessThan(1);
     const next = page.getByRole('button', { name: 'Siguiente ronda', exact: true });
     if (await next.isEnabled()) await next.click();
     else await guest.getByRole('button', { name: 'Siguiente ronda', exact: true }).click();
@@ -366,22 +403,16 @@ for (const game of ['tictactoe', 'backgammon', 'words', 'poker', 'monopoly'])
     expect((await accessibilityAudit(page).analyze()).violations).toEqual([]);
   });
 
-test('Autoplay manual: activa jugadas del bot y permite recuperar el control', async ({ page }) => {
+test('Autoplay solo aparece tras inactividad y no se puede activar desde la interfaz', async ({
+  page,
+}) => {
   await ready(page);
   await page.locator('.game-tictactoe .play-bot').click();
   await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
   await expect(page.locator('.ttt-board')).toBeVisible();
-  await page.getByRole('button', { name: 'Activar autoplay', exact: true }).click();
-  await expect(
-    page.getByRole('button', { name: 'Desactivar autoplay', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('.autoplay-countdown')).toContainText('Retirada posible en');
-  await expect(page.locator('.ttt-board .cell-x')).toHaveCount(1);
-  await page.getByRole('button', { name: 'Desactivar autoplay', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Activar autoplay', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'false',
-  );
+  await expect(page.getByRole('button', { name: /autoplay/i })).toHaveCount(0);
+  await expect(page.locator('.autoplay-countdown')).toHaveCount(0);
+  await expect(page.locator('.ttt-board .cell-x')).toHaveCount(0);
 });
 
 test('Sala de Ciudad Fortuna: duración junto al contador y reglas solo en la barra de partida', async ({

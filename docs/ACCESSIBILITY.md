@@ -8,6 +8,8 @@ Utiliza botones, enlaces, campos y selects nativos. Los controles con iconos nec
 
 Cada acción del tablero debe poder completarse con teclado. Ofrece selección de pieza y destino como alternativa a arrastrar. Comprueba también las decisiones especiales: comodines, promociones, tratos, subastas, editor de rummy y colocación naval. El orden del foco debe seguir el recorrido visual y conservar visibles las acciones necesarias para decidir.
 
+El diálogo inicial del apodo ofrece un enlace directo a privacidad antes de entrar; informar no requiere una casilla de aceptación de tratamiento. Conserva ese enlace accesible con teclado y en ambos idiomas.
+
 No comuniques turno, resultado o error únicamente mediante color, posición o animación. Conserva texto, formas o símbolos que distingan jugadores y estados. Los avisos accesibles deben informar sin repetir innecesariamente cada cambio del reloj.
 
 ## Diálogos y foco
@@ -40,7 +42,9 @@ Respeta `prefers-reduced-motion`. `useBoardMotion` debe cancelar animaciones al 
 
 Si una barrera exige cambiar tiempos o interacciones, diseña la solución junto con las políticas autoritativas y las variantes del juego. La interfaz debe facilitar la acción sin alterar silenciosamente sus reglas.
 
-La fila activa identifica el turno con texto, fondo y borde. El título permanece centrado con herramientas laterales de distinto tamaño. Los errores y reconexiones pueden consultarse completos sin una franja vacía. Al terminar los cinco minutos de autoplay, el anfitrión recibe un diálogo que exige una decisión explícita entre mantener la plaza automatizada o retirar al jugador. Revisa manualmente su foco, anuncio y uso con tecnologías de apoyo.
+La fila activa identifica el turno con texto, fondo y borde. El título permanece centrado con herramientas laterales de distinto tamaño. Los errores y reconexiones pueden consultarse completos sin una franja vacía. Al vencer un turno ordinario, el jugador activo recibe un diálogo privado con cuenta atrás, confirmación de presencia y salida de la partida. La revisión del anfitrión también muestra cuenta atrás y permite mantener la plaza como bot o retirar a la persona. Los historiales y estados secundarios se abren en un diálogo común desde el panel de participantes. Revisa manualmente foco, anuncio y uso con tecnologías de apoyo.
+
+El [RD 193/2023](https://www.boe.es/buscar/act.php?id=BOE-A-2023-7417) puede ser pertinente para este servicio recreativo disponible al público incluso si no se cobra; sus plazos distinguen servicios privados nuevos y existentes. Mantén WCAG 2.2 AA como referencia de calidad y comprueba con asesoramiento la fecha y alcance aplicables antes de declarar conformidad.
 
 En las comprobaciones locales WebKit consume Escape al salir de pantalla completa nativa antes de enviarlo a la web. El diálogo conserva el foco y se puede cerrar con un segundo Escape o su botón. En la alternativa CSS, Escape cierra primero el diálogo. Esta diferencia depende del navegador y debe comprobarse también con dispositivos reales.
 

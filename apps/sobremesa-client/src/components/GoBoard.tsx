@@ -180,12 +180,33 @@ export function GoBoard({
             {t('Negras: {0} · Blancas: {1}', { '0': s.score.black, '1': s.score.white })}
           </strong>
           <p>
+            {t('Piedras negras: {0} · Territorio negro: {1}', {
+              '0': s.score.black - s.score.blackTerritory,
+              '1': s.score.blackTerritory,
+            })}
+          </p>
+          <p>
+            {t('Piedras blancas: {0} · Territorio blanco: {1} · Komi: 7,5', {
+              '0': s.score.white - s.score.whiteTerritory - 7.5,
+              '1': s.score.whiteTerritory,
+            })}
+          </p>
+          <p>{t('Puntos neutrales: {0}', { '0': s.score.neutral })}</p>
+          <p>{t('Piedras marcadas como muertas: {0}', { '0': s.dead.length })}</p>
+          <p>
             {t(
               s.phase === 'finished'
                 ? 'Puntuación definitiva acordada por ambos jugadores.'
                 : 'La propuesta solo termina la partida cuando ambos la confirman.',
             )}
           </p>
+          {s.phase === 'score' && (
+            <p>
+              {t(
+                'Las cruces del tablero marcan grupos propuestos como muertos. Pulsa una piedra del grupo para cambiar la propuesta; si hay desacuerdo, reanudamos la partida.',
+              )}
+            </p>
+          )}
         </div>
       )}
     </BoardFrame>

@@ -87,6 +87,24 @@ export function BriscaBoard({
           t('Bando {0} · {1} puntos', { '0': p.team + 1, '1': p.score }),
         ]),
       )}
+      sidebarDetails={{
+        label: t('Ver cartas ganadas'),
+        title: t('Cartas ganadas'),
+        content: (
+          <section className="brisca-captured">
+            {s.players.map((p) => (
+              <div key={p.id}>
+                <strong>{name(p.id)}</strong>
+                <p>
+                  {p.captured.length
+                    ? p.captured.map(spanishCardLabel).join(', ')
+                    : t('Todavía no ha ganado cartas.')}
+                </p>
+              </div>
+            ))}
+          </section>
+        ),
+      }}
       actions={actions}
     >
       <p className="board-instruction" role="status">
@@ -175,19 +193,6 @@ export function BriscaBoard({
           <p>{t('Recoge la baza: {0}', { '0': name(s.lastTrickWinner) })}</p>
         )}
       </div>
-      <details className="brisca-captured">
-        <summary>{t('Ver cartas ganadas')}</summary>
-        {s.players.map((p) => (
-          <div key={p.id}>
-            <strong>{name(p.id)}</strong>
-            <p>
-              {p.captured.length
-                ? p.captured.map(spanishCardLabel).join(', ')
-                : t('Todavía no ha ganado cartas.')}
-            </p>
-          </div>
-        ))}
-      </details>
     </BoardFrame>
   );
 }

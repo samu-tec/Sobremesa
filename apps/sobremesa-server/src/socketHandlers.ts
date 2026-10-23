@@ -174,10 +174,22 @@ export function registerSocketHandlers(
         )
       : { success: false, error: 'Decisión no válida.' },
   );
-  on('room:set_autoplay', (data) =>
-    record(data) && typeof data.enabled === 'boolean'
-      ? roomAction(data, (c, id) => manager.setAutoPlay(c, id, data.enabled as boolean))
-      : { success: false, error: 'Opción de autoplay no válida.' },
+  on('room:respond_inactivity', (data) =>
+    record(data) &&
+    typeof data.matchId === 'string' &&
+    typeof data.promptId === 'string' &&
+    (data.decision === 'continue' || data.decision === 'leave')
+      ? roomAction(data, (c, id) =>
+          manager.respondToInactivity(
+            c,
+            id,
+            socket.id,
+            data.matchId as string,
+            data.promptId as string,
+            data.decision,
+          ),
+        )
+      : { success: false, error: 'Decisión de actividad no válida.' },
   );
   on('room:update_name', (data) =>
     record(data) && name(data.playerName)

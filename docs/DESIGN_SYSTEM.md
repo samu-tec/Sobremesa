@@ -44,6 +44,12 @@ Los puntos de ajuste existentes principales son 1100, 800 y 600 px; hay ajustes 
 
 Los tableros bidimensionales pueden requerir desplazamiento dentro de su superficie. Backgammon conserva al menos 24 px por casilla; en pantallas estrechas se desplaza el tablero sin ensanchar la página. No recortes controles para ocultar un desbordamiento del documento. Ciudad Fortuna muestra el tablero completo, con inspección de casillas y acciones fuera del tablero.
 
+## Distribución de los juegos
+
+En escritorio, prioriza una partida que mantenga visibles el tablero y las acciones imprescindibles sin reducirlos hasta volverlos difíciles de leer. El tablero es la superficie principal. Coloca participantes a la derecha cuando la composición y el ancho lo permitan; sitúa controles a la izquierda solo si aportan espacio y claridad. Para acciones breves, prefiere controles junto al tablero. Omite columnas vacías y no obligues a los juegos directos como Tres en Raya a usar tres columnas. Revisa especialmente el reflujo entre 901 y 1100 px y las alturas 720–900 px.
+
+En móvil se permite el desplazamiento vertical normal. Mantén objetivos táctiles cómodos, texto legible, manos accesibles y el tablero dentro de su propio contenedor si necesita desplazamiento bidimensional. Evita el desbordamiento horizontal de página y los avisos que muevan o tapen la superficie de juego. Reutiliza `BoardFrame`, `PlayersPanel` y los estilos comunes donde encajen con el juego; no fuerces un sistema nuevo de layouts ni una composición idéntica para todos.
+
 Las transiciones comunes duran 180 ms; las animaciones de jugada tienen duración propia en los hooks. `prefers-reduced-motion`, pestañas ocultas y reconexiones evitan repetir movimientos. No uses una animación como única comunicación de turno o resultado. Nuevos recursos deben declarar procedencia y respetar ambos idiomas, nombres largos y zoom; consulta [ACCESSIBILITY.md](ACCESSIBILITY.md).
 
 ## Ciudad Fortuna

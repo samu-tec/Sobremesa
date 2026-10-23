@@ -54,6 +54,7 @@
   padding: 10px;
   background: #345949;
   width: max-content;
+  margin-inline: auto;
   border-radius: 14px;
 }
 .words-grid button:disabled {

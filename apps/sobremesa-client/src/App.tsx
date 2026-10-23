@@ -10,6 +10,7 @@ import type {
   GamePublicState,
   GameSnapshot,
   GameText,
+  InactivityPrompt,
 } from 'sobremesa-logic';
 import {
   findOtherSobremesaTab,
@@ -28,6 +29,7 @@ import { PlayerPreferencesProvider } from './ui/Preferences';
 import { useGameResults } from './hooks/useGameResults';
 import { GameBoard } from './components/GameBoard';
 import { requestOnConnection } from './services/request';
+import { clearMysteryNotes } from './services/mysteryNotebook';
 import {
   actionSound,
   installSoundGestures,
@@ -50,12 +52,17 @@ export function App() {
   const { locale } = useLocale();
   useEffect(installSoundGestures, []);
   const { confirmed, playerId, playerName, updateName, updatePlayerId } = useGuestProfile();
+  const playerIdRef = useRef(playerId);
+  useLayoutEffect(() => {
+    playerIdRef.current = playerId;
+  }, [playerId]);
   const [room, setRoom] = useState<RoomInfo | null>(null),
     [state, setState] = useState<PublicState | null>(null),
     [connected, setConnected] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null);
   const [notification, setNotification] = useState<GameText | null>(null);
+  const [inactivityPrompt, setInactivityPrompt] = useState<InactivityPrompt | null>(null);
   useEffect(() => setNotification(null), [room?.matchId]);
   const activeRoom = useRef<RoomInfo | null>(null);
   const [incompatible, setIncompatible] = useState(false);
@@ -82,9 +89,12 @@ export function App() {
 
   const clearRoom = useCallback((preserveInvite = false) => {
     const pendingInvite = preserveInvite ? inviteCodeFrom(location.search) : null;
+    if (activeRoom.current?.gameType === 'mystery')
+      clearMysteryNotes(playerIdRef.current, activeRoom.current.code, activeRoom.current.matchId);
     activeRoom.current = null;
     setRoom(null);
     setState(null);
+    setInactivityPrompt(null);
     sessionStore.remove('sobremesa.room');
     setInviteCode(pendingInvite);
     history.replaceState(
@@ -93,11 +103,19 @@ export function App() {
       pendingInvite ? `${location.pathname}?room=${pendingInvite}` : location.pathname,
     );
   }, []);
-  const saveRoom = (value: RoomInfo) => {
+  const saveRoom = useCallback((value: RoomInfo) => {
+    const previous = activeRoom.current;
+    if (
+      previous?.gameType === 'mystery' &&
+      (previous.matchId !== value.matchId || previous.code !== value.code)
+    )
+      clearMysteryNotes(playerIdRef.current, previous.code, previous.matchId);
+    if (previous?.matchId !== value.matchId || value.status !== 'in_game')
+      setInactivityPrompt(null);
     activeRoom.current = value;
     setRoom(value);
     sessionStore.set('sobremesa.room', value.code);
-  };
+  }, []);
   useEffect(() => {
     let retry: ReturnType<typeof setTimeout> | undefined;
     let disposed = false;
@@ -165,6 +183,17 @@ export function App() {
       saveRoom(next);
       if (next.status === 'waiting') setState(null);
     };
+    const inactivityPrompt = (prompt: InactivityPrompt) => {
+      if (prompt.matchId === activeRoom.current?.matchId && activeRoom.current.status === 'in_game')
+        setInactivityPrompt(prompt);
+    };
+    const inactivityPromptCleared = (prompt: Pick<InactivityPrompt, 'matchId' | 'promptId'>) => {
+      setInactivityPrompt((current) =>
+        current?.matchId === prompt.matchId && current.promptId === prompt.promptId
+          ? null
+          : current,
+      );
+    };
     const closed = (reason: string) => {
       clearRoom();
       setError(reason);
@@ -180,6 +209,7 @@ export function App() {
     const disconnected = () => {
       suppressRecoverySounds();
       setConnected(false);
+      setInactivityPrompt(null);
     };
     const connectError = (error: Error & { data?: { code?: string } }) => {
       setConnected(false);
@@ -214,6 +244,8 @@ export function App() {
     socket.on('session:replaced', superseded);
     socket.on('session:ready', ready);
     socket.on('room:updated', updated);
+    socket.on('room:inactivity_prompt', inactivityPrompt);
+    socket.on('room:inactivity_prompt_cleared', inactivityPromptCleared);
     socket.on('room:closed', closed);
     socket.on('room:removed', closed);
     socket.on('game:started', started);
@@ -257,6 +289,8 @@ export function App() {
       socket.off('session:replaced', superseded);
       socket.off('session:ready', ready);
       socket.off('room:updated', updated);
+      socket.off('room:inactivity_prompt', inactivityPrompt);
+      socket.off('room:inactivity_prompt_cleared', inactivityPromptCleared);
       socket.off('room:closed', closed);
       socket.off('room:removed', closed);
       socket.off('game:started', started);
@@ -267,7 +301,7 @@ export function App() {
       socket.off('game:error', setError);
       socket.disconnect();
     };
-  }, [clearRoom, updatePlayerId]);
+  }, [clearRoom, saveRoom, updatePlayerId]);
   useEffect(() => {
     if (!error) return;
     const t = setTimeout(() => setError(null), 8000);
@@ -361,14 +395,22 @@ export function App() {
         ),
       );
     });
-  const setAutoPlay = (enabled: boolean) =>
-    run(async () => {
+  const respondToInactivity = (decision: 'continue' | 'leave') => {
+    const prompt = inactivityPrompt;
+    if (!prompt) return Promise.resolve(false);
+    return run(async () => {
       check(
         await request<Result>((done) =>
-          socket.emit('room:set_autoplay', { enabled, matchId: room?.matchId || '' }, done),
+          socket.emit(
+            'room:respond_inactivity',
+            { matchId: prompt.matchId, promptId: prompt.promptId, decision },
+            done,
+          ),
         ),
       );
+      setInactivityPrompt(null);
     });
+  };
   const changeGame = (gameType: GameType) =>
     run(async () => {
       check(
@@ -573,7 +615,7 @@ export function App() {
               !connected
                 ? replaced
                   ? t('Esta sesión se ha abierto en otra conexión.')
-                  : t('Reconectando… La partida seguirá en automático durante 3 minutos.')
+                  : t('Reconectando… La partida continúa en automático mientras vuelves.')
                 : undefined
             }
             onRecover={
@@ -593,7 +635,8 @@ export function App() {
             busy={busy || !connected}
             onRestart={restart}
             onRemovePlayer={removePlayer}
-            onToggleAutoPlay={setAutoPlay}
+            inactivityPrompt={inactivityPrompt}
+            onRespondToInactivity={respondToInactivity}
             onResolveAutoPlay={(playerId, decision) =>
               run(async () => {
                 check(

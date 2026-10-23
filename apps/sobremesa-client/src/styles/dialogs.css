@@ -50,6 +50,11 @@
   justify-content: flex-end;
   margin: -4px 0 12px;
 }
+.welcome-privacy-link {
+  font-size: 13px;
+  margin: 8px 0 16px;
+  text-align: right;
+}
 .preferences-panel {
   display: grid;
   gap: 16px;

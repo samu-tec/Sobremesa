@@ -38,6 +38,94 @@ async function ready(page: Page) {
   await expect(page.locator('.connection')).toBeVisible();
   await expect(page.locator('.connection')).toHaveAttribute('aria-label', 'Listo para jugar');
 }
+
+async function expectActionButtonsToMatchWidths(page: Page) {
+  const groups = await page.locator('.game-actions-panel button').evaluateAll((buttons) => {
+    const byParent = new Map<Element, number[]>();
+    for (const button of buttons) {
+      if (!button.getClientRects().length) continue;
+      const parent = button.parentElement!;
+      byParent.set(parent, [...(byParent.get(parent) ?? []), button.getBoundingClientRect().width]);
+    }
+    return [...byParent.values()];
+  });
+  for (const widths of groups) expect(Math.max(...widths) - Math.min(...widths)).toBeLessThan(1);
+}
+
+const centeredBoards: Record<string, string> = {
+  mus: '.mus-own',
+  escoba: '.escoba-table',
+  cinquillo: '.cinquillo-table',
+  poker: '.poker-table',
+  words: '.words-grid',
+  quiz: '.quiz-question',
+  mystery: '.mystery-private',
+  conquest: '.conquest-map svg',
+  brisca: '.brisca-table',
+  mahjong: '.mahjong-table',
+  chinesecheckers: '.chinese-board:not(.enlarged)',
+  chess: '.chess-board',
+  checkers: '.checkers-board',
+  go: '.go-board',
+  oca: '.oca-board',
+  parchis: '.parchis-board',
+  rummy: '.number-tile-table',
+  impostor: '.impostor-secret',
+  dominoes: '.domino-table',
+  backgammon: '.backgammon-board',
+  battleship: '.fleet-boards',
+  mancala: '.mancala-board',
+  combinations: '.scorecard-wrap',
+};
+
+async function expectGameAreaCentered(page: Page) {
+  const box = await page.locator('.extended-play').boundingBox();
+  expect(box).not.toBeNull();
+  const geometry = await page.evaluate(() => {
+    const main = document.querySelector<HTMLElement>('.game-content')!;
+    const rect = main.getBoundingClientRect();
+    const styles = getComputedStyle(main);
+    const paddingTop = Number.parseFloat(styles.paddingTop);
+    const paddingBottom = Number.parseFloat(styles.paddingBottom);
+    const contentHeight = main.clientHeight - paddingTop - paddingBottom;
+    const area = document.querySelector<HTMLElement>('.extended-play')!.getBoundingClientRect();
+    return {
+      viewportCenterX: innerWidth / 2,
+      areaCenterX: area.left + area.width / 2,
+      areaCenterY: area.top + area.height / 2,
+      mainCenterY: rect.top + paddingTop + contentHeight / 2,
+      areaHeight: area.height,
+      contentHeight,
+      viewportWidth: innerWidth,
+    };
+  });
+  expect(Math.abs(box!.x + box!.width / 2 - geometry.viewportCenterX)).toBeLessThanOrEqual(2);
+  if (geometry.viewportWidth > 900 && geometry.areaHeight <= geometry.contentHeight + 1)
+    expect(Math.abs(geometry.areaCenterY - geometry.mainCenterY)).toBeLessThanOrEqual(3);
+}
+
+async function expectCenteredBoard(page: Page, gameId: string) {
+  const selector = centeredBoards[gameId];
+  if (!selector) return;
+  const board = page.locator(selector).first();
+  await expect(board).toBeVisible();
+  const geometry = await board.evaluate((element) => {
+    const panel = element.closest('.extended-play')!;
+    const boardRect = element.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    return {
+      boardCenter: boardRect.left + boardRect.width / 2,
+      panelCenter: panelRect.left + panelRect.width / 2,
+      boardWidth: boardRect.width,
+      scrollParentWidth: element.parentElement?.clientWidth ?? 0,
+    };
+  });
+  // Oversized boards intentionally scroll on narrow screens; when the whole surface fits,
+  // its visible center must match the centered game column.
+  if (geometry.boardWidth <= geometry.scrollParentWidth + 1)
+    expect(Math.abs(geometry.boardCenter - geometry.panelCenter)).toBeLessThanOrEqual(2);
+}
+
 for (const width of [1280, 1024, 360])
   test(`Cuatro en Línea centra la zona de juego a ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
@@ -54,20 +142,62 @@ for (const width of [1280, 1024, 360])
     });
     expect(Math.abs(center - width / 2)).toBeLessThanOrEqual(2);
   });
-for (const width of [1280, 1024])
+for (const width of [1280, 1100, 1024, 901])
   test(`Ajedrez centra el tablero con panel de acciones a ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 });
+    await page.setViewportSize({ width, height: 720 });
     await ready(page);
     await page.getByRole('button', { name: 'Jugar a Ajedrez contra un bot', exact: true }).click();
     await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
     const board = page.locator('.chess-board');
     await expect(board).toBeVisible();
+    const actions = page.locator('.game-actions-panel');
+    const players = page.locator('.table-sidebar');
+    await expect(actions).toBeVisible();
+    await expect(players).toBeVisible();
+    const columns = await page.evaluate(() => {
+      const actions = document.querySelector('.game-actions-panel')!.getBoundingClientRect();
+      const board = document.querySelector('.chess-board')!.getBoundingClientRect();
+      const players = document.querySelector('.table-sidebar')!.getBoundingClientRect();
+      return {
+        actionsRight: actions.right,
+        actionsTop: actions.top,
+        boardLeft: board.left,
+        boardRight: board.right,
+        playersLeft: players.left,
+        playersTop: players.top,
+      };
+    });
+    expect(columns.actionsRight).toBeLessThanOrEqual(columns.boardLeft + 1);
+    expect(columns.boardRight).toBeLessThanOrEqual(columns.playersLeft + 1);
+    expect(Math.abs(columns.actionsTop - columns.playersTop)).toBeLessThanOrEqual(1);
     const center = await board.evaluate((element) => {
       const { x, width } = element.getBoundingClientRect();
       return x + width / 2;
     });
     expect(Math.abs(center - width / 2)).toBeLessThanOrEqual(2);
   });
+
+for (const width of [1280, 390])
+  test(`Rummy alinea todos los botones del panel de acciones a ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await ready(page);
+    await page.getByRole('button', { name: 'Jugar a Rummy contra un bot', exact: true }).click();
+    await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
+
+    for (const selector of ['.tile-draft-tools', '.board-actions']) {
+      const group = page.locator(`.game-actions-panel ${selector}`);
+      const geometry = await group.evaluate((element) => {
+        const buttons = [...element.querySelectorAll('button')].map(
+          (button) => button.getBoundingClientRect().width,
+        );
+        return { groupWidth: element.getBoundingClientRect().width, buttons };
+      });
+      expect(geometry.buttons.length).toBeGreaterThan(1);
+      expect(Math.max(...geometry.buttons) - Math.min(...geometry.buttons)).toBeLessThan(1);
+      expect(Math.abs(geometry.groupWidth - geometry.buttons[0])).toBeLessThan(1);
+    }
+  });
+
 for (const width of [1280, 320])
   for (const [id, name, english] of games)
     test(`${name}: jugar, reconectar e idioma a ${width}px`, async ({ page }) => {
@@ -95,9 +225,12 @@ for (const width of [1280, 320])
       );
       await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
       await expect(page.locator(`.extended-${id}`)).toBeVisible();
+      await expectGameAreaCentered(page);
+      await expectCenteredBoard(page, id);
       await expect(page.locator('.table-player.active').filter({ hasText: '(tú)' })).toContainText(
         id === 'battleship' ? 'Preparando flota' : 'Es tu turno',
       );
+      await expectActionButtonsToMatchWidths(page);
       const selectionSources: Record<string, string> = {
         brisca: '.spanish-hand > button:enabled',
         cinquillo: '.spanish-hand > button:enabled',
@@ -139,6 +272,8 @@ for (const width of [1280, 320])
           .getByRole('button', { name: /^(Capturar cartas|Dejar carta en la mesa)$/ })
           .click();
         await expect(page.locator('.spanish-hand > button')).toHaveCount(2);
+        await page.getByRole('button', { name: 'Ver cartas ganadas', exact: true }).click();
+        await expect(page.getByRole('dialog')).toContainText('Cartas ganadas');
       }
       if (id === 'cinquillo') {
         const cards = await page.locator('.spanish-hand > button').count();
@@ -194,6 +329,7 @@ for (const width of [1280, 320])
           await page.locator('.conquest-map svg').evaluate((node) => node.clientWidth),
         ).toBeGreaterThanOrEqual(700);
         await page.getByRole('button', { name: 'Ajustar mapa', exact: true }).click();
+        await page.getByRole('button', { name: 'Territorios y control', exact: true }).click();
         await expect(page.locator('.conquest-regions li')).toHaveCount(18);
       }
       if (id === 'brisca') {
@@ -202,13 +338,16 @@ for (const width of [1280, 320])
         await page.getByRole('button', { name: 'Jugar carta', exact: true }).focus();
         await page.keyboard.press('Enter');
         await expect(page.locator('.spanish-hand > button')).toHaveCount(2);
-        await page.locator('.brisca-captured summary').focus();
-        await page.keyboard.press('Enter');
-        await expect(page.locator('.brisca-captured')).toHaveAttribute('open', '');
+        await page.getByRole('button', { name: 'Ver cartas ganadas', exact: true }).click();
+        await expect(page.getByRole('dialog')).toContainText('Cartas ganadas');
+        await expect(page.locator('.brisca-captured')).toBeVisible();
       }
       if (id === 'mahjong') {
         await expect(page.locator('.mahjong-hand > button')).toHaveCount(14);
         await expect(page.locator('.mahjong-seat')).toHaveCount(4);
+        await page.getByRole('button', { name: 'Ver descartes', exact: true }).click();
+        await expect(page.getByRole('dialog')).toContainText('Descartes de los jugadores');
+        await page.getByRole('button', { name: 'Cerrar diálogo', exact: true }).click();
         await page.locator('.mahjong-hand > button').first().click();
         const discard = page.getByRole('button', { name: 'Descartar ficha', exact: true });
         await discard.focus();
@@ -252,15 +391,18 @@ for (const width of [1280, 320])
         await expect(page.locator('.go-board button').nth(11)).toBeFocused();
       }
       if (id === 'oca') {
+        await page
+          .getByRole('button', { name: 'Estado y casillas especiales', exact: true })
+          .click();
         await expect(page.locator('.oca-players li')).toHaveCount(2);
+        await expect(page.locator('.oca-guide')).toContainText('Posada');
+        await page.getByRole('button', { name: 'Cerrar diálogo', exact: true }).click();
         await page.getByRole('button', { name: 'Tirar dados', exact: true }).focus();
         await page.keyboard.press('Enter');
-        await expect
-          .poll(async () => await page.locator('.oca-players li').first().textContent())
-          .not.toContain('Casilla 0:');
-        await page.locator('.oca-guide summary').focus();
-        await page.keyboard.press('Enter');
-        await expect(page.locator('.oca-guide')).toContainText('Posada');
+        await page
+          .getByRole('button', { name: 'Estado y casillas especiales', exact: true })
+          .click();
+        await expect(page.locator('.oca-players li').first()).not.toContainText('Casilla 0:');
       }
       if (id === 'parchis') {
         await expect(page.locator('.parchis-pawns button')).toHaveCount(4);
@@ -298,7 +440,7 @@ for (const width of [1280, 320])
             )
             .toBe(0);
         }
-        await page.locator('.parchis-positions summary').click();
+        await page.getByRole('button', { name: 'Estado de todas las fichas', exact: true }).click();
         await expect(page.locator('.parchis-positions')).toContainText('Ficha 1: Casilla 5');
       }
       if (id === 'chess') {
@@ -307,6 +449,8 @@ for (const width of [1280, 320])
         await expect(
           page.getByRole('button', { name: 'e4: Blancas Peón', exact: true }),
         ).toBeVisible();
+        await page.getByRole('button', { name: /Historial de jugadas/ }).click();
+        await expect(page.getByRole('dialog')).toContainText('e4');
       }
       if (id === 'checkers') {
         await page.locator('.checkers-board button:not([disabled])').first().click();
@@ -386,8 +530,41 @@ for (const width of [1280, 320])
         await page.getByRole('button', { name: 'Volver a tirar', exact: true }).click();
         await page.getByRole('button', { name: /Anotar Azar:/ }).click();
       }
+      let mysteryNoteIndex = -1;
+      if (id === 'mystery') {
+        const note = page.locator('.mystery-notebook input:not([disabled])').last();
+        mysteryNoteIndex = await note.evaluate((element) =>
+          [...document.querySelectorAll('.mystery-notebook input')].indexOf(
+            element as HTMLInputElement,
+          ),
+        );
+        await note.check();
+        await expect
+          .poll(() =>
+            page.evaluate((index) => {
+              const entry = Object.entries(sessionStorage).find(([key]) =>
+                key.startsWith('sobremesa.mystery-notes.v1:'),
+              );
+              return entry ? (JSON.parse(entry[1]) as number[]).includes(index) : false;
+            }, mysteryNoteIndex),
+          )
+          .toBe(true);
+      }
       await page.reload();
       await expect(page.locator(`.extended-${id}`)).toBeVisible();
+      if (id === 'mystery') {
+        await expect(page.locator('.mystery-notebook input').nth(mysteryNoteIndex)).toBeChecked();
+        await expect
+          .poll(() =>
+            page.evaluate((index) => {
+              const entry = Object.entries(sessionStorage).find(([key]) =>
+                key.startsWith('sobremesa.mystery-notes.v1:'),
+              );
+              return entry ? (JSON.parse(entry[1]) as number[]).includes(index) : false;
+            }, mysteryNoteIndex),
+          )
+          .toBe(true);
+      }
       await expect
         .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
         .toBe(true);
@@ -454,6 +631,8 @@ for (const width of [1280, 320])
       await page.getByRole('button', { name: 'Rules', exact: true }).click();
       await expect(page.getByRole('dialog')).toContainText(english);
       await page.keyboard.press('Escape');
+      await dismissResult();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
       const a11y = await accessibilityAudit(page).analyze();
       expect(
         a11y.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target) })),
@@ -468,6 +647,16 @@ for (const width of [1280, 320])
         .getByRole('dialog')
         .getByRole('button', { name: 'Leave game', exact: true });
       if (await leaveConfirmation.isVisible()) await leaveConfirmation.click();
+      if (id === 'mystery')
+        await expect
+          .poll(() =>
+            page.evaluate(() =>
+              Object.keys(sessionStorage).some((key) =>
+                key.startsWith('sobremesa.mystery-notes.v1:'),
+              ),
+            ),
+          )
+          .toBe(false);
       await expect(page.locator('.game-card')).toHaveCount(30);
     });
 

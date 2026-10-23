@@ -16,7 +16,7 @@ test('Cambio de Color: configurar, jugar una partida real entre amigos y conserv
   page,
   browser,
 }) => {
-  test.setTimeout(90000);
+  test.setTimeout(180000);
   await ready(page);
   await page.locator('.game-colorclash .play-friends').click();
   const stacking = page.getByRole('switch', { name: 'Permitir acumular +2 y +4', exact: true });

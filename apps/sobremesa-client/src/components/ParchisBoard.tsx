@@ -106,6 +106,30 @@ export function ParchisBoard({
           }),
         ]),
       )}
+      sidebarDetails={{
+        label: t('Estado de todas las fichas'),
+        title: t('Estado de todas las fichas'),
+        content: (
+          <section className="parchis-positions">
+            {s.players.map((p) => (
+              <p key={p.id}>
+                <strong>
+                  {p.name || room.players.find((person) => person.id === p.id)?.name} ·{' '}
+                  {t(names[p.color])}
+                </strong>
+                :{' '}
+                {p.withdrawn
+                  ? t('Ha abandonado')
+                  : p.pawns
+                      .map((position, pawn) =>
+                        t('Ficha {0}: {1}', { '0': pawn + 1, '1': place(p.color, position) }),
+                      )
+                      .join(' · ')}
+              </p>
+            ))}
+          </section>
+        ),
+      }}
       actions={actions}
     >
       <p className="board-instruction" role="status">
@@ -251,26 +275,6 @@ export function ParchisBoard({
           { '0': t(names[own.color]) },
         )}
       </p>
-
-      <details className="parchis-positions">
-        <summary>{t('Estado de todas las fichas')}</summary>
-        {s.players.map((p) => (
-          <p key={p.id}>
-            <strong>
-              {p.name || room.players.find((person) => person.id === p.id)?.name} ·{' '}
-              {t(names[p.color])}
-            </strong>
-            :{' '}
-            {p.withdrawn
-              ? t('Ha abandonado')
-              : p.pawns
-                  .map((position, pawn) =>
-                    t('Ficha {0}: {1}', { '0': pawn + 1, '1': place(p.color, position) }),
-                  )
-                  .join(' · ')}
-          </p>
-        ))}
-      </details>
     </BoardFrame>
   );
 }

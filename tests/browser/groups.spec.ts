@@ -165,23 +165,6 @@ for (const width of [1280, 360])
     }
   });
 
-test('Autoplay manual se activa y desactiva desde la partida', async ({ page }) => {
-  await ready(page);
-  await page.locator('.game-tictactoe .play-bot').click();
-  await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
-  const enable = page.getByRole('button', { name: 'Activar autoplay', exact: true });
-  await expect(enable).toBeEnabled();
-  await enable.click();
-  const disable = page.getByRole('button', { name: 'Desactivar autoplay', exact: true });
-  await expect(disable).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('.ttt-board .cell-x')).toHaveCount(1);
-  await disable.click();
-  await expect(page.getByRole('button', { name: 'Activar autoplay', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'false',
-  );
-});
-
 test('Ajedrez: flechas, selección reversible y Escape no abandona el modo inmersivo', async ({
   page,
 }) => {

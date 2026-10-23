@@ -34,7 +34,34 @@ test('Dibuja: tres humanos en móvil, lienzo sincronizado, privacidad, reconexi�
   const { contexts, pages } = await group(browser, page, 'drawing');
   try {
     await expect(page.getByRole('button', { name: 'Añadir bot', exact: true })).toHaveCount(0);
+    for (const participant of pages)
+      await participant.setViewportSize({ width: 1280, height: 900 });
     await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
+    for (const participant of pages) {
+      const canvas = await participant.locator('.drawing-canvas').boundingBox();
+      const playArea = await participant.locator('.extended-play').boundingBox();
+      expect(canvas).not.toBeNull();
+      expect(playArea).not.toBeNull();
+      expect(
+        Math.abs(canvas!.x + canvas!.width / 2 - (playArea!.x + playArea!.width / 2)),
+      ).toBeLessThanOrEqual(2);
+      const vertical = await participant.locator('.extended-play').evaluate((element) => {
+        const main = document.querySelector<HTMLElement>('.game-content')!;
+        const rect = main.getBoundingClientRect();
+        const styles = getComputedStyle(main);
+        const paddingTop = Number.parseFloat(styles.paddingTop);
+        const paddingBottom = Number.parseFloat(styles.paddingBottom);
+        const contentHeight = main.clientHeight - paddingTop - paddingBottom;
+        const area = element.getBoundingClientRect();
+        return {
+          fits: area.height <= contentHeight + 1,
+          center: area.top + area.height / 2,
+          contentCenter: rect.top + paddingTop + contentHeight / 2,
+        };
+      });
+      if (vertical.fits) expect(Math.abs(vertical.center - vertical.contentCenter)).toBeLessThan(3);
+    }
+    for (const participant of pages) await participant.setViewportSize({ width: 320, height: 900 });
     for (let turn = 0; turn < 3; turn++) {
       const drawer = pages[turn];
       await expect(drawer.locator('.physical-impostor')).toHaveCount(0);

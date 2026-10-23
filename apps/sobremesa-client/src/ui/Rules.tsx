@@ -68,7 +68,7 @@ export function Rules({
           </p>
           <p>
             {t(
-              'Puedes activar o desactivar el autoplay. Si no actúas durante un turno o te desconectas, la partida usa la inteligencia normal del bot por ti. Tras 3 minutos, el anfitrión puede retirarte o mantener tu plaza como bot; puedes desactivarlo antes de que venza. Los plazos propios de las reglas se mantienen.',
+              'Si vence un turno humano ordinario, recibirás una confirmación privada de 20 segundos. Si no respondes, el bot jugará con la estrategia normal. También se activa al desconectarte. Tras 3 minutos de ausencia, el anfitrión puede mantener tu plaza como bot o retirarte; si no decide durante el minuto siguiente, se aplica la política correspondiente. Los plazos propios de las reglas se mantienen.',
             )}
           </p>
           {room.gameType === 'monopoly' && (

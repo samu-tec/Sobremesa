@@ -3,7 +3,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
-  margin: 32px 0 3px;
+  margin: 32px auto 3px;
 }
 .ttt-board > button {
   aspect-ratio: 1;
@@ -40,7 +40,7 @@
 }
 .connect-board-wrap {
   width: min(100%, 455px);
-  margin-top: 18px;
+  margin: 18px auto 0;
 }
 .column-controls {
   display: grid;
@@ -110,7 +110,7 @@
   padding: 8px;
   gap: 2px;
   border-radius: 9px;
-  margin: 27px 0 0;
+  margin: 27px auto 0;
   box-shadow: 0 5px 0 #345a46;
 }
 .reversi-board > button {
@@ -170,6 +170,8 @@
   min-height: 560px;
 }
 .pig-dice {
+  display: flex;
+  justify-content: center;
   margin: 30px 0 20px;
   transform: rotate(-8deg);
 }
@@ -236,7 +238,7 @@
 .score-tracks {
   width: 100%;
   max-width: 400px;
-  margin-top: 30px;
+  margin: 30px auto 0;
   display: flex;
   flex-direction: column;
   gap: 15px;

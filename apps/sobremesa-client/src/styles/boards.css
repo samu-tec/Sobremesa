@@ -122,9 +122,6 @@
   padding-top: 14px;
   font-size: 14px;
 }
-.move-history summary {
-  cursor: pointer;
-}
 .move-history ol {
   max-height: 200px;
   overflow-y: auto;
@@ -799,6 +796,11 @@
   flex-wrap: wrap;
   align-items: start;
   gap: 14px;
+  min-height: 64px;
+}
+.tile-drop-target {
+  outline: 2px dashed #2a5c42;
+  outline-offset: 3px;
 }
 .number-tile-set {
   max-width: 100%;

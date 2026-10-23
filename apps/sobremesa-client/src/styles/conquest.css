@@ -75,14 +75,3 @@
     max-height: max(280px, calc(100svh - 340px));
   }
 }
-
-.conquest-territories summary {
-  cursor: pointer;
-  min-height: 44px;
-  display: list-item;
-  padding: 12px 0;
-}
-.conquest-territories summary:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 3px;
-}

@@ -350,7 +350,7 @@ export function CambioDeColorBoard({
           </div>
         </div>
       </section>
-      <aside className="table-sidebar">
+      <aside className="table-sidebar" aria-label={t('Jugadores')} tabIndex={0}>
         <PlayersPanel
           room={room}
           myPlayerId={myPlayerId}

@@ -115,6 +115,19 @@ export function AjedrezBoard({
       values={Object.fromEntries(
         s.players.map((p, i) => [p.id, i === 0 ? t('Blancas') : t('Negras')]),
       )}
+      sidebarDetails={{
+        label: `${t('Historial de jugadas')} · ${s.history.length}`,
+        title: t('Historial de jugadas'),
+        content: (
+          <div className="move-history">
+            <ol>
+              {Array.from({ length: Math.ceil(s.history.length / 2) }, (_, i) => (
+                <li key={i}>{s.history.slice(i * 2, i * 2 + 2).join(' · ')}</li>
+              ))}
+            </ol>
+          </div>
+        ),
+      }}
       actions={actions}
     >
       <div className="board-topline">
@@ -170,16 +183,6 @@ export function AjedrezBoard({
         </div>
       )}
 
-      <details className="move-history">
-        <summary>
-          {t('Historial de jugadas')} · {s.history.length}
-        </summary>
-        <ol>
-          {Array.from({ length: Math.ceil(s.history.length / 2) }, (_, i) => (
-            <li key={i}>{s.history.slice(i * 2, i * 2 + 2).join(' · ')}</li>
-          ))}
-        </ol>
-      </details>
       {promotion && (
         <Modal title={t('Elige tu promoción')} onClose={() => setPromotion(null)}>
           <div className="promotion-options">

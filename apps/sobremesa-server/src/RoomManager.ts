@@ -17,6 +17,7 @@ import {
   type ServerToClientEvents,
   type SocketData,
   type InterServerEvents,
+  type InactivityPrompt,
 } from 'sobremesa-logic';
 import { CONFIG } from './config.js';
 import { gameFactories } from './games/engines.js';
@@ -32,12 +33,17 @@ interface RoomPlayer extends Player {
   disconnectTimeout?: NodeJS.Timeout;
 }
 interface AutoPlayEntry {
-  mode: 'manual' | 'disconnect' | 'timeout';
+  mode: 'disconnect' | 'timeout';
   startedAt: number;
   deadline: number | null;
   awaitingHost: boolean;
   permanent: boolean;
   timeout?: NodeJS.Timeout;
+}
+interface InactivityConfirmation extends InactivityPrompt {
+  playerId: string;
+  turnVersion: number;
+  timeout: NodeJS.Timeout;
 }
 interface ActiveRoom {
   matchId: string;
@@ -56,12 +62,17 @@ interface ActiveRoom {
   turnDeadline: number | null;
   turnActor?: string;
   turnTimeout?: NodeJS.Timeout;
+  turnVersion: number;
+  idleConfirmationUsed: Set<string>;
+  inactivityConfirmation?: InactivityConfirmation;
   autoPlay: Map<string, AutoPlayEntry>;
   lastActivity: number;
   customRules: RoomRules;
 }
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const AUTO_PLAY_HOST_REVIEW_MS = 3 * 60_000;
+const AUTO_PLAY_HOST_DECISION_MS = 60_000;
+const PLAYER_INACTIVITY_CONFIRMATION_MS = 20_000;
 
 export class RoomManager {
   private rooms = new Map<string, ActiveRoom>();
@@ -112,6 +123,8 @@ export class RoomManager {
       configureRules: runtime.configureRules,
       turnSeconds: 90,
       turnDeadline: null,
+      turnVersion: 0,
+      idleConfirmationUsed: new Set(),
       autoPlay: new Map(),
       lastActivity: Date.now(),
       customRules:
@@ -234,7 +247,12 @@ export class RoomManager {
     if (decision === 'remove') {
       return this.runMatchOperation(room, 'retirada por autoplay', () => {
         this.clearAutoPlay(room, playerId);
-        this.removeInactivePlayer(room, playerId);
+        this.removeUnresponsivePlayer(
+          room,
+          playerId,
+          'El anfitrión te ha retirado de la partida.',
+          '{0} ha salido de la partida por decisión del anfitrión.',
+        );
         return { success: true };
       });
     }
@@ -247,43 +265,6 @@ export class RoomManager {
     if (this.actor(room) === playerId) this.armTurnClock(room, true);
     this.broadcastRoomUpdate(room);
     this.checkAndTriggerBotTurn(room);
-    return { success: true };
-  }
-  setAutoPlay(code: string, playerId: string, enabled: boolean) {
-    const room = this.rooms.get(code);
-    const player = room?.players.find((candidate) => candidate.id === playerId && !candidate.isBot);
-    if (!room || room.status !== 'in_game' || !player || !player.connected)
-      return { success: false, error: 'Solo un jugador conectado puede cambiar su autoplay.' };
-    const existing = room.autoPlay.get(playerId);
-    if (enabled) {
-      if (existing?.mode === 'disconnect')
-        return { success: false, error: 'El autoplay por desconexión no se puede cambiar.' };
-      if (existing) return { success: true };
-      const startedAt = Date.now();
-      const entry: AutoPlayEntry = {
-        mode: 'manual',
-        startedAt,
-        deadline: startedAt + AUTO_PLAY_HOST_REVIEW_MS,
-        awaitingHost: false,
-        permanent: false,
-      };
-      room.autoPlay.set(playerId, entry);
-      this.scheduleAutoPlayReview(room, playerId, entry);
-      room.lastActivity = startedAt;
-      this.broadcastRoomUpdate(room);
-      this.checkAndTriggerBotTurn(room);
-      return { success: true };
-    }
-    if (!existing || existing.mode === 'disconnect')
-      return { success: false, error: 'No hay un autoplay que puedas desactivar.' };
-    this.clearAutoPlay(room, playerId);
-    if (this.actor(room) === playerId) {
-      clearTimeout(room.botLoopTimeout);
-      room.botLoopTimeout = undefined;
-      this.armTurnClock(room, true);
-    }
-    room.lastActivity = Date.now();
-    this.broadcastRoomUpdate(room);
     return { success: true };
   }
   changeGame(code: string, id: string, gameType: GameType) {
@@ -304,6 +285,10 @@ export class RoomManager {
       runtime.configureRules(settings);
       const match = runtime.createMatch();
       this.clearTurnClock(room);
+      this.clearInactivityConfirmation(room);
+      room.idleConfirmationUsed.clear();
+      for (const playerId of room.autoPlay.keys()) this.clearAutoPlay(room, playerId);
+      room.turnVersion++;
       clearTimeout(room.botLoopTimeout);
       room.botLoopTimeout = undefined;
       room.rulesByGame[room.gameType] = {
@@ -386,6 +371,9 @@ export class RoomManager {
         error: 'Esta cantidad de participantes no es válida para este juego.',
       };
     return this.runMatchOperation(room, 'inicio', () => {
+      this.clearInactivityConfirmation(room);
+      room.idleConfirmationUsed.clear();
+      for (const playerId of room.autoPlay.keys()) this.clearAutoPlay(room, playerId);
       room.match.start(
         room.players.map(({ id, isBot, name }) => ({
           id,
@@ -395,6 +383,7 @@ export class RoomManager {
         })),
       );
       room.matchId = randomUUID();
+      room.turnVersion++;
       room.status = 'in_game';
       room.lastActivity = Date.now();
       this.armTurnClock(room, true);
@@ -407,11 +396,15 @@ export class RoomManager {
   restartGame(code: string, id: string) {
     const room = this.hostRoom(code, id, 'finished');
     return this.runMatchOperation(room, 'reinicio', () => {
+      this.clearInactivityConfirmation(room);
+      room.idleConfirmationUsed.clear();
+      for (const playerId of room.autoPlay.keys()) this.clearAutoPlay(room, playerId);
       clearTimeout(room.botLoopTimeout);
       room.botLoopTimeout = undefined;
       this.clearTurnClock(room);
       room.status = 'waiting';
       room.matchId = randomUUID();
+      room.turnVersion++;
       room.match.reset();
       room.lastActivity = Date.now();
       if (room.players.length > 1) room.players.push(room.players.shift()!);
@@ -438,6 +431,9 @@ export class RoomManager {
       const result = room.match.act(id, action);
       if (!result)
         return { success: false, error: 'Ese movimiento no está permitido o no es tu turno.' };
+      this.clearInactivityConfirmation(room);
+      room.idleConfirmationUsed.delete(id);
+      room.turnVersion++;
       // The game policy decides whether a same-player action starts a new turn.
       this.armTurnClock(room, result.completed || previousActor !== this.actor(room));
       if (!room.players.find((p) => p.id === id)?.isBot) room.lastActivity = Date.now();
@@ -458,6 +454,8 @@ export class RoomManager {
     const { winnerId, isDraw } = room.match.result();
     if (!winnerId && !isDraw) return;
     room.status = 'finished';
+    this.clearInactivityConfirmation(room);
+    room.idleConfirmationUsed.clear();
     this.clearTurnClock(room);
     for (const id of room.autoPlay.keys()) this.clearAutoPlay(room, id);
     clearTimeout(room.botLoopTimeout);
@@ -505,7 +503,10 @@ export class RoomManager {
     this.socketToRoom.set(socketId, code);
     room.lastActivity = Date.now();
     return this.runMatchOperation(room, 'reconexión', () => {
-      if (!room.turnTimeout) this.armTurnClock(room);
+      const prompt = room.inactivityConfirmation;
+      if (!room.turnTimeout && !prompt) this.armTurnClock(room);
+      if (prompt?.playerId === id && prompt.matchId === room.matchId)
+        this.sendInactivityPrompt(room, prompt);
       this.broadcastRoomUpdate(room);
       this.checkAndTriggerBotTurn(room);
       return {
@@ -521,21 +522,34 @@ export class RoomManager {
     if (!room) return;
     const player = room.players.find((p) => p.socketId === socketId);
     if (!player) return;
+    this.clearInactivityConfirmation(room, player.id);
     player.connected = false;
     player.socketId = null;
     room.lastActivity = Date.now();
     clearTimeout(player.disconnectTimeout);
     if (room.status === 'in_game' && !player.isBot) {
-      this.startAutoPlay(room, player.id, 'disconnect');
+      this.startAutoPlay(room, 'disconnect', player.id);
       if (room.hostId === player.id) {
         const nextHost = room.players.find((candidate) => !candidate.isBot && candidate.connected);
         if (nextHost) room.hostId = nextHost.id;
       }
     } else {
-      player.disconnectTimeout = setTimeout(
-        () => this.runAutomaticTask(room, 'reserva', () => this.removePlayer(room, player.id)),
+      const disconnectTimeout = setTimeout(
+        () =>
+          this.runAutomaticTask(room, 'reserva', () => {
+            if (
+              player.disconnectTimeout !== disconnectTimeout ||
+              player.connected ||
+              player.socketId !== null ||
+              room.players.find((candidate) => candidate.id === player.id) !== player
+            )
+              return;
+            player.disconnectTimeout = undefined;
+            this.removePlayer(room, player.id);
+          }),
         CONFIG.DISCONNECT_GRACE_PERIOD_MS,
       );
+      player.disconnectTimeout = disconnectTimeout;
     }
     this.broadcastRoomUpdate(room);
   }
@@ -550,6 +564,12 @@ export class RoomManager {
     if (!this.rooms.has(room.code)) return;
     const index = room.players.findIndex((p) => p.id === id);
     if (index < 0) return;
+    if (room.status === 'in_game') {
+      this.clearInactivityConfirmation(room);
+      room.turnVersion++;
+    }
+    this.clearInactivityConfirmation(room, id);
+    room.idleConfirmationUsed.delete(id);
     const [player] = room.players.splice(index, 1);
     this.clearAutoPlay(room, id);
     clearTimeout(player.disconnectTimeout);
@@ -584,18 +604,133 @@ export class RoomManager {
     room.turnDeadline = null;
     room.turnActor = undefined;
   }
+  private clearInactivityConfirmation(room: ActiveRoom, playerId?: string) {
+    const prompt = room.inactivityConfirmation;
+    if (!prompt || (playerId && prompt.playerId !== playerId)) return;
+    clearTimeout(prompt.timeout);
+    room.inactivityConfirmation = undefined;
+    const player = room.players.find((candidate) => candidate.id === prompt.playerId);
+    if (player?.socketId)
+      this.io.to(player.socketId).emit('room:inactivity_prompt_cleared', {
+        matchId: prompt.matchId,
+        promptId: prompt.promptId,
+      });
+  }
+  private sendInactivityPrompt(room: ActiveRoom, prompt: InactivityConfirmation) {
+    const player = room.players.find((candidate) => candidate.id === prompt.playerId);
+    if (!player?.connected || !player.socketId) return;
+    const payload: InactivityPrompt = {
+      matchId: prompt.matchId,
+      promptId: prompt.promptId,
+      deadline: prompt.deadline,
+    };
+    this.io.to(player.socketId).emit('room:inactivity_prompt', payload);
+  }
+  private startInactivityConfirmation(room: ActiveRoom, playerId: string) {
+    const player = room.players.find((candidate) => candidate.id === playerId && !candidate.isBot);
+    if (room.status !== 'in_game' || this.actor(room) !== playerId || !player?.connected) {
+      this.startAutoPlay(room, player?.connected ? 'timeout' : 'disconnect', playerId);
+      return;
+    }
+    this.clearTurnClock(room);
+    const prompt = {
+      playerId,
+      matchId: room.matchId,
+      promptId: randomUUID(),
+      turnVersion: room.turnVersion,
+      deadline: Date.now() + PLAYER_INACTIVITY_CONFIRMATION_MS,
+      timeout: undefined as unknown as NodeJS.Timeout,
+    } satisfies InactivityConfirmation;
+    prompt.timeout = setTimeout(
+      () =>
+        this.runAutomaticTask(room, 'confirmación de actividad', () =>
+          this.expireInactivityConfirmation(room, prompt),
+        ),
+      PLAYER_INACTIVITY_CONFIRMATION_MS,
+    );
+    room.inactivityConfirmation = prompt;
+    this.sendInactivityPrompt(room, prompt);
+    this.broadcastRoomUpdate(room);
+  }
+  private expireInactivityConfirmation(room: ActiveRoom, prompt: InactivityConfirmation) {
+    if (
+      room.inactivityConfirmation !== prompt ||
+      room.matchId !== prompt.matchId ||
+      room.turnVersion !== prompt.turnVersion ||
+      this.actor(room) !== prompt.playerId
+    )
+      return;
+    this.clearInactivityConfirmation(room, prompt.playerId);
+    const player = room.players.find((candidate) => candidate.id === prompt.playerId);
+    this.startAutoPlay(room, player?.connected ? 'timeout' : 'disconnect', prompt.playerId);
+  }
+  respondToInactivity(
+    code: string,
+    playerId: string,
+    socketId: string,
+    matchId: string,
+    promptId: string,
+    decision: unknown,
+  ) {
+    const room = this.rooms.get(code);
+    const prompt = room?.inactivityConfirmation;
+    const player = room?.players.find((candidate) => candidate.id === playerId && !candidate.isBot);
+    if (
+      !room ||
+      room.status !== 'in_game' ||
+      room.matchId !== matchId ||
+      !prompt ||
+      prompt.matchId !== matchId ||
+      prompt.promptId !== promptId ||
+      prompt.playerId !== playerId ||
+      prompt.turnVersion !== room.turnVersion ||
+      this.actor(room) !== playerId ||
+      !room.match.requiresPlayerAction() ||
+      room.match.timeoutSeconds() !== null ||
+      (decision !== 'continue' && decision !== 'leave') ||
+      !player?.connected ||
+      player.socketId !== socketId
+    )
+      return { success: false, error: 'La confirmación ya no está vigente.' };
+    if (Date.now() >= prompt.deadline) {
+      this.expireInactivityConfirmation(room, prompt);
+      return { success: false, error: 'La confirmación ya no está vigente.' };
+    }
+    this.clearInactivityConfirmation(room, playerId);
+    room.lastActivity = Date.now();
+    if (decision === 'leave') {
+      this.removeUnresponsivePlayer(
+        room,
+        playerId,
+        'Has salido de la partida.',
+        '{0} ha salido de la partida.',
+      );
+      return { success: true };
+    }
+    room.idleConfirmationUsed.add(playerId);
+    this.armTurnClock(room, true);
+    this.broadcastRoomUpdate(room);
+    return { success: true };
+  }
   private armTurnClock(room: ActiveRoom, force = false) {
     if (room.status !== 'in_game') return;
     const actor = this.actor(room);
     if (!force && room.turnActor === actor && room.turnTimeout) return;
     this.clearTurnClock(room);
     room.turnActor = actor;
-    if (room.autoPlay.get(actor)?.awaitingHost && room.match.requiresPlayerAction()) return;
+    if (
+      room.autoPlay.get(actor)?.awaitingHost &&
+      room.match.requiresPlayerAction() &&
+      room.match.timeoutSeconds() === null
+    )
+      return;
     const duration = room.match.timeoutSeconds() ?? room.turnSeconds;
     room.turnDeadline = Date.now() + duration * 1000;
     const deadline = room.turnDeadline;
+    const matchId = room.matchId;
     room.turnTimeout = setTimeout(
-      () => this.runAutomaticTask(room, 'reloj', () => this.expireTurn(room, actor, deadline)),
+      () =>
+        this.runAutomaticTask(room, 'reloj', () => this.expireTurn(room, actor, deadline, matchId)),
       duration * 1000,
     );
   }
@@ -607,13 +742,30 @@ export class RoomManager {
   }
   private scheduleAutoPlayReview(room: ActiveRoom, id: string, entry: AutoPlayEntry) {
     clearTimeout(entry.timeout);
+    const matchId = room.matchId;
     entry.timeout = setTimeout(
       () =>
         this.runAutomaticTask(room, 'autoplay', () => {
-          if (room.autoPlay.get(id) !== entry) return;
+          if (room.matchId !== matchId || room.autoPlay.get(id) !== entry) return;
           entry.awaitingHost = true;
-          entry.timeout = undefined;
-          if (this.actor(room) === id && room.match.requiresPlayerAction()) {
+          const fallbackDeadline = Math.max(
+            Date.now() + AUTO_PLAY_HOST_DECISION_MS,
+            entry.mode === 'disconnect' ? entry.startedAt + CONFIG.DISCONNECT_GRACE_PERIOD_MS : 0,
+          );
+          entry.deadline = fallbackDeadline;
+          entry.timeout = setTimeout(
+            () =>
+              this.runAutomaticTask(room, 'vencimiento de revisión de anfitrión', () =>
+                this.finishAutoPlayReview(room, id, entry, matchId),
+              ),
+            Math.max(0, fallbackDeadline - Date.now()),
+          );
+          entry.timeout.unref();
+          if (
+            this.actor(room) === id &&
+            room.match.requiresPlayerAction() &&
+            room.match.timeoutSeconds() === null
+          ) {
             this.clearTurnClock(room);
             room.turnActor = id;
           }
@@ -623,8 +775,32 @@ export class RoomManager {
     );
     entry.timeout.unref();
   }
-  private startAutoPlay(room: ActiveRoom, id: string, mode: 'disconnect' | 'timeout') {
-    if (room.status !== 'in_game' || room.players.find((p) => p.id === id)?.isBot) return;
+  private finishAutoPlayReview(
+    room: ActiveRoom,
+    id: string,
+    entry: AutoPlayEntry,
+    matchId: string,
+  ) {
+    if (room.matchId !== matchId || room.autoPlay.get(id) !== entry || !entry.awaitingHost) return;
+    entry.timeout = undefined;
+    this.removeUnresponsivePlayer(
+      room,
+      id,
+      'Has salido de la partida porque el anfitrión no pudo resolver tu ausencia.',
+      '{0} ha salido de la partida por inactividad.',
+    );
+  }
+  private startAutoPlay(room: ActiveRoom, mode: 'disconnect' | 'timeout', id: string) {
+    const player = room.players.find((candidate) => candidate.id === id);
+    if (
+      room.status !== 'in_game' ||
+      !player ||
+      player.isBot ||
+      (mode === 'timeout' && !player.connected) ||
+      (mode === 'disconnect' && player.connected)
+    )
+      return;
+    this.clearInactivityConfirmation(room, id);
     const current = room.autoPlay.get(id);
     if (current?.mode === 'disconnect') return;
     const startedAt = Date.now();
@@ -643,7 +819,11 @@ export class RoomManager {
     room.autoPlay.set(id, entry);
     this.scheduleAutoPlayReview(room, id, entry);
     this.broadcastRoomUpdate(room);
-    if (this.actor(room) === id && room.match.requiresPlayerAction()) {
+    if (
+      this.actor(room) === id &&
+      room.match.requiresPlayerAction() &&
+      room.match.timeoutSeconds() === null
+    ) {
       clearTimeout(room.turnTimeout);
       room.turnTimeout = undefined;
       room.turnDeadline = null;
@@ -681,43 +861,56 @@ export class RoomManager {
     this.broadcastGameState(room);
     this.checkAndTriggerBotTurn(room);
   }
-  private removeInactivePlayer(room: ActiveRoom, id: string) {
+  private removeUnresponsivePlayer(
+    room: ActiveRoom,
+    id: string,
+    reason: string,
+    notification: string,
+  ) {
     const player = room.players.find((p) => p.id === id);
     if (!player) return;
     if (player.socketId) {
       const socket = this.io.sockets.sockets.get(player.socketId);
       socket?.leave(room.code);
       if (socket?.data) socket.data.roomCode = undefined;
-      socket?.emit('room:removed', 'Has salido de la partida por inactividad.');
+      socket?.emit('room:removed', reason);
     }
     this.clearTurnClock(room);
     this.io.to(room.code).emit('game:notification', {
-      text: message('{0} ha salido por inactividad.', player.name),
+      text: message(notification, player.name),
       type: 'info',
     });
     this.removePlayer(room, id);
   }
-  private expireTurn(room: ActiveRoom, actor: string, deadline: number) {
-    if (room.status !== 'in_game' || room.turnDeadline !== deadline || this.actor(room) !== actor)
+  private expireTurn(room: ActiveRoom, actor: string, deadline: number, matchId: string) {
+    if (
+      room.status !== 'in_game' ||
+      room.matchId !== matchId ||
+      room.turnDeadline !== deadline ||
+      this.actor(room) !== actor
+    )
       return;
+    this.clearTurnClock(room);
     const player = room.players.find((p) => p.id === actor);
-    // Rule deadlines (auctions, timed questions, claims and drawing) keep their own resolution.
-    if (player && !player.isBot && room.match.requiresPlayerAction()) {
+    // A policy-owned deadline always wins over inactivity confirmation and autoplay.
+    const hasRuleDeadline = room.match.timeoutSeconds() !== null;
+    if (player && !player.isBot && room.match.requiresPlayerAction() && !hasRuleDeadline) {
       const entry = room.autoPlay.get(actor);
       if (entry?.awaitingHost) {
-        room.turnDeadline = null;
-        room.turnTimeout = undefined;
-        this.broadcastRoomUpdate(room);
+        this.finishAutoPlayReview(room, actor, entry, matchId);
         return;
       }
       if (entry) {
         this.runAutoPlayAction(room, actor);
         return;
       }
-      this.startAutoPlay(room, actor, 'timeout');
+      if (player.connected && !room.idleConfirmationUsed.has(actor)) {
+        this.startInactivityConfirmation(room, actor);
+        return;
+      }
+      this.startAutoPlay(room, player.connected ? 'timeout' : 'disconnect', actor);
       return;
     }
-    this.clearTurnClock(room);
     if (room.match.expire()) this.finishIfNeeded(room);
     else {
       for (let i = 0; i < 100 && room.status === 'in_game' && this.actor(room) === actor; i++) {
@@ -772,14 +965,27 @@ export class RoomManager {
     if (room.status !== 'in_game') return;
     const actor = this.actor(room);
     const auto = room.autoPlay.get(actor);
-    if (auto?.awaitingHost || (auto && !room.match.requiresPlayerAction())) return;
+    if (
+      auto?.awaitingHost ||
+      (auto && !room.match.requiresPlayerAction()) ||
+      (auto && !auto.permanent && room.match.timeoutSeconds() !== null)
+    )
+      return;
     const botId = room.match.botId(room.players) || (auto ? actor : undefined);
     const bot = room.players.find((p) => p.id === botId);
     if (!bot) return;
+    const matchId = room.matchId;
+    const turnVersion = room.turnVersion;
     room.botLoopTimeout = setTimeout(() => {
       room.botLoopTimeout = undefined;
       this.runAutomaticTask(room, 'bot', () => {
-        if (room.status !== 'in_game') return;
+        if (
+          room.status !== 'in_game' ||
+          room.matchId !== matchId ||
+          room.turnVersion !== turnVersion ||
+          this.actor(room) !== actor
+        )
+          return;
         if (room.autoPlay.has(bot.id)) this.runAutoPlayAction(room, bot.id);
         else {
           const action = room.match.botAction(bot.id);
@@ -795,6 +1001,8 @@ export class RoomManager {
     clearTimeout(room.botLoopTimeout);
     for (const entry of room.autoPlay.values()) clearTimeout(entry.timeout);
     room.autoPlay.clear();
+    this.clearInactivityConfirmation(room);
+    room.idleConfirmationUsed.clear();
     this.clearTurnClock(room);
     this.io.to(code).emit('room:closed', reason);
     for (const player of room.players) {

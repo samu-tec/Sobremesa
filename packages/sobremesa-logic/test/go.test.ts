@@ -110,6 +110,18 @@ test('Go: desacuerdo reanuda sin eliminar piedras, sin borrar superko y restaura
   assert.equal(next.board[1], 1);
   assert.deepEqual(next.history, history);
 });
+test('Go: el bot rechaza una propuesta que empeora su resultado y reanuda para resolverla jugando', () => {
+  const { e, s } = fixture([0, 1], [10]);
+  s.phase = 'score';
+  s.currentTurnPlayerId = 'b';
+  s.dead = [0, 1];
+  s.score = goAreaScore(s.board, s.size, s.dead);
+  assert.deepEqual(e.getBotAction(s, 'b'), { type: 'RESUME' });
+  assert.equal(e.validateAction(s, 'b', { type: 'RESUME' }), true);
+  s.dead = [];
+  s.score = goAreaScore(s.board, s.size);
+  assert.deepEqual(e.getBotAction(s, 'b'), { type: 'ACCEPT_SCORE' });
+});
 test('Go: historia interna no se emite; vista y acciones legales no permiten mutar el estado', () => {
   const e = new GoEngine(),
     s = e.initGame(players),

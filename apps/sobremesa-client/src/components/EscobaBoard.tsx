@@ -95,6 +95,20 @@ export function EscobaBoard({
           t('{0} puntos · {1} escobas', { '0': p.score, '1': p.sweeps }),
         ]),
       )}
+      sidebarDetails={{
+        label: t('Ver cartas ganadas'),
+        title: t('Cartas ganadas'),
+        content: (
+          <section className="escoba-captured">
+            {s.players.map((p) => (
+              <p key={p.id}>
+                <strong>{name(p.id)}:</strong>{' '}
+                {p.captured.map(spanishCardLabel).join(', ') || t('Todavía no ha ganado cartas.')}
+              </p>
+            ))}
+          </section>
+        ),
+      }}
       actions={actions}
     >
       <p className="board-instruction" role="status">
@@ -178,15 +192,6 @@ export function EscobaBoard({
           ))}
         </section>
       )}
-      <details className="escoba-captured">
-        <summary>{t('Ver cartas ganadas')}</summary>
-        {s.players.map((p) => (
-          <p key={p.id}>
-            <strong>{name(p.id)}:</strong>{' '}
-            {p.captured.map(spanishCardLabel).join(', ') || t('Todavía no ha ganado cartas.')}
-          </p>
-        ))}
-      </details>
     </BoardFrame>
   );
 }

@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent as ReactDragEvent,
+  type KeyboardEvent,
+} from 'react';
 import {
   analyzeRummyDeFichasSet,
   checkRummyDeFichasPlay,
@@ -56,10 +63,12 @@ export function RummyDeFichasBoard({
     [draft, setDraft] = useState<number[][]>(base),
     [selected, setSelected] = useState<number[]>([]),
     [undo, setUndo] = useState<number[][][]>([]),
-    [sort, setSort] = useState<'color' | 'value'>('color');
+    [sort, setSort] = useState<'color' | 'value'>('color'),
+    [dropTarget, setDropTarget] = useState<string | null>(null);
   const me = s.players.find((p) => p.id === myPlayerId)!,
     can = s.currentTurnPlayerId === myPlayerId && !s.winner && !s.isDraw && !busy,
     lookup = new Map([...s.table.flat(), ...s.hand].map((tile) => [tile.id, tile]));
+  const draggedTileId = useRef<number | null>(null);
   useEffect(() => {
     setDraft(base);
     setSelected([]);
@@ -103,15 +112,61 @@ export function RummyDeFichasBoard({
     update(next.filter((set) => set.length));
   };
   const editable = (index: number) => me.opened || index >= base.length;
+  const draggedTile = (event: ReactDragEvent<HTMLElement>) => {
+    const value = Number(event.dataTransfer.getData('text/plain'));
+    if (Number.isInteger(value) && lookup.has(value)) return value;
+    return draggedTileId.current !== null && lookup.has(draggedTileId.current)
+      ? draggedTileId.current
+      : null;
+  };
+  const dropOnSet = (event: ReactDragEvent<HTMLElement>, target: number | null) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDropTarget(null);
+    if (!can) return;
+    const id = draggedTile(event);
+    if (id === null) return;
+    const source = safeDraft.findIndex((set) => set.includes(id));
+    if ((source >= 0 && !editable(source)) || (target !== null && !editable(target))) return;
+    if (source < 0 && !s.hand.some((tile) => tile.id === id)) return;
+    const next = safeDraft.map((set) => set.filter((tileId) => tileId !== id));
+    if (target === null) next.push(normalize([id]));
+    else if (next[target]) next[target] = normalize([...next[target], id]);
+    else return;
+    update(next.filter((set) => set.length));
+  };
+  const dropToRack = (event: ReactDragEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDropTarget(null);
+    if (!can) return;
+    const id = draggedTile(event);
+    if (id === null) return;
+    const source = safeDraft.findIndex((set) => set.includes(id));
+    if (source < 0 || !editable(source)) return;
+    update(
+      safeDraft.map((set) => set.filter((tileId) => tileId !== id)).filter((set) => set.length),
+    );
+  };
   const renderTile = (tile: RummyDeFichasTile, disabled = false) => (
     <button
       key={tile.id}
       type="button"
       disabled={!can || disabled}
+      draggable={can && !disabled}
       className={selected.includes(tile.id) ? 'selected-number-tile' : ''}
       aria-label={tileName(tile)}
       aria-pressed={selected.includes(tile.id)}
       onClick={() => toggle(tile.id)}
+      onDragStart={(event) => {
+        draggedTileId.current = tile.id;
+        event.dataTransfer.setData('text/plain', String(tile.id));
+        event.dataTransfer.effectAllowed = 'move';
+      }}
+      onDragEnd={() => {
+        draggedTileId.current = null;
+        setDropTarget(null);
+      }}
     >
       <Tile tile={tile} last={s.lastPlayedIds.includes(tile.id)} />
     </button>
@@ -239,10 +294,10 @@ export function RummyDeFichasBoard({
         <p>
           {me.opened
             ? t(
-                'Puedes separar, unir y mover fichas entre combinaciones. Al confirmar, todas deben ser válidas.',
+                'Puedes arrastrar fichas entre combinaciones o seleccionarlas y usar los botones. Al confirmar, todas deben ser válidas.',
               )
             : t(
-                'Prepara uno o más grupos o escaleras con tus fichas. Hasta abrir no puedes usar la mesa.',
+                'Prepara grupos o escaleras con tus fichas: arrástralas a la mesa o selecciónalas y crea una combinación. Hasta abrir no puedes usar la mesa.',
               )}
         </p>
         {!me.opened && played.length > 0 && (
@@ -260,7 +315,20 @@ export function RummyDeFichasBoard({
           </span>
         )}
       </div>
-      <section className="number-tile-table" tabIndex={0} aria-label={t('Mesa de Rummy')}>
+      <section
+        className={`number-tile-table ${dropTarget === 'new' ? 'tile-drop-target' : ''}`}
+        tabIndex={0}
+        aria-label={t('Mesa de Rummy')}
+        onDragOverCapture={(event) => event.preventDefault()}
+        onDragOver={(event) => {
+          event.preventDefault();
+        }}
+        onDragEnter={() => setDropTarget('new')}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node)) setDropTarget(null);
+        }}
+        onDrop={(event) => dropOnSet(event, null)}
+      >
         <div className="section-row">
           <h2>{t('La mesa')}</h2>
           <span>{quantity(safeDraft.length, 'combinaciones')}</span>
@@ -268,7 +336,15 @@ export function RummyDeFichasBoard({
         {!safeDraft.length && (
           <p className="tile-table-empty">{t('Las primeras combinaciones empiezan aquí.')}</p>
         )}
-        <div className="number-tile-sets">
+        <div
+          className={`number-tile-sets ${dropTarget === 'new' ? 'tile-drop-target' : ''}`}
+          onDragOver={(event) => event.preventDefault()}
+          onDragEnter={() => setDropTarget('new')}
+          onDragLeave={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node)) setDropTarget(null);
+          }}
+          onDrop={(event) => dropOnSet(event, null)}
+        >
           {safeDraft.map((set, index) => {
             const analysis = analyzeRummyDeFichasSet(set.map((id) => lookup.get(id)!));
             return (
@@ -295,8 +371,20 @@ export function RummyDeFichasBoard({
                   </button>
                 </div>
                 <div
-                  className="tile-set-row"
+                  className={`tile-set-row ${dropTarget === `set-${index}` ? 'tile-drop-target' : ''}`}
                   onKeyDown={scrollTiles}
+                  onDragOver={(event) => {
+                    if (can && editable(index)) event.preventDefault();
+                  }}
+                  onDragEnter={(event) => {
+                    event.stopPropagation();
+                    if (editable(index)) setDropTarget(`set-${index}`);
+                  }}
+                  onDragLeave={(event) => {
+                    if (!event.currentTarget.contains(event.relatedTarget as Node))
+                      setDropTarget(null);
+                  }}
+                  onDrop={(event) => dropOnSet(event, index)}
                   tabIndex={0}
                   role="group"
                   aria-label={t('Combinación {0}', { '0': index + 1 })}
@@ -344,7 +432,19 @@ export function RummyDeFichasBoard({
             {sort === 'color' ? t('Ordenar por número') : t('Ordenar por color')}
           </button>
         </div>
-        <div className="number-tile-rack">{hand.map((tile) => renderTile(tile))}</div>
+        <div
+          className={`number-tile-rack ${dropTarget === 'rack' ? 'tile-drop-target' : ''}`}
+          onDragOver={(event) => {
+            if (can) event.preventDefault();
+          }}
+          onDragEnter={() => setDropTarget('rack')}
+          onDragLeave={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node)) setDropTarget(null);
+          }}
+          onDrop={dropToRack}
+        >
+          {hand.map((tile) => renderTile(tile))}
+        </div>
         <button
           className="button small secondary"
           disabled={!can || !rummyMeldOptions(hand).length}

@@ -63,6 +63,49 @@ test('Timeout, envío fallido y socket desconectado liberan los listeners y no e
   );
 });
 
+test('Las notas de Misterio son de sesión, jugador, sala y partida; el almacenamiento bloqueado no impide jugar', async () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage');
+  const saved = new Map();
+  try {
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      configurable: true,
+      value: {
+        getItem: (key) => saved.get(key) ?? null,
+        setItem: (key, value) => saved.set(key, value),
+        removeItem: (key) => saved.delete(key),
+      },
+    });
+    const notebook = await import('../apps/sobremesa-client/src/services/mysteryNotebook.ts');
+    notebook.writeMysteryNotes('ana', 'ROOM1', 'match-a', [2, 2, -1, 18, 4]);
+    assert.deepEqual(notebook.readMysteryNotes('ana', 'ROOM1', 'match-a'), [2, 4]);
+    assert.deepEqual(notebook.readMysteryNotes('bruno', 'ROOM1', 'match-a'), []);
+    assert.deepEqual(notebook.readMysteryNotes('ana', 'ROOM2', 'match-a'), []);
+    assert.deepEqual(notebook.readMysteryNotes('ana', 'ROOM1', 'match-b'), []);
+    notebook.clearMysteryNotes('ana', 'ROOM1', 'match-a');
+    assert.deepEqual(notebook.readMysteryNotes('ana', 'ROOM1', 'match-a'), []);
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      configurable: true,
+      value: {
+        getItem: () => {
+          throw new Error('blocked');
+        },
+        setItem: () => {
+          throw new Error('blocked');
+        },
+        removeItem: () => {
+          throw new Error('blocked');
+        },
+      },
+    });
+    assert.deepEqual(notebook.readMysteryNotes('ana', 'ROOM1', 'match-a'), []);
+    assert.doesNotThrow(() => notebook.writeMysteryNotes('ana', 'ROOM1', 'match-a', [3]));
+    assert.doesNotThrow(() => notebook.clearMysteryNotes('ana', 'ROOM1', 'match-a'));
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'sessionStorage', original);
+    else delete globalThis.sessionStorage;
+  }
+});
+
 test('Audio opcional: preferencias, síntesis, ráfagas, pestaña oculta y limpieza', async () => {
   const saved = new Map();
   const original = Object.fromEntries(

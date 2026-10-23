@@ -50,6 +50,9 @@ export function Welcome({
           onChange={(e) => setName(e.target.value)}
           required
         />
+        <p className="welcome-privacy-link">
+          <a href="/privacy">{t('Consulta la política de privacidad')}</a>
+        </p>
         <div className="choice-buttons">
           <button
             type="button"

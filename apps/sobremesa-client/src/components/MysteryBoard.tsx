@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   MYSTERY_CARDS,
   type MysteryTriple,
@@ -8,6 +8,7 @@ import {
 import { t, gameText } from '../i18n';
 import { BoardFrame, type BoardProps } from '../ui/GameLayout';
 import { Modal } from '../ui/Modal';
+import { readMysteryNotes, writeMysteryNotes } from '../services/mysteryNotebook';
 import '../styles/mystery.css';
 export function MysteryBoard({
   room,
@@ -16,14 +17,29 @@ export function MysteryBoard({
   onAction,
   busy,
 }: BoardProps<MysteryPublicState, MysteryAction>) {
+  const notesKey = `${room.code}:${myPlayerId}:${room.matchId}`;
   const [cards, setCards] = useState<MysteryTriple>([0, 6, 12]),
-    [notes, setNotes] = useState<number[]>([]),
+    [notebook, setNotebook] = useState(() => ({
+      key: notesKey,
+      notes: readMysteryNotes(myPlayerId, room.code, room.matchId),
+    })),
     [confirm, setConfirm] = useState<{ revision: number; cards: MysteryTriple } | null>(null),
     can = !busy && !s.winner && !s.isDraw && s.currentTurnPlayerId === myPlayerId,
     investigate = can && (s.phase === 'investigate' || s.phase === 'conclude'),
     name = (id: string) => room.players.find((p) => p.id === id)?.name ?? id,
     known = new Set([...s.hand, ...s.proofs.map((p) => p.card)]),
     categories = [t('Personaje'), t('Lugar'), t('Objeto')];
+  const notes = notebook.key === notesKey ? notebook.notes : [];
+  useEffect(() => {
+    setNotebook({
+      key: notesKey,
+      notes: readMysteryNotes(myPlayerId, room.code, room.matchId),
+    });
+  }, [notesKey, myPlayerId, room.code, room.matchId]);
+  useEffect(() => {
+    if (notebook.key === notesKey)
+      writeMysteryNotes(myPlayerId, room.code, room.matchId, notebook.notes);
+  }, [notebook, notesKey, myPlayerId, room.code, room.matchId]);
   const actions = (
     <>
       {s.phase === 'refute' && can && (
@@ -153,7 +169,7 @@ export function MysteryBoard({
         <h2>{t('Cuaderno de deducción')}</h2>
         <p>
           {t(
-            'Tus marcas son locales y se pierden al recargar. Una pista conocida no forma parte de la solución.',
+            'Tus marcas se guardan en esta pestaña durante la partida. Una pista conocida no forma parte de la solución.',
           )}
         </p>
         <div className="mystery-notebook">
@@ -169,7 +185,16 @@ export function MysteryBoard({
                       checked={known.has(c) || notes.includes(c)}
                       disabled={known.has(c)}
                       onChange={() =>
-                        setNotes(notes.includes(c) ? notes.filter((n) => n !== c) : [...notes, c])
+                        setNotebook((current) =>
+                          current.key !== notesKey
+                            ? current
+                            : {
+                                key: current.key,
+                                notes: notes.includes(c)
+                                  ? notes.filter((n) => n !== c)
+                                  : [...notes, c],
+                              },
+                        )
                       }
                     />
                     <span>

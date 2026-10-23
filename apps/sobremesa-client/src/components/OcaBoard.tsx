@@ -82,6 +82,75 @@ export function OcaBoard({
           t('Casilla {0} · espera {1}', { '0': p.position, '1': p.skippedTurns }),
         ]),
       )}
+      sidebarDetails={{
+        label: t('Estado y casillas especiales'),
+        title: t('Estado y casillas especiales'),
+        content: (
+          <>
+            {s.lastMove?.bounced && (
+              <p className="board-caption">
+                {t('Has rebotado en la meta y retrocedido las casillas sobrantes.')}
+              </p>
+            )}
+            {s.skipped.length > 0 && (
+              <p className="board-caption">
+                {t('Turnos de espera cumplidos: {0}.', {
+                  '0': s.skipped
+                    .map(
+                      (id) =>
+                        s.players.find((p) => p.id === id)?.name ||
+                        room.players.find((p) => p.id === id)?.name,
+                    )
+                    .join(', '),
+                })}
+              </p>
+            )}
+            <section className="oca-player-state">
+              <h3>{t('Estado de los jugadores')}</h3>
+              <ol className="oca-players">
+                {s.players.map((p, i) => (
+                  <li key={p.id}>
+                    <strong>
+                      {i + 1}. {p.name || room.players.find((person) => person.id === p.id)?.name}
+                    </strong>
+                    <span>
+                      {p.withdrawn
+                        ? t('Ha abandonado')
+                        : t('Casilla {0}: {1}. Espera: {2}.', {
+                            '0': p.position,
+                            '1': t(labels[ocaSquareKind(p.position)]),
+                            '2': p.skippedTurns,
+                          })}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+            <section className="oca-guide">
+              <h3>{t('Casillas especiales de la Oca')}</h3>
+              {(
+                [
+                  'goose',
+                  'bridge',
+                  'inn',
+                  'well',
+                  'maze',
+                  'prison',
+                  'dice',
+                  'skull',
+                  'goal',
+                ] as const
+              ).map((kind) => (
+                <p key={kind}>
+                  <strong>{t(labels[kind])}</strong>:{' '}
+                  {track.flatMap((_, i) => (ocaSquareKind(i) === kind ? [i] : [])).join(', ')}
+                </p>
+              ))}
+              <p>{t('Consulta las reglas para ver cada salto y penalización.')}</p>
+            </section>
+          </>
+        ),
+      }}
       actions={actions}
     >
       <p className="board-instruction" role="status">
@@ -159,54 +228,6 @@ export function OcaBoard({
             );
           })}
       </svg>
-      {s.lastMove?.bounced && (
-        <p className="board-caption">
-          {t('Has rebotado en la meta y retrocedido las casillas sobrantes.')}
-        </p>
-      )}
-      {s.skipped.length > 0 && (
-        <p className="board-caption">
-          {t('Turnos de espera cumplidos: {0}.', {
-            '0': s.skipped
-              .map(
-                (id) =>
-                  s.players.find((p) => p.id === id)?.name ||
-                  room.players.find((p) => p.id === id)?.name,
-              )
-              .join(', '),
-          })}
-        </p>
-      )}
-      <ol className="oca-players">
-        {s.players.map((p, i) => (
-          <li key={p.id}>
-            <strong>
-              {i + 1}. {p.name || room.players.find((person) => person.id === p.id)?.name}
-            </strong>
-            <span>
-              {p.withdrawn
-                ? t('Ha abandonado')
-                : t('Casilla {0}: {1}. Espera: {2}.', {
-                    '0': p.position,
-                    '1': t(labels[ocaSquareKind(p.position)]),
-                    '2': p.skippedTurns,
-                  })}
-            </span>
-          </li>
-        ))}
-      </ol>
-      <details className="oca-guide">
-        <summary>{t('Casillas especiales de la Oca')}</summary>
-        {(
-          ['goose', 'bridge', 'inn', 'well', 'maze', 'prison', 'dice', 'skull', 'goal'] as const
-        ).map((kind) => (
-          <p key={kind}>
-            <strong>{t(labels[kind])}</strong>:{' '}
-            {track.flatMap((_, i) => (ocaSquareKind(i) === kind ? [i] : [])).join(', ')}
-          </p>
-        ))}
-        <p>{t('Consulta las reglas para ver cada salto y penalización.')}</p>
-      </details>
     </BoardFrame>
   );
 }

@@ -161,6 +161,62 @@ export function ConquestBoard({
       values={Object.fromEntries(
         s.players.map((p) => [p.id, t('{0} puntos de control', { '0': p.score })]),
       )}
+      sidebarDetails={{
+        label: t('Territorios y control'),
+        title: t('Territorios y control'),
+        content: (
+          <>
+            {s.lastBattle && (
+              <section className="conquest-battle">
+                <h2>{t('Último combate')}</h2>
+                <p>
+                  {t('{0} → {1}', {
+                    '0': t(CONQUEST_MAP[s.lastBattle.from].name),
+                    '1': t(CONQUEST_MAP[s.lastBattle.to].name),
+                  })}
+                </p>
+                <p>
+                  {t('Ataque: dado {0} + {1} unidades · defensa: dado {2}', {
+                    '0': s.lastBattle.attackDie,
+                    '1': s.lastBattle.troops,
+                    '2': s.lastBattle.defendDie,
+                  })}
+                </p>
+                <p>
+                  {t('Bajas: atacante {0}, defensor {1}', {
+                    '0': s.lastBattle.attackerLost,
+                    '1': s.lastBattle.defenderLost,
+                  })}
+                  {s.lastBattle.captured ? ` · ${t('Territorio conquistado')}` : ''}
+                </p>
+              </section>
+            )}
+            <section className="conquest-regions">
+              {CONQUEST_REGIONS.map((region, r) => (
+                <div key={region}>
+                  <h3>{t(region)}</h3>
+                  <ul>
+                    {CONQUEST_MAP.slice(r * 6, r * 6 + 6).map((ter, j) => {
+                      const i = r * 6 + j;
+                      return (
+                        <li key={i}>
+                          <strong>
+                            {i + 1}. {t(ter.name)}
+                          </strong>
+                          <span>
+                            {name(s.territories[i].owner)} ·{' '}
+                            {t('{0} unidades', { '0': s.territories[i].armies })}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </section>
+          </>
+        ),
+      }}
       actions={actions}
     >
       <p className="board-instruction" role="status">
@@ -249,57 +305,6 @@ export function ConquestBoard({
           })}
         </svg>
       </div>
-      {s.lastBattle && (
-        <section className="conquest-battle">
-          <h2>{t('Último combate')}</h2>
-          <p>
-            {t('{0} → {1}', {
-              '0': t(CONQUEST_MAP[s.lastBattle.from].name),
-              '1': t(CONQUEST_MAP[s.lastBattle.to].name),
-            })}
-          </p>
-          <p>
-            {t('Ataque: dado {0} + {1} unidades · defensa: dado {2}', {
-              '0': s.lastBattle.attackDie,
-              '1': s.lastBattle.troops,
-              '2': s.lastBattle.defendDie,
-            })}
-          </p>
-          <p>
-            {t('Bajas: atacante {0}, defensor {1}', {
-              '0': s.lastBattle.attackerLost,
-              '1': s.lastBattle.defenderLost,
-            })}
-            {s.lastBattle.captured ? ` · ${t('Territorio conquistado')}` : ''}
-          </p>
-        </section>
-      )}
-      <details className="conquest-territories">
-        <summary>{t('Territorios y control')}</summary>
-        <section className="conquest-regions">
-          {CONQUEST_REGIONS.map((region, r) => (
-            <div key={region}>
-              <h3>{t(region)}</h3>
-              <ul>
-                {CONQUEST_MAP.slice(r * 6, r * 6 + 6).map((ter, j) => {
-                  const i = r * 6 + j;
-                  return (
-                    <li key={i}>
-                      <strong>
-                        {i + 1}. {t(ter.name)}
-                      </strong>
-                      <span>
-                        {name(s.territories[i].owner)} ·{' '}
-                        {t('{0} unidades', { '0': s.territories[i].armies })}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-        </section>
-      </details>
     </BoardFrame>
   );
 }
