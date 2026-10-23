@@ -30,7 +30,7 @@ El bot produce acciones que su validador acepta y limita el trabajo de cálculo 
 
 Los tableros reciben `BoardProps<EstadoPúblico, Acción>` y envían intenciones con `onAction`. No abren otro socket ni calculan por su cuenta el estado de la partida.
 
-`GameLayout` proporciona turno, reglas, salida y resultado. `PlayersPanel`, `GameTip`, `DiceFace`, `Modal` y `Rules` se comparten entre los juegos. Los estilos se importan desde `styles.css` y se organizan en `styles/`; consulta [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md): reutiliza `.button`, `.field`, `.panel` y las variables de color antes de añadir variantes.
+`GameLayout` proporciona turno, reglas, salida y resultado. `PlayersPanel`, `DiceFace`, `Modal` y `Rules` se comparten entre los juegos. Los estilos se importan desde `styles.css` y se organizan en `styles/`; consulta [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md): reutiliza `.button`, `.field`, `.panel` y las variables de color antes de añadir variantes.
 
 Los botones respetan el turno, `busy` y el resultado. Las acciones con iconos tienen un nombre accesible. La información importante utiliza texto o símbolos además del color. Los diálogos mantienen el foco y funcionan con teclado; la página admite zoom y movimiento reducido.
 
@@ -38,16 +38,11 @@ Comprueba el tablero desde 320 px y con nombres largos. Los filtros o una mano d
 
 ## Comprobar un cambio
 
-Prueba victorias, empates, límites, turnos, información privada y abandono. Simula partidas completas con bots: cada jugada debe ser válida, conservar el estado anterior y alcanzar un resultado.
+Selecciona las comprobaciones según el riesgo del cambio: reglas delicadas, sesiones, permisos, información privada y temporizadores. Reutiliza las regresiones existentes y añade una prueba focalizada si corriges un fallo importante. No hace falta repetir partidas completas ni todos los recorridos por una modificación de texto o CSS.
 
-Para cambios de interfaz, prueba el flujo que hayas modificado y los tamaños de móvil. Si cambian las reglas, actualiza también el texto del catálogo.
+Formatea únicamente los archivos afectados. Al terminar una tarea importante, ejecuta `pnpm check`: incluye formato, lint, compilación y pruebas esenciales, sin navegador ni Docker. Para navegación o interacciones relevantes utiliza `pnpm test:e2e`; para cambios de construcción, arranque o ejecución empaquetada utiliza `pnpm test:docker`. Consulta [TESTING.md](TESTING.md) para los comandos focalizados y sus límites.
 
-```sh
-pnpm format
-pnpm check
-```
-
-Prettier se configura en `package.json` y reutiliza `.gitignore`. No hace falta configurar el editor para ejecutar estos comandos. Las opciones de TypeScript, Vite y Playwright permanecen en sus archivos porque corresponden a herramientas y paquetes distintos.
+Prettier se configura en `package.json` y reutiliza `.gitignore`. Las opciones de TypeScript, Vite y Playwright permanecen en sus archivos porque corresponden a herramientas y paquetes distintos.
 
 Al cambiar arquitectura, reglas, diseño o alojamiento, actualiza su guía de referencia correspondiente. Si cambias dependencias, ejecuta también `pnpm audit`.
 
