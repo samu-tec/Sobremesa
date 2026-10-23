@@ -81,7 +81,6 @@ export function GameLayout({
   inactivityPrompt,
   onRespondToInactivity,
   onLeave,
-  onError: _onError,
   children,
 }: {
   room: RoomInfo;
@@ -110,7 +109,6 @@ export function GameLayout({
   inactivityPrompt: InactivityPrompt | null;
   onRespondToInactivity: (decision: 'continue' | 'leave') => Promise<boolean>;
   onLeave: () => void;
-  onError: (m: string) => void;
   children: ReactNode;
 }) {
   const [retiring, setRetiring] = useState<string | null>(null);

@@ -97,6 +97,26 @@ test('Contrato, aislamiento y acciones de los treinta motores', () => {
   }
 });
 
+test('Las proyecciones de cartas y secretos no comparten objetos mutables con el motor', () => {
+  const mutate = (value) => {
+    if (!value || typeof value !== 'object') return;
+    for (const key of Object.keys(value)) {
+      mutate(value[key]);
+      delete value[key];
+    }
+  };
+  for (const gameType of ['poker', 'mus', 'mystery', 'drawing']) {
+    const game = GAME_CATALOG.find((game) => game.id === gameType);
+    const { engine } = gameFactories[gameType]();
+    const state = engine.initGame(
+      Array.from({ length: game.minPlayers }, (_, i) => ({ id: `p${i}`, isBot: false })),
+    );
+    const before = structuredClone(state);
+    for (const player of state.players) mutate(engine.getSanitizedState(state, player.id));
+    assert.deepEqual(state, before, gameType);
+  }
+});
+
 test('CF-Connecting-IP solo se acepta desde direcciones proxy autorizadas y debe ser una IP válida', () => {
   const trusted = parseTrustedCloudflareIps('172.20.0.4, ::ffff:172.20.0.5');
   assert.deepEqual([...trusted], ['172.20.0.4', '172.20.0.5']);

@@ -454,9 +454,9 @@ export class MusEngine implements IGameEngine<MusState, MusAction, MusPublicStat
     return s;
   }
   getSanitizedState(s: MusState, id: string): MusPublicState {
-    const { stock, discards, players, ...publicState } = structuredClone(s),
+    const { stock, discards, players, ...publicState } = s,
       hand = players.find((p) => p.id === id)?.hand ?? [];
-    return {
+    return structuredClone({
       ...publicState,
       players: players.map(({ hand, ...p }) => ({
         ...p,
@@ -468,7 +468,7 @@ export class MusEngine implements IGameEngine<MusState, MusAction, MusPublicStat
       stockCount: stock.length,
       discardCount: discards.length,
       summary: hand.length ? musHand(hand) : null,
-    };
+    });
   }
   checkWinner(s: MusState) {
     return s.winner;

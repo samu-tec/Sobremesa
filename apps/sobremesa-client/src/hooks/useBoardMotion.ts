@@ -54,13 +54,15 @@ export function useBoardMotion(revision: string | number, options: MotionOptions
         return { x: r.left - origin.left, y: r.top - origin.top, width: r.width, height: r.height };
       };
     const tokens = new Map<string, Box>(),
-      cells = new Map<string, Box>();
-    host
-      .querySelectorAll<HTMLElement>('[data-motion-id]')
-      .forEach((node) => tokens.set(node.dataset.motionId!, box(node)));
-    host
-      .querySelectorAll<HTMLElement>('[data-cell]')
-      .forEach((node) => cells.set(node.dataset.cell!, box(node)));
+      cells = new Map<string, Box>(),
+      cellNodes = new Map<string, HTMLElement>();
+    const tokenNodes = host.querySelectorAll<HTMLElement>('[data-motion-id]');
+    tokenNodes.forEach((node) => tokens.set(node.dataset.motionId!, box(node)));
+    host.querySelectorAll<HTMLElement>('[data-cell]').forEach((node) => {
+      const id = node.dataset.cell!;
+      cells.set(id, box(node));
+      if (!cellNodes.has(id)) cellNodes.set(id, node);
+    });
     const before = previous.current;
     previous.current = {
       tokens,
@@ -88,7 +90,7 @@ export function useBoardMotion(revision: string | number, options: MotionOptions
       animation.onfinish = () => running.current.delete(animation);
       return animation;
     };
-    host.querySelectorAll<HTMLElement>('[data-motion-id]').forEach((node) => {
+    tokenNodes.forEach((node) => {
       const id = node.dataset.motionId!,
         now = tokens.get(id)!,
         old = before.tokens.get(id);
@@ -117,9 +119,7 @@ export function useBoardMotion(revision: string | number, options: MotionOptions
     for (const move of (options.travelKey === undefined || before.travelKey !== options.travelKey
       ? options.travel
       : []) || []) {
-      const target = Array.from(host.querySelectorAll<HTMLElement>('[data-cell]')).find(
-          (node) => node.dataset.cell === move.to,
-        ),
+      const target = cellNodes.get(move.to),
         from = before.cells.get(move.from),
         to = cells.get(move.to),
         piece = Array.from(target?.querySelectorAll('.motion-piece') || []).at(-1);
@@ -134,9 +134,7 @@ export function useBoardMotion(revision: string | number, options: MotionOptions
         );
     }
     for (const id of options.flipCells || []) {
-      const target = Array.from(host.querySelectorAll<HTMLElement>('[data-cell]'))
-        .find((node) => node.dataset.cell === id)
-        ?.querySelector('.motion-piece');
+      const target = cellNodes.get(id)?.querySelector('.motion-piece');
       if (target)
         animate(
           target,

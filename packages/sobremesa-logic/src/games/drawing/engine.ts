@@ -241,8 +241,8 @@ export class DrawingEngine implements IGameEngine<DrawingState, DrawingAction, D
       lastGuessAt: _guesses,
       lastMarkAt: _marks,
       ...visible
-    } = structuredClone(s);
-    return {
+    } = s;
+    return structuredClone({
       ...visible,
       choices: s.phase === 'choose' && id === s.currentTurnPlayerId ? choices : [],
       word:
@@ -250,7 +250,7 @@ export class DrawingEngine implements IGameEngine<DrawingState, DrawingAction, D
           ? secret
           : null,
       wordLength: secret ? { es: secret.es.length, en: secret.en.length } : null,
-    };
+    });
   }
   checkWinner(s: DrawingState) {
     return s.winner;

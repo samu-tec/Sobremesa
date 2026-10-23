@@ -337,6 +337,10 @@ export function App() {
     }
     return result;
   };
+  const runRequest = (send: (done: (result: Result) => void) => void) =>
+    run(async () => {
+      check(await request<Result>(send));
+    });
   const create = (gameType: GameType, quick = false) =>
     run(async () => {
       const result = check(
@@ -372,29 +376,15 @@ export function App() {
       }
     });
   const addBot = () =>
-    run(async () => {
-      check(
-        await request<Result>((done) =>
-          socket.emit('room:add_bot', { matchId: room?.matchId || '' }, done),
-        ),
-      );
-    });
+    runRequest((done) => socket.emit('room:add_bot', { matchId: room?.matchId || '' }, done));
   const removeBot = (botId: string) =>
-    run(async () => {
-      check(
-        await request<Result>((done) =>
-          socket.emit('room:remove_bot', { botId, matchId: room?.matchId || '' }, done),
-        ),
-      );
-    });
+    runRequest((done) =>
+      socket.emit('room:remove_bot', { botId, matchId: room?.matchId || '' }, done),
+    );
   const removePlayer = (playerId: string) =>
-    run(async () => {
-      check(
-        await request<Result>((done) =>
-          socket.emit('room:remove_player', { playerId, matchId: room?.matchId || '' }, done),
-        ),
-      );
-    });
+    runRequest((done) =>
+      socket.emit('room:remove_player', { playerId, matchId: room?.matchId || '' }, done),
+    );
   const respondToInactivity = (decision: 'continue' | 'leave') => {
     const prompt = inactivityPrompt;
     if (!prompt) return Promise.resolve(false);
@@ -412,29 +402,13 @@ export function App() {
     });
   };
   const changeGame = (gameType: GameType) =>
-    run(async () => {
-      check(
-        await request<Result>((done) =>
-          socket.emit('room:change_game', { gameType, matchId: room?.matchId || '' }, done),
-        ),
-      );
-    });
+    runRequest((done) =>
+      socket.emit('room:change_game', { gameType, matchId: room?.matchId || '' }, done),
+    );
   const start = () =>
-    run(async () => {
-      check(
-        await request<Result>((done) =>
-          socket.emit('room:start_game', { matchId: room?.matchId || '' }, done),
-        ),
-      );
-    });
+    runRequest((done) => socket.emit('room:start_game', { matchId: room?.matchId || '' }, done));
   const restart = () =>
-    run(async () => {
-      check(
-        await request<Result>((done) =>
-          socket.emit('room:restart_game', { matchId: room?.matchId || '' }, done),
-        ),
-      );
-    });
+    runRequest((done) => socket.emit('room:restart_game', { matchId: room?.matchId || '' }, done));
   const leave = () =>
     run(async () => {
       check(await request<Result>((done) => socket.emit('room:leave', done)));
@@ -472,13 +446,9 @@ export function App() {
     }
   };
   const updateRules = (rules: unknown) =>
-    run(async () => {
-      check(
-        await request<Result>((done) =>
-          socket.emit('room:update_rules', { matchId: room?.matchId || '', rules }, done),
-        ),
-      );
-    });
+    runRequest((done) =>
+      socket.emit('room:update_rules', { matchId: room?.matchId || '', rules }, done),
+    );
   const publicProgress = useRef<{ matchId: string; phase: string; round: string } | null>(null);
   useEffect(() => {
     if (!room || !state) {
@@ -660,7 +630,6 @@ export function App() {
               })
             }
             onLeave={leave}
-            onError={setError}
           >
             <Suspense fallback={<Loading />}>
               <GameBoard

@@ -311,13 +311,8 @@ export class RoomManager {
       };
       runtime.configureRules(settings);
       const match = runtime.createMatch();
-      this.clearTurnClock(room);
-      this.clearInactivityConfirmation(room);
-      room.idleConfirmationUsed.clear();
-      for (const playerId of room.autoPlay.keys()) this.clearAutoPlay(room, playerId);
+      this.clearMatchTasks(room);
       room.turnVersion++;
-      clearTimeout(room.botLoopTimeout);
-      room.botLoopTimeout = undefined;
       room.rulesByGame[room.gameType] = {
         rules: { ...room.customRules },
         turnSeconds: room.turnSeconds,
@@ -423,12 +418,7 @@ export class RoomManager {
   restartGame(code: string, id: string) {
     const room = this.hostRoom(code, id, 'finished');
     return this.runMatchOperation(room, 'reinicio', () => {
-      this.clearInactivityConfirmation(room);
-      room.idleConfirmationUsed.clear();
-      for (const playerId of room.autoPlay.keys()) this.clearAutoPlay(room, playerId);
-      clearTimeout(room.botLoopTimeout);
-      room.botLoopTimeout = undefined;
-      this.clearTurnClock(room);
+      this.clearMatchTasks(room);
       room.status = 'waiting';
       room.matchId = randomUUID();
       room.turnVersion++;
@@ -525,12 +515,7 @@ export class RoomManager {
     const { winnerId, isDraw } = room.match.result();
     if (!winnerId && !isDraw) return;
     room.status = 'finished';
-    this.clearInactivityConfirmation(room);
-    room.idleConfirmationUsed.clear();
-    this.clearTurnClock(room);
-    for (const id of room.autoPlay.keys()) this.clearAutoPlay(room, id);
-    clearTimeout(room.botLoopTimeout);
-    room.botLoopTimeout = undefined;
+    this.clearMatchTasks(room);
     this.io.to(room.code).emit('game:ended', {
       winnerId,
       winnerName: isDraw
@@ -804,6 +789,15 @@ export class RoomManager {
         this.runAutomaticTask(room, 'reloj', () => this.expireTurn(room, actor, deadline, matchId)),
       duration * 1000,
     );
+  }
+  // Match transitions cancel game work, but keep disconnected-seat reservations.
+  private clearMatchTasks(room: ActiveRoom) {
+    this.clearInactivityConfirmation(room);
+    room.idleConfirmationUsed.clear();
+    this.clearTurnClock(room);
+    for (const id of room.autoPlay.keys()) this.clearAutoPlay(room, id);
+    clearTimeout(room.botLoopTimeout);
+    room.botLoopTimeout = undefined;
   }
   private clearAutoPlay(room: ActiveRoom, id: string) {
     const entry = room.autoPlay.get(id);

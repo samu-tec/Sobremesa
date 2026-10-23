@@ -404,16 +404,10 @@ export class PokerEngine implements IGameEngine<PokerState, PokerAction, PokerPu
     return s;
   }
   getSanitizedState(s: PokerState, id: string): PokerPublicState {
-    const {
-        players,
-        deck: _deck,
-        burned: _burned,
-        pending: _pending,
-        ...visible
-      } = structuredClone(s),
+    const { players, deck: _deck, burned: _burned, pending: _pending, ...visible } = s,
       p = s.players.find((p) => p.id === id),
       active = id === s.currentTurnPlayerId && s.phase !== 'hand_end' && s.phase !== 'finished';
-    return {
+    return structuredClone({
       ...visible,
       players: players.map(({ hand, actedAt: _acted, ...p }) => ({
         ...p,
@@ -426,7 +420,7 @@ export class PokerEngine implements IGameEngine<PokerState, PokerAction, PokerPu
       minRaiseTo: s.currentBet < s.bigBlind ? s.bigBlind : s.currentBet + s.minRaise,
       maxRaiseTo: p ? p.score + p.bet : 0,
       canRaise: Boolean(p && active && this.raiseAllowed(s, p)),
-    };
+    });
   }
   checkWinner(s: PokerState) {
     return s.winner;

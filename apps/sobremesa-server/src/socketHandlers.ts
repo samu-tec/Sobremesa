@@ -30,7 +30,7 @@ interface RoomCreationGuard {
 }
 const record = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value);
-const name = (value: unknown) =>
+const normalizePlayerName = (value: unknown) =>
   typeof value === 'string'
     ? value
         .normalize('NFC')
@@ -38,10 +38,13 @@ const name = (value: unknown) =>
         .trim()
         .slice(0, 24)
     : '';
-const code = (value: unknown) =>
-  typeof value === 'string' && /^[A-HJ-NP-Z2-9]{6}$/.test(value.toUpperCase().replace(/\s/g, ''))
-    ? value.toUpperCase().replace(/\s/g, '')
-    : null;
+const normalizeRoomCode = (value: unknown) => {
+  if (typeof value !== 'string') return null;
+  const normalized = value.toUpperCase().replace(/\s/g, '');
+  return /^[A-HJ-NP-Z2-9]{6}$/.test(normalized) ? normalized : null;
+};
+const isGameType = (value: unknown): value is GameType =>
+  GAME_CATALOG.some((game) => game.id === value);
 export function registerSocketHandlers(
   _io: TypedServer,
   socket: TypedSocket,
@@ -105,11 +108,10 @@ export function registerSocketHandlers(
     return result;
   };
   on('room:create', (data: unknown) => {
-    if (
-      !record(data) ||
-      !name(data.playerName) ||
-      !GAME_CATALOG.some((g) => g.id === data.gameType)
-    )
+    if (!record(data)) return { success: false, error: 'Elige un nombre y un juego válidos.' };
+    const playerName = normalizePlayerName(data.playerName);
+    const gameType = data.gameType;
+    if (!playerName || !isGameType(gameType))
       return { success: false, error: 'Elige un nombre y un juego válidos.' };
     if (!roomCreationGuard.allowAttempt() || !roomCreationGuard.canCreateGlobally())
       return {
@@ -117,31 +119,21 @@ export function registerSocketHandlers(
         error: 'Se alcanzó el límite temporal de creación de salas. Inténtalo de nuevo más tarde.',
         errorCode: 'ROOM_CREATE_RATE_LIMITED' as const,
       };
-    const result = manager.createRoom(
-      name(data.playerName),
-      socket.data.playerId,
-      socket.id,
-      data.gameType as GameType,
-    );
+    const result = manager.createRoom(playerName, socket.data.playerId, socket.id, gameType);
     if (result.success) roomCreationGuard.recordCreated();
     return enter(result);
   });
   on('room:join', (data: unknown) => {
-    if (!record(data) || !code(data.roomCode) || !name(data.playerName))
+    const roomCode = normalizeRoomCode(record(data) ? data.roomCode : null);
+    const playerName = normalizePlayerName(record(data) ? data.playerName : null);
+    if (!roomCode || !playerName)
       return { success: false, error: 'Introduce tu nombre y un código de seis caracteres.' };
-    return enter(
-      manager.joinRoom(
-        code(data.roomCode)!,
-        name(data.playerName),
-        socket.data.playerId,
-        socket.id,
-      ),
-    );
+    return enter(manager.joinRoom(roomCode, playerName, socket.data.playerId, socket.id));
   });
   on('game:reconnect', (data: unknown) => {
-    if (!record(data) || !code(data.roomCode))
-      return { success: false, error: 'Código no válido.' };
-    return enter(manager.reconnectPlayer(code(data.roomCode)!, socket.data.playerId, socket.id));
+    const roomCode = normalizeRoomCode(record(data) ? data.roomCode : null);
+    if (!roomCode) return { success: false, error: 'Código no válido.' };
+    return enter(manager.reconnectPlayer(roomCode, socket.data.playerId, socket.id));
   });
   on('room:leave', () => {
     if (socket.data.roomCode) socket.leave(socket.data.roomCode);
@@ -198,16 +190,18 @@ export function registerSocketHandlers(
         )
       : { success: false, error: 'Decisión de actividad no válida.' },
   );
-  on('room:update_name', (data) =>
-    record(data) && name(data.playerName)
-      ? roomAction(data, (c, id) => manager.updatePlayerName(c, id, name(data.playerName)))
-      : { success: false, error: 'Introduce un nombre válido.' },
-  );
-  on('room:change_game', (data) =>
-    record(data) && GAME_CATALOG.some((g) => g.id === data.gameType)
-      ? roomAction(data, (c, id) => manager.changeGame(c, id, data.gameType as GameType))
-      : { success: false, error: 'Juego no válido.' },
-  );
+  on('room:update_name', (data) => {
+    const playerName = normalizePlayerName(record(data) ? data.playerName : null);
+    return playerName
+      ? roomAction(data, (c, id) => manager.updatePlayerName(c, id, playerName))
+      : { success: false, error: 'Introduce un nombre válido.' };
+  });
+  on('room:change_game', (data) => {
+    const gameType = record(data) ? data.gameType : null;
+    return isGameType(gameType)
+      ? roomAction(data, (c, id) => manager.changeGame(c, id, gameType))
+      : { success: false, error: 'Juego no válido.' };
+  });
   on('room:start_game', (data) => roomAction(data, (c, id) => manager.startGame(c, id)));
   on('room:restart_game', (data) => roomAction(data, (c, id) => manager.restartGame(c, id)));
   on('room:update_rules', (data) =>

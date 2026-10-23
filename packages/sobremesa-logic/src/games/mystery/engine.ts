@@ -209,9 +209,9 @@ export class MysteryEngine implements IGameEngine<MysteryState, MysteryAction, M
     return s;
   }
   getSanitizedState(s: MysteryState, id: string): MysteryPublicState {
-    const { players, solution, proofs, ...visible } = structuredClone(s),
+    const { players, solution, proofs, ...visible } = s,
       hand = players.find((p) => p.id === id)?.hand ?? [];
-    return {
+    return structuredClone({
       ...visible,
       players: players.map(({ hand, ...p }) => ({ ...p, handCount: hand.length })),
       hand,
@@ -221,7 +221,7 @@ export class MysteryEngine implements IGameEngine<MysteryState, MysteryAction, M
         s.phase === 'refute' && s.currentTurnPlayerId === id
           ? hand.filter((c) => s.hypothesis!.cards.includes(c))
           : [],
-    };
+    });
   }
   checkWinner(s: MysteryState) {
     return s.winner;

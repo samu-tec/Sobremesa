@@ -71,6 +71,15 @@ test('Móvil: sala, preferencias y reglas accesibles sin desbordamiento', async 
   await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
   await expect(page.locator('.color-table')).toBeVisible();
   await page.getByRole('button', { name: 'Reglas', exact: true }).click();
+  // Contrast must be measured after the dialog's entrance opacity has settled.
+  await page.locator('.modal-backdrop').evaluate((backdrop) =>
+    Promise.all(
+      backdrop
+        .getAnimations({ subtree: true })
+        .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+        .map((animation) => animation.finished.catch(() => {})),
+    ),
+  );
   expect((await accessibilityAudit(page).analyze()).violations).toEqual([]);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
