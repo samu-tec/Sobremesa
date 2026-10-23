@@ -83,22 +83,22 @@ Los archivos de configuración de la raíz tienen estas funciones:
 
 ## Comandos
 
-| Comando                 | Uso                                                             |
-| ----------------------- | --------------------------------------------------------------- |
-| `pnpm dev`              | Desarrollar y probar en el puerto 5173                          |
-| `pnpm build`            | Compilar los tres paquetes                                      |
-| `pnpm start`            | Servir la aplicación compilada en el puerto 3000                |
-| `pnpm test:i18n`        | Verificar traducciones y parámetros                             |
-| `pnpm test`             | Probar las reglas y los bots                                    |
-| `pnpm test:integration` | Probar sesiones y permisos con un servidor temporal             |
-| `pnpm test:e2e`         | Probar la interfaz con un navegador                             |
-| `pnpm lint`             | Comprobar TypeScript, Hooks y accesibilidad estática            |
-| `pnpm test:client`      | Probar cancelación de respuestas y limpieza de listeners        |
-| `pnpm test:docker`      | Construir y probar producción en Docker local aislado           |
-| `pnpm check`            | Comprobar formato y lint, compilar y ejecutar todas las pruebas |
-| `pnpm format`           | Dar formato al código con Prettier                              |
+| Comando                 | Uso                                                       |
+| ----------------------- | --------------------------------------------------------- |
+| `pnpm dev`              | Desarrollar y probar en el puerto 5173                    |
+| `pnpm build`            | Compilar los tres paquetes                                |
+| `pnpm start`            | Servir la aplicación compilada en el puerto 3000          |
+| `pnpm test:i18n`        | Verificar traducciones y parámetros                       |
+| `pnpm test`             | Probar las reglas y los bots                              |
+| `pnpm test:integration` | Probar sesiones y permisos con un servidor temporal       |
+| `pnpm test:e2e`         | Probar la interfaz con un navegador                       |
+| `pnpm lint`             | Comprobar TypeScript, Hooks y accesibilidad estática      |
+| `pnpm test:client`      | Probar cancelación de respuestas y limpieza de listeners  |
+| `pnpm test:docker`      | Construir y probar producción en Docker local aislado     |
+| `pnpm check`            | Comprobar formato, lint, compilación y pruebas esenciales |
+| `pnpm format`           | Dar formato al código con Prettier                        |
 
-Las pruebas de integración y navegador necesitan que hayas ejecutado `pnpm build`. Las de navegador usan Google Chrome instalado; hay una alternativa con Chromium en la [guía de pruebas](docs/TESTING.md).
+Las pruebas de integración necesitan `pnpm build`; `pnpm test:e2e` ya construye antes de abrir el navegador. Las de navegador usan Google Chrome instalado; hay una alternativa con Chromium en la [guía de pruebas](docs/TESTING.md).
 
 ## Desarrollo y alojamiento
 

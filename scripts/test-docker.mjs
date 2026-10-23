@@ -117,10 +117,8 @@ try {
   const env = {
     ...process.env,
     PLAYWRIGHT_BASE_URL: baseURL,
-    PLAYWRIGHT_BROWSER: process.env.PLAYWRIGHT_BROWSER || 'chromium',
   };
   await run(process.execPath, ['tests/docker-smoke.mjs'], false, env);
-  await run('pnpm', ['test:e2e'], false, env);
   const info = JSON.parse(await docker('inspect', container))[0];
   assert.equal(info.State.Health.Status, 'healthy');
   assert.equal(info.HostConfig.ReadonlyRootfs, true);

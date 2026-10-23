@@ -37,7 +37,7 @@ childProcess.spawn = (command, args) => {
     if (scenario === 'remove-failure' && args[0] === 'rm') code = 25;
     if (scenario === 'start-failure' && args[0] === 'start') code = 27;
     previous = args[0];
-  } else if (command === 'pnpm' && scenario === 'tests-and-dirty-exit') code = 17;
+  } else if (command === process.execPath && scenario === 'tests-and-dirty-exit') code = 17;
   queueMicrotask(() => { child.stdout.emit('data', output); child.emit('close', code); });
   return child;
 };
@@ -89,7 +89,7 @@ for (const scenario of [
       );
       assert.ok(!docker.some((args) => args.includes('prune')));
       if (scenario === 'tests-and-dirty-exit') {
-        assert.match(errors, /pnpm terminó con código 17/);
+        assert.match(errors, /terminó con código 17/);
         assert.match(errors, /Apagado limpio con SIGTERM/);
       }
       if (scenario === 'health-failure') assert.match(errors, /El contenedor debe arrancar/);

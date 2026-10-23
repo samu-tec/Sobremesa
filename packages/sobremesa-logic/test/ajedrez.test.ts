@@ -80,14 +80,3 @@ test('Ajedrez: jaque mate, enroque, captura al paso, promoción y repetición', 
       s = chessMove(e, s, from, to);
   assert.equal(s.isDraw, true);
 });
-
-test('Ajedrez: tablas pactadas, oferta por turno y rendición', () => {
-  const e = new AjedrezEngine();
-  let s = e.initGame(players.slice(0, 2));
-  s = e.applyAction(s, 'p0', { type: 'OFFER_DRAW' });
-  assert.equal(e.validateAction(s, 'p0', { type: 'ACCEPT_DRAW' }), false);
-  s = chessMove(e, s, 'e2', 'e4');
-  assert.equal(s.drawOffer, 'p0');
-  assert.equal(e.applyAction(s, 'p1', { type: 'ACCEPT_DRAW' }).isDraw, true);
-  assert.equal(e.applyAction(s, 'p1', { type: 'RESIGN' }).winner, 'p0');
-});

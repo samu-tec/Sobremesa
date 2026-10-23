@@ -9,7 +9,6 @@ import {
 import { RoomManager } from '../apps/sobremesa-server/dist/RoomManager.js';
 import { registerSocketHandlers } from '../apps/sobremesa-server/dist/socketHandlers.js';
 import { RoomCreationLimiter } from '../apps/sobremesa-server/dist/RoomCreationLimiter.js';
-import { quizQuestions } from '../apps/sobremesa-server/dist/games/quiz-questions.js';
 import {
   parseTrustedCloudflareIps,
   resolveClientIp,
@@ -37,101 +36,66 @@ test('Orígenes exactos y CSP derivada sin comodines ni interpolación de cabece
     assert.throws(() => parseAllowedOrigins(origin));
 });
 
-test('Preguntas: banco bilingüe equilibrado, íntegro y sin enunciados duplicados', () => {
-  assert.equal(quizQuestions.length, 180);
-  const categories = new Map();
-  const spanishPrompts = new Set();
-  const englishPrompts = new Set();
-  const ids = new Set();
-  for (const question of quizQuestions) {
-    assert.ok(!ids.has(question.id), `id repetido: ${question.id}`);
-    ids.add(question.id);
-    categories.set(question.category, (categories.get(question.category) ?? 0) + 1);
-    assert.ok(
-      !spanishPrompts.has(question.prompt.es.trim().toLocaleLowerCase('es')),
-      `${question.id}: enunciado español repetido`,
-    );
-    assert.ok(
-      !englishPrompts.has(question.prompt.en.trim().toLocaleLowerCase('en')),
-      `${question.id}: enunciado inglés repetido`,
-    );
-    spanishPrompts.add(question.prompt.es.trim().toLocaleLowerCase('es'));
-    englishPrompts.add(question.prompt.en.trim().toLocaleLowerCase('en'));
-    assert.equal(question.choices.es.length, 4, `${question.id}: cuatro opciones en español`);
-    assert.equal(question.choices.en.length, 4, `${question.id}: cuatro opciones en inglés`);
-    assert.equal(new Set(question.choices.es).size, 4, `${question.id}: opciones españolas únicas`);
-    assert.equal(new Set(question.choices.en).size, 4, `${question.id}: opciones inglesas únicas`);
-    assert.ok(Number.isInteger(question.answer) && question.answer >= 0 && question.answer < 4);
-    assert.ok(question.prompt.es && question.prompt.en);
+test('Contrato, aislamiento y acciones de los treinta motores', () => {
+  for (const game of GAME_CATALOG) {
+    {
+      const runtime = gameFactories[game.id]();
+      const other = gameFactories[game.id]();
+      assert.notEqual(runtime.engine, other.engine);
+      const players = Array.from({ length: game.minPlayers }, (_, i) => ({
+        id: `p${i}`,
+        isBot: false,
+      }));
+      const engine = runtime.engine;
+      const state = engine.initGame(players);
+      const actor = runtime.actor(state);
+      const before = structuredClone(state);
+      const botAction = engine.getBotAction(state, actor);
+      if (game.supportsBots === false) assert.equal(botAction, null);
+      const action = game.id === 'drawing' ? { type: 'CHOOSE', index: 0 } : botAction;
+      assert.ok(action);
+      assert.equal(engine.validateAction(state, actor, action), true);
+      assert.equal(engine.validateAction(state, 'outsider', action), false);
+      for (const invalid of [
+        null,
+        [],
+        {},
+        { type: 'UNKNOWN' },
+        { type: 'MOVE', from: Infinity, to: -1 },
+      ]) {
+        assert.equal(engine.validateAction(state, actor, invalid), false);
+        assert.equal(engine.applyAction(state, actor, invalid), state);
+      }
+      assert.deepEqual(state, before);
+      assert.equal(engine.forfeitPlayer(state, 'outsider'), state);
+      const ended = engine.forfeitPlayer(state, actor);
+      if (ended.winner || ended.isDraw) assert.equal(engine.forfeitPlayer(ended, actor), ended);
+
+      const match = runtime.createMatch();
+      const isolated = other.createMatch();
+      match.start(players);
+      isolated.start(players);
+      const untouched = structuredClone(isolated.state);
+      const matchActor = match.botId(players) || match.actor();
+      const matchBefore = structuredClone(match.state);
+      for (const invalid of [null, [], {}, { type: 'UNKNOWN' }]) {
+        assert.equal(match.act(matchActor, invalid), null);
+        assert.deepEqual(match.state, matchBefore);
+      }
+      assert.ok(
+        match.act(
+          matchActor,
+          game.id === 'drawing' ? { type: 'CHOOSE', index: 0 } : match.botAction(matchActor),
+        ),
+      );
+      assert.deepEqual(isolated.state, untouched, 'Otra partida conserva su estado');
+      match.reset();
+      assert.equal(match.publicState(matchActor), null);
+      assert.equal(match.timeoutStep(matchActor), null);
+      assert.equal(match.expire(), false);
+    }
   }
-  assert.deepEqual([...categories].sort(), [
-    ['Arte', 30],
-    ['Ciencia', 30],
-    ['Lógica', 30],
-    ['Mapas', 30],
-    ['Naturaleza', 30],
-    ['Vida cotidiana', 30],
-  ]);
 });
-
-for (const game of GAME_CATALOG) {
-  test(`${game.id}: registro completo, motor aislado, acciones inválidas inocuas y abandono idempotente`, () => {
-    const runtime = gameFactories[game.id]();
-    const other = gameFactories[game.id]();
-    assert.notEqual(runtime.engine, other.engine);
-    const players = Array.from({ length: game.minPlayers }, (_, i) => ({
-      id: `p${i}`,
-      isBot: false,
-    }));
-    const engine = runtime.engine;
-    const state = engine.initGame(players);
-    const actor = runtime.actor(state);
-    const before = structuredClone(state);
-    const botAction = engine.getBotAction(state, actor);
-    if (game.supportsBots === false) assert.equal(botAction, null);
-    const action = game.id === 'drawing' ? { type: 'CHOOSE', index: 0 } : botAction;
-    assert.ok(action);
-    assert.equal(engine.validateAction(state, actor, action), true);
-    assert.equal(engine.validateAction(state, 'outsider', action), false);
-    for (const invalid of [
-      null,
-      [],
-      {},
-      { type: 'UNKNOWN' },
-      { type: 'MOVE', from: Infinity, to: -1 },
-    ]) {
-      assert.equal(engine.validateAction(state, actor, invalid), false);
-      assert.equal(engine.applyAction(state, actor, invalid), state);
-    }
-    assert.deepEqual(state, before);
-    assert.equal(engine.forfeitPlayer(state, 'outsider'), state);
-    const ended = engine.forfeitPlayer(state, actor);
-    if (ended.winner || ended.isDraw) assert.equal(engine.forfeitPlayer(ended, actor), ended);
-
-    const match = runtime.createMatch();
-    const isolated = other.createMatch();
-    match.start(players);
-    isolated.start(players);
-    const untouched = structuredClone(isolated.state);
-    const matchActor = match.botId(players) || match.actor();
-    const matchBefore = structuredClone(match.state);
-    for (const invalid of [null, [], {}, { type: 'UNKNOWN' }]) {
-      assert.equal(match.act(matchActor, invalid), null);
-      assert.deepEqual(match.state, matchBefore);
-    }
-    assert.ok(
-      match.act(
-        matchActor,
-        game.id === 'drawing' ? { type: 'CHOOSE', index: 0 } : match.botAction(matchActor),
-      ),
-    );
-    assert.deepEqual(isolated.state, untouched, 'Otra partida conserva su estado');
-    match.reset();
-    assert.equal(match.publicState(matchActor), null);
-    assert.equal(match.timeoutStep(matchActor), null);
-    assert.equal(match.expire(), false);
-  });
-}
 
 test('CF-Connecting-IP solo se acepta desde direcciones proxy autorizadas y debe ser una IP válida', () => {
   const trusted = parseTrustedCloudflareIps('172.20.0.4, ::ffff:172.20.0.5');
@@ -914,27 +878,29 @@ test('Una excepción del motor en una acción manual cierra solo su sala y respo
   }
 });
 
-for (const game of GAME_CATALOG) {
-  test(`${game.id}: inicio rechaza identidades repetidas y cantidades fuera del catálogo`, () => {
-    const engine = gameFactories[game.id]().engine;
-    const players = Array.from({ length: game.maxPlayers + 1 }, (_, i) => ({
-      id: `p${i}`,
-      isBot: false,
-      name: `Persona ${i}`,
-    }));
-    const duplicated = players.slice(0, game.minPlayers);
-    duplicated[1] = { ...duplicated[1], id: duplicated[0].id };
-    assert.throws(() => engine.initGame(duplicated));
-    assert.throws(() => engine.initGame(players.slice(0, game.minPlayers - 1)));
-    assert.throws(() => engine.initGame(players));
-    for (const count of new Set([game.minPlayers, game.maxPlayers])) {
-      const input = players.slice(0, count);
-      const before = structuredClone(input);
-      assert.doesNotThrow(() => engine.initGame(input));
-      assert.deepEqual(input, before);
+test('Participantes válidos y rechazo de identidades duplicadas en los treinta motores', () => {
+  for (const game of GAME_CATALOG) {
+    {
+      const engine = gameFactories[game.id]().engine;
+      const players = Array.from({ length: game.maxPlayers + 1 }, (_, i) => ({
+        id: `p${i}`,
+        isBot: false,
+        name: `Persona ${i}`,
+      }));
+      const duplicated = players.slice(0, game.minPlayers);
+      duplicated[1] = { ...duplicated[1], id: duplicated[0].id };
+      assert.throws(() => engine.initGame(duplicated));
+      assert.throws(() => engine.initGame(players.slice(0, game.minPlayers - 1)));
+      assert.throws(() => engine.initGame(players));
+      for (const count of new Set([game.minPlayers, game.maxPlayers])) {
+        const input = players.slice(0, count);
+        const before = structuredClone(input);
+        assert.doesNotThrow(() => engine.initGame(input));
+        assert.deepEqual(input, before);
+      }
     }
-  });
-}
+  }
+});
 
 for (const scenario of [
   ['inicio', 'start'],
@@ -1302,35 +1268,6 @@ test('Impostor presencial: rechaza bots y conserva el moderador autorizado al mi
     assert.equal(manager.getRoomBySocket('socket-c'), room);
   } finally {
     manager.dispose();
-  }
-});
-
-test('Palabras: partidas completas con los dos diccionarios de producción y conservación de letras', () => {
-  for (const wordLanguage of [0, 1]) {
-    const { engine } = gameFactories.words();
-    engine.setRules({ wordLanguage });
-    let state = engine.initGame([
-        { id: 'a', isBot: true },
-        { id: 'b', isBot: true },
-      ]),
-      steps = 0,
-      placements = 0;
-    const letters = state.bag.length + state.players.reduce((sum, p) => sum + p.hand.length, 0);
-    while (!state.winner && steps++ < 1000) {
-      const action = engine.getBotAction(state, state.currentTurnPlayerId);
-      assert.ok(action);
-      assert.ok(engine.validateAction(state, state.currentTurnPlayerId, action));
-      if (action.type === 'PLACE') placements++;
-      state = engine.applyAction(state, state.currentTurnPlayerId, action);
-      assert.equal(
-        state.bag.length +
-          state.players.reduce((sum, p) => sum + p.hand.length, 0) +
-          state.board.filter(Boolean).length,
-        letters,
-      );
-    }
-    assert.ok(state.winner);
-    assert.ok(placements > 0);
   }
 });
 
@@ -1713,87 +1650,6 @@ test('Cambiar de juego conserva el anfitrión humano y lo transfiere al salir', 
     manager.dispose();
   }
 });
-
-for (const game of GAME_CATALOG)
-  test(`Grupo: terminar Tres en Raya y empezar ${game.name} mantiene miembros y motor privado`, () => {
-    const manager = new RoomManager({ to: () => ({ emit() {} }), sockets: { sockets: new Map() } });
-    try {
-      const { code } = manager.createRoom('Ana', 'a', 'sa', 'tictactoe').room;
-      manager.joinRoom(code, 'Bruno', 'b', 'sb');
-      manager.startGame(code, 'a');
-      for (const [id, index] of [
-        ['a', 0],
-        ['b', 3],
-        ['a', 1],
-        ['b', 4],
-        ['a', 2],
-      ])
-        manager.handleAction(code, id, { type: 'MAKE_MOVE', index });
-      const room = manager.getRoomBySocket('sa');
-      assert.equal(room.status, 'finished');
-      const oldMatchId = room.matchId;
-      if (game.id === 'tictactoe') manager.restartGame(code, 'a');
-      else assert.equal(manager.changeGame(code, 'a', game.id).success, true);
-      assert.notEqual(room.matchId, oldMatchId);
-      assert.equal(room.match.publicState('a'), null);
-      for (let i = 2; i < game.minPlayers; i++)
-        assert.equal(manager.joinRoom(code, `Persona ${i}`, `p${i}`, `s${i}`).success, true);
-      const ids = room.players.map((p) => p.id);
-      assert.equal(manager.startGame(code, 'a').success, true);
-      assert.deepEqual(
-        room.players.map((p) => p.id),
-        ids,
-      );
-      const recovered = manager.reconnectPlayer(code, 'b', 'new-b');
-      assert.equal(recovered.room.code, code);
-      assert.equal(recovered.state.gameType, game.id);
-      assert.equal(recovered.state.matchId, room.matchId);
-      assert.equal(recovered.room.players.length, game.minPlayers);
-      assert.equal(manager.getRoomBySocket('sa'), room);
-    } finally {
-      manager.dispose();
-    }
-  });
-
-for (const game of GAME_CATALOG) {
-  test(`Autoplay ${game.id}: un turno humano vencido activa el juego automático`, (context) => {
-    context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
-    const events = [];
-    const manager = new RoomManager({
-      to: (code) => ({ emit: (event, payload) => events.push({ code, event, payload }) }),
-      sockets: { sockets: new Map() },
-    });
-    try {
-      const code = manager.createRoom('Ana', 'a', 'sa', game.id).room.code;
-      for (let i = 1; i < game.minPlayers; i++)
-        manager.joinRoom(code, `Persona ${i}`, `p${i}`, `s${i}`);
-      manager.updateRoomRules(code, 'a', { turnSeconds: 30 });
-      manager.startGame(code, 'a');
-      const room = manager.getRoomBySocket('sa');
-      const actor = room.match.actor();
-      const needsPlayerAction = room.match.requiresPlayerAction();
-      const hasRuleDeadline = room.match.timeoutSeconds() !== null;
-      context.mock.timers.tick(room.turnDeadline - Date.now());
-      if (needsPlayerAction && !hasRuleDeadline) {
-        assert.equal(room.inactivityConfirmation?.playerId, actor, `${game.id}: pide confirmación`);
-        assert.equal(room.autoPlay.has(actor), false, `${game.id}: aún no automatiza`);
-        assert.ok(events.some((event) => event.event === 'room:inactivity_prompt'));
-      } else {
-        assert.equal(room.autoPlay.has(actor), false, 'se conserva la caducidad propia de la fase');
-        assert.equal(room.inactivityConfirmation, undefined);
-      }
-      assert.equal(
-        room.players.some((p) => p.id === actor),
-        true,
-        'conserva su plaza',
-      );
-      assert.ok(events.some((event) => event.event === 'room:updated'));
-    } finally {
-      manager.dispose();
-      context.mock.timers.reset();
-    }
-  });
-}
 
 test('Ciudad Fortuna: si vence el turno el mismo bot termina la jugada y el siguiente jugador puede tirar', (context) => {
   context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });

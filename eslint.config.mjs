@@ -17,7 +17,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['packages/sobremesa-logic/test/**/*.ts', 'tests/browser/settings-and-motion.spec.ts'],
+    files: ['packages/sobremesa-logic/test/**/*.ts'],
     // Historical heterogeneous test fixtures are separate from production contracts.
     rules: { '@typescript-eslint/no-explicit-any': 'off' },
   },
