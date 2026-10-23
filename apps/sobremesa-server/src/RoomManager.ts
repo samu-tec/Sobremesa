@@ -415,7 +415,19 @@ export class RoomManager {
   handleAction(code: string, id: string, action: unknown) {
     return this.applyAction(code, id, action);
   }
-  private applyAction(code: string, id: string, action: unknown) {
+  handlePlayerAction(code: string, id: string, socketId: string, action: unknown) {
+    const room = this.rooms.get(code);
+    const player = room?.players.find((candidate) => candidate.id === id && !candidate.isBot);
+    if (
+      !room ||
+      this.socketToRoom.get(socketId) !== code ||
+      !player?.connected ||
+      player.socketId !== socketId
+    )
+      return { success: false, error: 'La sesión ya no controla esta plaza.' };
+    return this.applyAction(code, id, action, socketId);
+  }
+  private applyAction(code: string, id: string, action: unknown, humanSocketId?: string) {
     const room = this.rooms.get(code);
     if (!room || room.status !== 'in_game' || !room.players.some((p) => p.id === id))
       return { success: false, error: 'La partida no está en curso.' };
@@ -431,6 +443,9 @@ export class RoomManager {
       const result = room.match.act(id, action);
       if (!result)
         return { success: false, error: 'Ese movimiento no está permitido o no es tu turno.' };
+      const player = room.players.find((candidate) => candidate.id === id);
+      if (humanSocketId && !player?.isBot && player?.connected && player.socketId === humanSocketId)
+        this.clearAutoPlay(room, id);
       this.clearInactivityConfirmation(room);
       room.idleConfirmationUsed.delete(id);
       room.turnVersion++;
@@ -487,7 +502,6 @@ export class RoomManager {
       };
     if (player.socketId && player.socketId !== socketId) {
       const previous = this.io.sockets.sockets.get(player.socketId);
-      this.socketToRoom.delete(player.socketId);
       previous?.leave(code);
       previous?.emit('session:replaced');
       previous?.disconnect(true);

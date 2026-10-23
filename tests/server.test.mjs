@@ -412,6 +412,93 @@ test('La reconexión recupera el control automático y una desconexión antigua 
   }
 });
 
+test('Una acción humana válida recupera el control tras autoplay por inactividad', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
+  const manager = new RoomManager({ to: () => ({ emit() {} }), sockets: { sockets: new Map() } });
+  try {
+    const code = manager.createRoom('Ana', 'a', 'socket-a', 'tictactoe').room.code;
+    manager.joinRoom(code, 'Bruno', 'b', 'socket-b');
+    manager.updateRoomRules(code, 'a', { turnSeconds: 5 });
+    manager.startGame(code, 'a');
+    const room = manager.getRoomBySocket('socket-a');
+    const unattended = room.match.actor();
+    const other = unattended === 'a' ? 'b' : 'a';
+    context.mock.timers.tick(room.turnDeadline - Date.now());
+    assert.equal(room.inactivityConfirmation?.playerId, unattended);
+    context.mock.timers.tick(20000);
+    assert.equal(room.autoPlay.get(unattended)?.mode, 'timeout');
+    assert.equal(room.match.actor(), other, 'el bot completó la jugada que venció');
+
+    const nextMove = () => room.match.state.board.findIndex((cell) => cell === null);
+    assert.equal(
+      manager.handleAction(code, other, { type: 'MAKE_MOVE', index: nextMove() }).success,
+      true,
+    );
+    assert.equal(room.match.actor(), unattended, 'el turno regresa al jugador');
+    assert.ok(room.botLoopTimeout, 'el bot estaba preparado para actuar en su turno');
+
+    const player = room.players.find((candidate) => candidate.id === unattended);
+    const socketAction = (socketId) => {
+      const handlers = new Map();
+      registerSocketHandlers(
+        {},
+        {
+          id: socketId,
+          data: { playerId: unattended },
+          emit() {},
+          on: (event, handler) => handlers.set(event, handler),
+        },
+        manager,
+        {},
+      );
+      return (action, matchId = room.matchId) => {
+        let result;
+        handlers.get('game:action')({ matchId, action }, (response) => {
+          result = response;
+        });
+        return result;
+      };
+    };
+    const currentAction = socketAction(player.socketId);
+    assert.equal(
+      currentAction({ type: 'MAKE_MOVE', index: nextMove() }, 'partida-antigua').success,
+      false,
+      'una acción de otro matchId no recupera la plaza',
+    );
+    assert.equal(room.autoPlay.has(unattended), true);
+    assert.equal(
+      currentAction({
+        type: 'MAKE_MOVE',
+        index: -1,
+      }).success,
+      false,
+      'una acción inválida no acredita que la persona haya vuelto',
+    );
+    assert.equal(room.autoPlay.has(unattended), true);
+    assert.equal(
+      socketAction('socket-antiguo')({
+        type: 'MAKE_MOVE',
+        index: nextMove(),
+      }).success,
+      false,
+      'un socket que ya no controla la plaza no puede recuperarla',
+    );
+    const movesBeforeHumanAction = room.match.state.board.filter(Boolean).length;
+    assert.equal(currentAction({ type: 'MAKE_MOVE', index: nextMove() }).success, true);
+    assert.equal(room.match.state.board.filter(Boolean).length, movesBeforeHumanAction + 1);
+    assert.equal(room.autoPlay.has(unattended), false, 'la acción humana recupera el control');
+    assert.equal(room.botLoopTimeout, undefined, 'se invalida el turno automático pendiente');
+    assert.equal(
+      manager.resolveAutoPlay(code, room.hostId, unattended, 'remove').success,
+      false,
+      'una resolución antigua del anfitrión ya no puede retirar al jugador',
+    );
+  } finally {
+    manager.dispose();
+    context.mock.timers.reset();
+  }
+});
+
 test('Una partida terminada durante la desconexión se recupera sin rearmar relojes ni bots', (context) => {
   context.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 100000 });
   const io = { to: () => ({ emit: () => {} }), sockets: { sockets: new Map() } };

@@ -207,7 +207,9 @@ export function registerSocketHandlers(
     roomAction(data, (c, id) => manager.updateRoomRules(c, id, record(data) ? data.rules : null)),
   );
   on('game:action', (data) =>
-    roomAction(data, (c, id) => manager.handleAction(c, id, record(data) ? data.action : null)),
+    roomAction(data, (c, id) =>
+      manager.handlePlayerAction(c, id, socket.id, record(data) ? data.action : null),
+    ),
   );
   socket.on('disconnect', () => manager.handleDisconnect(socket.id));
 }
