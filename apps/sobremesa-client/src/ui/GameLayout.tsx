@@ -37,6 +37,8 @@ interface GamePresentation {
   notice?: ReactNode;
   clockInActions?: boolean;
   onManagePlayers?: () => void;
+  onResumePlay?: () => void;
+  resumePending?: boolean;
 }
 const GamePresentationContext = createContext<GamePresentation>({});
 
@@ -75,6 +77,7 @@ export function GameLayout({
   onRestart,
   onRemovePlayer,
   onResolveAutoPlay,
+  onResumePlay,
   inactivityPrompt,
   onRespondToInactivity,
   onLeave,
@@ -103,6 +106,7 @@ export function GameLayout({
   onRestart: () => void;
   onRemovePlayer: (id: string) => Promise<boolean>;
   onResolveAutoPlay: (playerId: string, decision: 'keep' | 'remove') => Promise<boolean>;
+  onResumePlay: () => Promise<boolean>;
   inactivityPrompt: InactivityPrompt | null;
   onRespondToInactivity: (decision: 'continue' | 'leave') => Promise<boolean>;
   onLeave: () => void;
@@ -249,6 +253,8 @@ export function GameLayout({
         playerDetails,
         notice,
         onManagePlayers: () => setManagePlayersOpen(true),
+        onResumePlay: () => void onResumePlay(),
+        resumePending: busy,
       }}
     >
       <div
@@ -286,6 +292,7 @@ export function GameLayout({
           room.hostId === myPlayerId &&
           autoPlayReview &&
           autoPlayPlayer &&
+          autoPlayPlayer.id !== myPlayerId &&
           !inactivityPrompt && (
             <Modal title={t('Jugador sin respuesta')} dismissable={false} onClose={() => {}}>
               <p>
@@ -416,14 +423,15 @@ export function GameLayout({
             <section className="group-management">
               <p className="muted">
                 {t(
-                  'Tras 3 minutos puedes mantener a la persona como bot o retirarla. Si no decides durante el minuto siguiente, se aplica el plazo automático de esa ausencia.',
+                  'Tras 3 minutos de ausencia puedes decidir sobre el autoplay; también puedes retirar de inmediato a una persona desconectada.',
                 )}
               </p>
               {room.players
                 .filter((player) => !player.isBot && player.id !== myPlayerId)
                 .map((player) => {
                   const auto = room.autoPlay?.find((entry) => entry.playerId === player.id);
-                  const canRemove = auto?.awaitingHost === true || auto?.permanent === true;
+                  const canRemove =
+                    !player.connected || auto?.awaitingHost === true || auto?.permanent === true;
                   return (
                     <div className="section-row" key={player.id}>
                       <span>
@@ -434,7 +442,7 @@ export function GameLayout({
                             ? t('Esperando decisión del anfitrión')
                             : player.connected
                               ? t('En la sala')
-                              : t('Reconectando…')}
+                              : t('Desconectado')}
                       </span>
                       {auto?.deadline !== null && auto?.deadline !== undefined && (
                         <DeadlineCountdown
@@ -626,6 +634,8 @@ export function PlayersPanel({
       {!presentation.clockInActions && <TurnClock room={room} />}
       {room.players.map((p, index) => {
         const auto = room.autoPlay?.find((entry) => entry.playerId === p.id);
+        const canResume =
+          room.status === 'in_game' && p.id === myPlayerId && !p.isBot && p.connected && !!auto;
         return (
           <div className={`table-player ${active(p.id) ? 'active' : ''}`} key={p.id}>
             <span className={`player-avatar color-${index % 6}`}>
@@ -667,6 +677,16 @@ export function PlayersPanel({
                       : 'Revisión del anfitrión en {0}'
                   }
                 />
+              )}
+              {canResume && presentation.onResumePlay && (
+                <button
+                  className="button small primary resume-play-button"
+                  type="button"
+                  disabled={presentation.resumePending}
+                  onClick={presentation.onResumePlay}
+                >
+                  {presentation.resumePending ? t('Volviendo a jugar…') : t('Volver a jugar')}
+                </button>
               )}
             </div>
             {values?.[p.id] && <strong className="player-value">{values[p.id]}</strong>}

@@ -2515,6 +2515,13 @@ export const en: Record<string, string> = {
     'You already have a room. Reconnect to it or wait for your reservation to expire.',
   'Cambio de sentido': 'Reverse',
   'Gestionar participantes': 'Manage participants',
+  'Volver a jugar': 'Resume playing',
+  'Volviendo a jugar…': 'Resuming…',
+  Desconectado: 'Disconnected',
+  'Puedes retirar a una persona desconectada durante la partida.':
+    'You can remove a disconnected person during a game.',
+  'Tras 3 minutos de ausencia puedes decidir sobre el autoplay; también puedes retirar de inmediato a una persona desconectada.':
+    'After three minutes of absence, you can decide what to do with autoplay; you can also immediately remove someone who is disconnected.',
   Gestionar: 'Manage',
   'Quitar bot': 'Remove bot',
   'Turno automático': 'Automatic turn',
@@ -2546,10 +2553,8 @@ export const en: Record<string, string> = {
     'You need at least {0} participants for this game.',
   'El anfitrión te ha retirado de la sala.': 'The host has removed you from the room.',
   'No puedes retirar a ese participante.': 'You cannot remove this participant.',
-  'Solo puedes retirar a un jugador cuando su autoplay esté pendiente de revisión.':
-    'You can remove a player when their autoplay is awaiting review.',
-  'Tras 3 minutos puedes mantener a la persona como bot o retirarla. Si no decides durante el minuto siguiente, se aplica el plazo automático de esa ausencia.':
-    'After three minutes, you can keep the person as a bot or remove them. If you do not decide within the following minute, the automatic deadline for that absence applies.',
+  'Solo puedes retirar a una persona desconectada durante la partida.':
+    'During a game, you can only remove a disconnected person.',
   'Termina la partida antes de cambiar de juego.': 'Finish the game before changing games.',
   'Juego no válido.': 'Invalid game.',
   'La partida ha cambiado. Usa los controles actuales de la sala.':

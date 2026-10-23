@@ -80,14 +80,19 @@ export class RoomManager {
   private cleanupInterval: NodeJS.Timeout;
   constructor(private io: TypedServer) {
     this.cleanupInterval = setInterval(() => {
-      for (const room of this.rooms.values())
-        if (Date.now() - room.lastActivity > CONFIG.ROOM_MAX_IDLE_TIME_MS)
+      for (const room of this.rooms.values()) {
+        const reservationPending = room.players.some((player) => player.disconnectTimeout);
+        if (!reservationPending && Date.now() - room.lastActivity > CONFIG.ROOM_MAX_IDLE_TIME_MS)
           this.destroyRoom(room.code, 'Sala cerrada tras 6 horas sin actividad.');
+      }
     }, CONFIG.CLEANUP_INTERVAL_MS);
     this.cleanupInterval.unref();
   }
   getRoomsCount() {
     return this.rooms.size;
+  }
+  private recordHumanActivity(room: ActiveRoom) {
+    room.lastActivity = Date.now();
   }
   generateRoomCode(): string {
     for (let attempts = 0; attempts < 1000; attempts++) {
@@ -159,7 +164,7 @@ export class RoomManager {
       return { success: false, error: 'Esta sala está completa.' };
     room.players.push({ id, name, isBot: false, connected: true, isHost: false, socketId });
     this.socketToRoom.set(socketId, code);
-    room.lastActivity = Date.now();
+    this.recordHumanActivity(room);
     this.broadcastRoomUpdate(room);
     return { success: true, room: this.getRoomInfo(room) };
   }
@@ -188,7 +193,7 @@ export class RoomManager {
       isHost: false,
       socketId: null,
     });
-    room.lastActivity = Date.now();
+    this.recordHumanActivity(room);
     this.broadcastRoomUpdate(room);
     return { success: true };
   }
@@ -197,7 +202,7 @@ export class RoomManager {
     const index = room.players.findIndex((p) => p.id === botId && p.isBot);
     if (index < 0) return { success: false, error: 'No se encontró ese bot.' };
     room.players.splice(index, 1);
-    room.lastActivity = Date.now();
+    this.recordHumanActivity(room);
     this.broadcastRoomUpdate(room);
     return { success: true };
   }
@@ -208,17 +213,34 @@ export class RoomManager {
     const player = room.players.find((p) => p.id === playerId && !p.isBot);
     if (!player || playerId === hostId)
       return { success: false, error: 'No puedes retirar a ese participante.' };
-    const autoPlay = room.autoPlay.get(playerId);
-    if (
-      room.status === 'in_game' &&
-      (player.connected || (!autoPlay?.awaitingHost && !autoPlay?.permanent))
-    )
+    if (room.status === 'in_game' && player.connected) {
+      const autoPlay = room.autoPlay.get(playerId);
+      if (autoPlay?.awaitingHost || autoPlay?.permanent)
+        return this.resolveAutoPlay(code, hostId, playerId, 'remove');
       return {
         success: false,
-        error: 'Solo puedes retirar a un jugador cuando su autoplay esté pendiente de revisión.',
+        error: 'Solo puedes retirar a una persona desconectada durante la partida.',
       };
-    if (room.status === 'in_game') return this.resolveAutoPlay(code, hostId, playerId, 'remove');
+    }
+    if (room.status === 'in_game' && player.socketId !== null)
+      return {
+        success: false,
+        error: 'Solo puedes retirar a una persona desconectada durante la partida.',
+      };
+    if (room.status === 'in_game')
+      return this.runMatchOperation(room, 'retirada de desconectado', () => {
+        this.recordHumanActivity(room);
+        this.clearAutoPlay(room, playerId);
+        this.removeUnresponsivePlayer(
+          room,
+          playerId,
+          'El anfitrión te ha retirado de la partida.',
+          '{0} ha salido de la partida por decisión del anfitrión.',
+        );
+        return { success: true };
+      });
     return this.runMatchOperation(room, 'retirada', () => {
+      this.recordHumanActivity(room);
       if (player.socketId) {
         const socket = this.io.sockets.sockets.get(player.socketId);
         socket?.leave(code);
@@ -234,6 +256,7 @@ export class RoomManager {
     const player = room?.players.find((p) => p.id === id && !p.isBot);
     if (!room || !player) return { success: false, error: 'No estás en esta sala.' };
     player.name = name;
+    this.recordHumanActivity(room);
     this.broadcastRoomUpdate(room);
     return { success: true };
   }
@@ -246,6 +269,7 @@ export class RoomManager {
       return { success: false, error: 'La decisión de este jugador ya no está pendiente.' };
     if (decision === 'remove') {
       return this.runMatchOperation(room, 'retirada por autoplay', () => {
+        this.recordHumanActivity(room);
         this.clearAutoPlay(room, playerId);
         this.removeUnresponsivePlayer(
           room,
@@ -261,7 +285,7 @@ export class RoomManager {
     entry.permanent = true;
     entry.deadline = null;
     entry.awaitingHost = false;
-    room.lastActivity = Date.now();
+    this.recordHumanActivity(room);
     if (this.actor(room) === playerId) this.armTurnClock(room, true);
     this.broadcastRoomUpdate(room);
     this.checkAndTriggerBotTurn(room);
@@ -275,7 +299,10 @@ export class RoomManager {
       return { success: false, error: 'Termina la partida antes de cambiar de juego.' };
     const definition = GAME_CATALOG.find((g) => g.id === gameType);
     if (!definition) return { success: false, error: 'Juego no válido.' };
-    if (gameType === room.gameType) return { success: true };
+    if (gameType === room.gameType) {
+      this.recordHumanActivity(room);
+      return { success: true };
+    }
     return this.runMatchOperation(room, 'cambio de juego', () => {
       const runtime = gameFactories[gameType]();
       const settings = {
@@ -304,7 +331,7 @@ export class RoomManager {
       room.customRules = settings;
       room.matchId = randomUUID();
       room.status = 'waiting';
-      room.lastActivity = Date.now();
+      this.recordHumanActivity(room);
       this.broadcastRoomUpdate(room);
       return { success: true };
     });
@@ -345,7 +372,7 @@ export class RoomManager {
       room.configureRules(next);
       room.turnSeconds = seconds;
       room.customRules = next;
-      room.lastActivity = Date.now();
+      this.recordHumanActivity(room);
       this.broadcastRoomUpdate(room);
       return { success: true };
     });
@@ -385,7 +412,7 @@ export class RoomManager {
       room.matchId = randomUUID();
       room.turnVersion++;
       room.status = 'in_game';
-      room.lastActivity = Date.now();
+      this.recordHumanActivity(room);
       this.armTurnClock(room, true);
       this.broadcastRoomUpdate(room);
       this.broadcastGameState(room, true);
@@ -406,7 +433,7 @@ export class RoomManager {
       room.matchId = randomUUID();
       room.turnVersion++;
       room.match.reset();
-      room.lastActivity = Date.now();
+      this.recordHumanActivity(room);
       if (room.players.length > 1) room.players.push(room.players.shift()!);
       this.broadcastRoomUpdate(room);
       return { success: true };
@@ -426,6 +453,34 @@ export class RoomManager {
     )
       return { success: false, error: 'La sesión ya no controla esta plaza.' };
     return this.applyAction(code, id, action, socketId);
+  }
+  resumePlayerControl(code: string, id: string, socketId: string, matchId: string) {
+    const room = this.rooms.get(code);
+    const player = room?.players.find((candidate) => candidate.id === id && !candidate.isBot);
+    const entry = room?.autoPlay.get(id);
+    if (
+      !room ||
+      room.status !== 'in_game' ||
+      room.matchId !== matchId ||
+      this.socketToRoom.get(socketId) !== code ||
+      !player?.connected ||
+      player.socketId !== socketId ||
+      !entry
+    )
+      return { success: false, error: 'Esta plaza ya no puede recuperar el control.' };
+
+    const wasCurrentActor = this.actor(room) === id;
+    this.clearAutoPlay(room, id);
+    this.clearInactivityConfirmation(room, id);
+    this.recordHumanActivity(room);
+    // Discard any queued autoplay callback. Its entry identity check also makes an
+    // already queued callback harmless; re-arm only the current actor's work.
+    clearTimeout(room.botLoopTimeout);
+    room.botLoopTimeout = undefined;
+    if (wasCurrentActor) this.armTurnClock(room, true);
+    this.broadcastRoomUpdate(room);
+    if (!wasCurrentActor) this.checkAndTriggerBotTurn(room);
+    return { success: true };
   }
   private applyAction(code: string, id: string, action: unknown, humanSocketId?: string) {
     const room = this.rooms.get(code);
@@ -451,7 +506,8 @@ export class RoomManager {
       room.turnVersion++;
       // The game policy decides whether a same-player action starts a new turn.
       this.armTurnClock(room, result.completed || previousActor !== this.actor(room));
-      if (!room.players.find((p) => p.id === id)?.isBot) room.lastActivity = Date.now();
+      if (humanSocketId && player?.connected && player.socketId === humanSocketId)
+        this.recordHumanActivity(room);
       this.finishIfNeeded(room);
       this.broadcastRoomUpdate(room);
       this.broadcastGameState(room);
@@ -515,7 +571,6 @@ export class RoomManager {
     if (!room.players.some((candidate) => candidate.id === room.hostId && candidate.connected))
       room.hostId = id;
     this.socketToRoom.set(socketId, code);
-    room.lastActivity = Date.now();
     return this.runMatchOperation(room, 'reconexión', () => {
       const prompt = room.inactivityConfirmation;
       if (!room.turnTimeout && !prompt) this.armTurnClock(room);
@@ -539,7 +594,6 @@ export class RoomManager {
     this.clearInactivityConfirmation(room, player.id);
     player.connected = false;
     player.socketId = null;
-    room.lastActivity = Date.now();
     clearTimeout(player.disconnectTimeout);
     if (room.status === 'in_game' && !player.isBot) {
       this.startAutoPlay(room, 'disconnect', player.id);
@@ -572,7 +626,11 @@ export class RoomManager {
     this.socketToRoom.delete(socketId);
     if (!room) return;
     const player = room.players.find((p) => p.socketId === socketId);
-    if (player) this.runMatchOperation(room, 'abandono', () => this.removePlayer(room, player.id));
+    if (player)
+      this.runMatchOperation(room, 'abandono', () => {
+        this.recordHumanActivity(room);
+        this.removePlayer(room, player.id);
+      });
   }
   private removePlayer(room: ActiveRoom, id: string) {
     if (!this.rooms.has(room.code)) return;
@@ -605,7 +663,6 @@ export class RoomManager {
       this.broadcastGameState(room);
       this.checkAndTriggerBotTurn(room);
     }
-    room.lastActivity = Date.now();
     this.broadcastRoomUpdate(room);
   }
   private actor(room: ActiveRoom): string {
@@ -711,7 +768,7 @@ export class RoomManager {
       return { success: false, error: 'La confirmación ya no está vigente.' };
     }
     this.clearInactivityConfirmation(room, playerId);
-    room.lastActivity = Date.now();
+    this.recordHumanActivity(room);
     if (decision === 'leave') {
       this.removeUnresponsivePlayer(
         room,

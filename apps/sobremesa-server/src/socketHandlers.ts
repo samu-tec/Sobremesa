@@ -160,6 +160,13 @@ export function registerSocketHandlers(
       ? roomAction(data, (c, id) => manager.removeHuman(c, id, data.playerId as string))
       : { success: false, error: 'Participante no válido.' },
   );
+  on('room:resume_play', (data) =>
+    record(data) && typeof data.matchId === 'string'
+      ? roomAction(data, (c, id) =>
+          manager.resumePlayerControl(c, id, socket.id, data.matchId as string),
+        )
+      : { success: false, error: 'Partida no válida.' },
+  );
   on('room:resolve_autoplay', (data) =>
     record(data) &&
     typeof data.playerId === 'string' &&

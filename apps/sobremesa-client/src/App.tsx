@@ -650,6 +650,15 @@ export function App() {
                 );
               })
             }
+            onResumePlay={() =>
+              run(async () => {
+                check(
+                  await request<Result>((done) =>
+                    socket.emit('room:resume_play', { matchId: room.matchId }, done),
+                  ),
+                );
+              })
+            }
             onLeave={leave}
             onError={setError}
           >

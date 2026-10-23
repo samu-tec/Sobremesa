@@ -49,3 +49,7 @@ El [RD 193/2023](https://www.boe.es/buscar/act.php?id=BOE-A-2023-7417) puede ser
 En las comprobaciones locales WebKit consume Escape al salir de pantalla completa nativa antes de enviarlo a la web. El diálogo conserva el foco y se puede cerrar con un segundo Escape o su botón. En la alternativa CSS, Escape cierra primero el diálogo. Esta diferencia depende del navegador y debe comprobarse también con dispositivos reales.
 
 Safari en macOS puede omitir botones al usar Tab según la preferencia nativa de navegación. Opción+Tab incluye los controles nativos; la prueba de configuración utiliza esa combinación en WebKit y verifica foco, activación y restauración de valores. Los diálogos mantienen su recorrido propio con Tab y Shift+Tab, independiente de esa preferencia.
+
+Durante una partida, «Volver a jugar» aparece únicamente en la fila del participante autenticado cuando su plaza está en autoplay. El botón conserva foco visible, admite teclado y tiene un objetivo táctil mínimo de 44 px. La confirmación para retirar a alguien desconectado usa el diálogo común y permite cancelar; el servidor vuelve a validar la conexión al confirmar.
+
+Durante una partida, «Volver a jugar» aparece únicamente en la fila del participante autenticado cuando su plaza está en autoplay. El botón conserva foco visible, admite teclado y tiene un objetivo táctil mínimo de 44 px. La confirmación para retirar a un desconectado usa el diálogo común y permite cancelar; el servidor vuelve a validar la conexión al confirmar.

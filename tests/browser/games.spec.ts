@@ -242,7 +242,10 @@ for (const width of [1280, 320])
         mahjong: '.mahjong-hand button:enabled',
       };
       const source = selectionSources[id];
-      if (source) {
+      if (
+        source &&
+        (!['dominoes', 'cinquillo'].includes(id) || (await page.locator(source).count()) > 0)
+      ) {
         const button = page.locator(source).first();
         await button.click();
         await expect(
@@ -276,15 +279,23 @@ for (const width of [1280, 320])
         await expect(page.getByRole('dialog')).toContainText('Cartas ganadas');
       }
       if (id === 'cinquillo') {
-        const cards = await page.locator('.spanish-hand > button').count();
-        await page.locator('.spanish-hand > button:enabled').first().click();
-        await page.getByRole('button', { name: 'Colocar carta', exact: true }).focus();
-        await page.keyboard.press('Enter');
-        await expect(page.locator('.spanish-hand > button')).toHaveCount(cards - 1);
-        await expect(page.locator('.cinquillo-slot .spanish-card').first()).toHaveCSS(
-          'color',
-          'rgb(36, 59, 50)',
-        );
+        const playable = page.locator('.spanish-hand > button:enabled');
+        if (await playable.count()) {
+          const cards = await page.locator('.spanish-hand > button').count();
+          await playable.first().click();
+          await page.getByRole('button', { name: 'Colocar carta', exact: true }).focus();
+          await page.keyboard.press('Enter');
+          await expect(page.locator('.spanish-hand > button')).toHaveCount(cards - 1);
+          await expect(page.locator('.cinquillo-slot .spanish-card').first()).toHaveCSS(
+            'color',
+            'rgb(36, 59, 50)',
+          );
+        } else {
+          await page.getByRole('button', { name: 'Pasar', exact: true }).click();
+          await expect(page.getByRole('status')).toHaveText(
+            'Pasa sin cartas que se puedan colocar.',
+          );
+        }
       }
       if (id === 'poker') {
         await expect(page.locator('.poker-hand').first().locator('.poker-card')).toHaveCount(2);

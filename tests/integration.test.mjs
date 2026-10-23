@@ -74,6 +74,7 @@ const ack = (socket, event, ...data) => {
       'room:start_game',
       'room:restart_game',
       'room:remove_player',
+      'room:resume_play',
       'room:change_game',
       'room:resolve_autoplay',
       'room:respond_inactivity',
@@ -137,6 +138,20 @@ test('Socket: solo el anfitrión puede resolver una ausencia automática', async
   await ack(host.socket, 'room:start_game');
   assert.equal(
     (
+      await ack(host.socket, 'room:resume_play', {
+        matchId: 'partida-anterior',
+      })
+    ).success,
+    false,
+    'una petición con matchId anterior se rechaza',
+  );
+  assert.equal(
+    (await ack(guest.socket, 'room:resume_play', {})).success,
+    false,
+    'una persona sin autoplay no puede recuperar una plaza',
+  );
+  assert.equal(
+    (
       await ack(guest.socket, 'room:resolve_autoplay', {
         playerId: host.playerId,
         decision: 'keep',
@@ -157,6 +172,61 @@ test('Socket: solo el anfitrión puede resolver una ausencia automática', async
   );
   await ack(host.socket, 'room:leave');
   await ack(guest.socket, 'room:leave');
+});
+
+test('Socket: el anfitrión solo puede retirar de inmediato a una persona ya desconectada', async () => {
+  const host = await connect();
+  const guest = await connect();
+  const room = await create(host);
+  await ack(guest.socket, 'room:join', { roomCode: room.code, playerName: 'Bruno' });
+  await ack(host.socket, 'room:start_game');
+
+  assert.equal(
+    (await ack(host.socket, 'room:remove_player', { playerId: guest.playerId })).success,
+    false,
+    'una plaza conectada no puede retirarse por este mecanismo',
+  );
+  const waitForDisconnect = () =>
+    new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        host.socket.off('room:updated', onRoomUpdate);
+        reject(new Error('El servidor no publicó la desconexión del invitado'));
+      }, 3000);
+      const onRoomUpdate = (updated) => {
+        if (!updated.players.some((player) => player.id === guest.playerId && !player.connected))
+          return;
+        clearTimeout(timeout);
+        host.socket.off('room:updated', onRoomUpdate);
+        resolve();
+      };
+      host.socket.on('room:updated', onRoomUpdate);
+    });
+  guest.socket.disconnect();
+  await waitForDisconnect();
+  const returned = await connect(guest.token);
+  assert.equal(
+    (await ack(returned.socket, 'game:reconnect', { roomCode: room.code })).success,
+    true,
+  );
+  assert.equal(
+    (await ack(host.socket, 'room:remove_player', { playerId: guest.playerId })).success,
+    false,
+    'una reconexión entre la confirmación y la petición invalida la retirada',
+  );
+  returned.socket.disconnect();
+  await waitForDisconnect();
+  assert.equal(
+    (await ack(host.socket, 'room:remove_player', { playerId: guest.playerId })).success,
+    true,
+    'no hace falta esperar la revisión del autoplay',
+  );
+  const replaced = await connect(guest.token);
+  assert.equal(
+    (await ack(replaced.socket, 'game:reconnect', { roomCode: room.code })).success,
+    false,
+    'la retirada definitiva elimina la reserva de esa sesión',
+  );
+  await ack(host.socket, 'room:leave');
 });
 
 test('HTTP: cabeceras, catálogo de treinta juegos y rutas desconocidas', async () => {

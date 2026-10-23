@@ -292,6 +292,10 @@
   color: #31552d;
   font-weight: 650;
 }
+.game-page .resume-play-button {
+  min-height: 44px;
+  margin-top: 8px;
+}
 .phase-label {
   padding: 8px;
   border-radius: 6px;

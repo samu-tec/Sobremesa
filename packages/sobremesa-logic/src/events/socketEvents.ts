@@ -59,6 +59,7 @@ export interface ClientToServerEvents {
     data: RoomContext & { playerId: string },
     callback: (res: Result) => void,
   ) => void;
+  'room:resume_play': (context: RoomContext, callback: (res: Result) => void) => void;
   'room:resolve_autoplay': (
     data: RoomContext & { playerId: string; decision: 'keep' | 'remove' },
     callback: (res: Result) => void,

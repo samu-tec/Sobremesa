@@ -251,7 +251,7 @@ test('Un estado o inicio tardío de otro motor no reemplaza la partida actual', 
   await expect(page.locator('.ttt-board')).toHaveCount(0);
 });
 
-test('Anfitrión: gestiona jugadores desde la mesa y espera el plazo de desconexión', async ({
+test('Anfitrión: puede confirmar la retirada anticipada de un desconectado', async ({
   page,
   browser,
 }) => {
@@ -275,8 +275,10 @@ test('Anfitrión: gestiona jugadores desde la mesa y espera el plazo de desconex
     await page.getByRole('button', { name: 'Gestionar participantes', exact: true }).click();
     const management = page.getByRole('dialog', { name: 'Gestionar participantes', exact: true });
     await expect(management).toContainText('Bruno');
-    await expect(management.getByRole('button', { name: 'Retirar a Bruno' })).toHaveCount(0);
-    await page.keyboard.press('Escape');
+    await management.getByRole('button', { name: 'Retirar a Bruno' }).click();
+    const confirmation = page.getByRole('dialog', { name: '¿Retirar a este participante?' });
+    await expect(confirmation).toContainText('El juego aplicará su política de abandono');
+    await confirmation.getByRole('button', { name: 'Cancelar', exact: true }).click();
     await context.setOffline(false);
     await guest.evaluate(() => window.dispatchEvent(new Event('online')));
     await expect(page.locator('.players-panel .table-player')).toHaveCount(2);

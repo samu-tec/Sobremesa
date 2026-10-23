@@ -1,12 +1,14 @@
 import { test, expect, type Page } from '@playwright/test';
 import { accessibilityAudit } from './accessibility';
 
-async function ready(page: Page) {
+async function ready(page: Page, name = 'Ana') {
   await page.addInitScript(() => {
     localStorage.setItem('sobremesa.locale', 'es');
     localStorage.setItem('sobremesa.profileConfirmed', 'true');
-    localStorage.setItem('sobremesa.name', 'Ana');
   });
+  await page.addInitScript((playerName) => {
+    localStorage.setItem('sobremesa.name', playerName);
+  }, name);
   await page.goto('/');
   await expect(page.locator('.connection')).toBeVisible();
   await expect(page.locator('.connection')).toHaveAttribute('aria-label', 'Listo para jugar');
@@ -215,6 +217,80 @@ test('Pantalla completa conserva diálogos y se recupera al salir, con alternati
     if (native) await page.evaluate(() => document.exitFullscreen());
     else await page.keyboard.press('Escape');
     await expect(page.locator('.game-page')).not.toHaveClass(/game-immersive/);
+  }
+});
+
+test('Volver a jugar solo aparece a quien está en autoplay y funciona por teclado en móvil', async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(90000);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await ready(page);
+  await page.locator('.game-tictactoe .play-friends').click();
+  const roomCode = (await page.locator('.room-code-text').innerText()).trim();
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  try {
+    const guest = await context.newPage();
+    await ready(guest, 'Bruno');
+    await guest.goto(`/?room=${roomCode}`);
+    await guest.getByRole('button', { name: 'Unirme a la partida', exact: true }).click();
+    await expect(page.locator('.waiting-player:not(.empty-seat)')).toHaveCount(2);
+    await page.locator('#turn-seconds').selectOption('30');
+    await expect(page.locator('#turn-seconds')).toHaveValue('30');
+    await page.getByRole('button', { name: 'Empezar partida', exact: true }).click();
+    await expect(page.locator('.ttt-board')).toBeVisible();
+    await expect(guest.locator('.ttt-board')).toBeVisible();
+
+    const activeName = (
+      await page.locator('.table-player.active > div > strong').innerText()
+    ).trim();
+    const returningPage = activeName.includes('Ana') ? page : guest;
+    const otherPage = returningPage === page ? guest : page;
+    const returnButton = returningPage.getByRole('button', { name: 'Volver a jugar', exact: true });
+    await expect(returnButton).toBeVisible({ timeout: 80000 });
+    await expect(
+      otherPage.getByRole('button', { name: 'Volver a jugar', exact: true }),
+    ).toHaveCount(0);
+    const actorBefore = (
+      await returningPage.locator('.table-player.active > div > strong').innerText()
+    ).trim();
+    const boardBefore = await returningPage
+      .locator('.ttt-board button')
+      .evaluateAll((buttons) => buttons.map((button) => button.textContent));
+
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 360, height: 640 },
+    ]) {
+      await returningPage.setViewportSize(viewport);
+      await expect(returnButton).toBeVisible();
+      const buttonBox = (await returnButton.boundingBox())!;
+      expect(buttonBox.width).toBeGreaterThanOrEqual(44);
+      expect(buttonBox.height).toBeGreaterThanOrEqual(44);
+      expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(viewport.width + 1);
+      const boardBox = (await returningPage.locator('.ttt-board').boundingBox())!;
+      expect(
+        buttonBox.x + buttonBox.width <= boardBox.x ||
+          boardBox.x + boardBox.width <= buttonBox.x ||
+          buttonBox.y + buttonBox.height <= boardBox.y ||
+          boardBox.y + boardBox.height <= buttonBox.y,
+        'el control no cubre el tablero',
+      ).toBe(true);
+    }
+    await returnButton.focus();
+    await returnButton.press('Enter');
+    await expect(returnButton).toHaveCount(0);
+    expect(
+      await returningPage
+        .locator('.ttt-board button')
+        .evaluateAll((buttons) => buttons.map((button) => button.textContent)),
+    ).toEqual(boardBefore);
+    await expect(returningPage.locator('.table-player.active > div > strong')).toHaveText(
+      actorBefore,
+    );
+  } finally {
+    await context.close();
   }
 });
 
